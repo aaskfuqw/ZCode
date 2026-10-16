@@ -76,7 +76,7 @@ describe("desktop e2e process cleanup", () => {
     );
   });
 
-  it("waits for each window Host once and keeps update install on the strict policy", () => {
+  it("waits for each window Host once on the strict shutdown policy", () => {
     const mainSource = readFileSync(new URL("../src/main/index.ts", import.meta.url), "utf8");
 
     // R1 后 remote session 是窗口 Host 内资源；manager 只清理请求关联，真正的连接释放由
@@ -89,11 +89,6 @@ describe("desktop e2e process cleanup", () => {
     );
     expect(mainSource).toMatch(
       /async function prepareAppQuit[\s\S]*?stopDesktopResourceTelemetry\(\{ flushPendingWindows: true \}\)/u,
-    );
-    // 修复原因：更新安装现在复用唯一的 prepareAppQuit 屏障并显式选择严格预算；旧断言要求
-    // Windows 专项资源扫描再次等待 Remote Host，已经与“只执行一次 Host 屏障”的事实冲突。
-    expect(mainSource).toMatch(
-      /prepareAppQuit\("auto-update quitAndInstall", "update-install"\)[\s\S]*?prepareWindowsProcessesForUpdateInstall\(\)/u,
     );
     expect(mainSource).toMatch(
       /async function prepareAppQuit[\s\S]*?selectAppShutdownPolicy[\s\S]*?if \(hasPreparedAppQuit\)[\s\S]*?if \(appQuitPreparationInFlight\)/u,

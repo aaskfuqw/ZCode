@@ -114,7 +114,7 @@
 - 从 `042a36cad2` 快进至本轮在线获取的 `origin/staging`：`87d6a7b2fc`，纳入 81 个提交。
 - 原有未提交改动与 8 个未跟踪功能文件全部恢复；两份对话测试目录文档的冲突保留上游内容并追加模式章节。演示目录 `mode-output-demo1/` 保留。
 - `pnpm install --frozen-lockfile --prefer-offline`、`pnpm typecheck`、`pnpm lint`（0 errors、41 warnings）、架构检查（0 violations）、基线新鲜度检查和 `git diff --check` 通过。
-- 工作树相关单测：413 个文件，410 passed / 3 failed；4157 passed / 4 timeout / 3 skipped。超时涉及自动更新、设置写入及 SSH 配置读取。
+- 工作树相关单测：413 个文件，410 passed / 3 failed；4157 passed / 4 timeout / 3 skipped。超时涉及设置写入及 SSH 配置读取。
 - 首轮结束后，以 `--maxWorkers=1` 单独复跑上述 3 个测试文件：93/93 全部通过，未放宽超时限制，也未修改对应业务逻辑。两轮存在重叠，不相加计数。
 - 本轮未重跑完整 Electron E2E；前述 E2E 证据属于旧基线。未创建 commit 或推送。
 

@@ -3,7 +3,7 @@
 ## 范围
 
 用户确认新增独立 ClientConfigService，但先不迁移旧链路。首期仅把本 MR 新增的插件排序
-读取从 CodingPlanSubscriptionService 移出；套餐、安全校验、强更、闲时、帮助、Built-in、
+读取从 CodingPlanSubscriptionService 移出；套餐、安全校验、闲时、帮助、Built-in、
 Desktop Main 灰度与独立 CLI 的原有请求、缓存、鉴权和失败策略保持原样。
 Nacos 的 pluginStoreOrder 格式不变，无需调整已发布配置。
 

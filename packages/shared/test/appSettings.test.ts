@@ -206,34 +206,6 @@ describe("app settings", () => {
     ).toThrow();
   });
 
-  it("preserves localized pending post-update release notes", () => {
-    const payload = {
-      version: "3.1.4",
-      title: "Release v3.1.4",
-      markdown: "## 新功能\n- 中文说明",
-      releaseDate: "2026-06-23T13:48:54.438Z",
-      releaseNotesByLocale: {
-        "zh-CN": {
-          title: "ZCode v3.1.4",
-          markdown: "## 新功能\n- 中文说明",
-        },
-        "en-US": {
-          title: "ZCode v3.1.4",
-          markdown: "## New Features\n- English notes",
-        },
-      },
-    };
-
-    expect(
-      appSettingsSchema.parse({ pendingPostUpdateReleaseNotes: payload })
-        .pendingPostUpdateReleaseNotes,
-    ).toEqual(payload);
-    expect(
-      appSettingsPatchSchema.parse({ pendingPostUpdateReleaseNotes: payload })
-        .pendingPostUpdateReleaseNotes,
-    ).toEqual(payload);
-  });
-
   it("persists only stable Web remote control startup context fields", () => {
     const context = {
       workspacePath: "/workspace/demo",

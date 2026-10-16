@@ -73,7 +73,7 @@ flowchart LR
   通过 `client-config` 普通 RPC 频道暴露；契约见 `docs/client-config-service.md`。
 - 窗口 Local Host 配置服务是本链路唯一请求/TTL owner；远程 workspace 与手机附件复用
   同一实例。缓存按 endpoint/version/platform 隔离，1 小时有效；UI 不加 TTL 缓存。
-- 仅迁移本 MR 新增的插件读取；订阅、安全校验、强更、闲时、帮助和 Built-in 的旧链路保持原样。
+- 仅迁移本 MR 新增的插件读取；订阅、安全校验、闲时、帮助和 Built-in 的旧链路保持原样。
 - 打开商店时异步读取，目录立即按默认规则显示；配置到达后按当前模式重排。
 - 切换模式只重新计算，不请求、不覆盖界面偏好，不重置展开状态。
 - 手动刷新并行补拉排序配置；不等待配置才刷新目录。读取失败保留当前有效投影，首次失败用默认。

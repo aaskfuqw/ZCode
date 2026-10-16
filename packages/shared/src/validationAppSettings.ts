@@ -40,7 +40,6 @@ const zcodeInteractionBehaviorSchema = z.enum(["queue", "guide"]);
 // launch.md「The user's choice」：读文件时未知取值（降级后读到新版本写的值）按「跟随」处理，
 // 不能让一个偏好字段把整份设置读坏。
 const dynamicWorkflowModeSettingSchema = z.enum(DYNAMIC_WORKFLOW_MODES).optional().catch(undefined);
-const electronReleaseChannelSchema = z.enum(["stable", "preview"]);
 const desktopZoomLevelSchema = z.number().int().min(-3).max(5);
 const desktopWindowSizeSchema = z.object({
   width: z.number().int().min(480),
@@ -64,23 +63,6 @@ const enabledBuiltinAgentCliProvidersSchema = z
   .array(z.enum(["claude", "opencode", "gemini", "codex", "glm"]))
   .transform(() => [...ZCODE_ENABLED_AGENT_PROVIDERS]);
 const providerFamilyDomainSchema = z.enum(["zai", "bigmodel"]);
-
-export const postUpdateReleaseNotesPayloadSchema = z.object({
-  version: nonEmptyStringSchema,
-  title: nonEmptyStringSchema,
-  markdown: nonEmptyStringSchema,
-  releaseDate: nonEmptyStringSchema.optional(),
-  releaseNotesByLocale: z
-    .partialRecord(
-      localeSchema,
-      z.object({ title: nonEmptyStringSchema, markdown: nonEmptyStringSchema }),
-    )
-    .optional(),
-});
-
-const skippedElectronUpdateVersionsSchema = z
-  .partialRecord(electronReleaseChannelSchema, nonEmptyStringSchema)
-  .default({});
 
 const remoteWorkspaceTargetSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -515,10 +497,6 @@ const appSettingsObjectSchema = z.object({
   lastActiveTabIndex: z.number().int().nonnegative().default(0),
   lastActiveTaskByWorkspace: z.record(z.string(), z.string()).optional(),
   dataBaseDir: z.string().trim().min(1).optional(),
-  pendingPostUpdateReleaseNotes: postUpdateReleaseNotesPayloadSchema.optional(),
-  receivePreviewUpdates: z.boolean().default(false),
-  autoDownloadAndInstallUpdates: z.boolean().default(false),
-  skippedElectronUpdateVersions: skippedElectronUpdateVersionsSchema,
   settingsSyncFirstRunPromptHandled: z.boolean().optional(),
   webRemoteControlExternalRelayDevice: webRemoteControlExternalRelayDeviceSchema.optional(),
   webRemoteControlLastEnabledContext: webRemoteControlLastEnabledContextSchema.optional(),
@@ -608,12 +586,6 @@ export const appSettingsPatchSchema = z.object({
   lastActiveTabIndex: z.number().int().nonnegative().optional(),
   lastActiveTaskByWorkspace: z.record(z.string(), z.string()).optional(),
   dataBaseDir: z.string().trim().min(1).optional(),
-  pendingPostUpdateReleaseNotes: postUpdateReleaseNotesPayloadSchema.optional(),
-  receivePreviewUpdates: z.boolean().optional(),
-  autoDownloadAndInstallUpdates: z.boolean().optional(),
-  skippedElectronUpdateVersions: z
-    .partialRecord(electronReleaseChannelSchema, nonEmptyStringSchema)
-    .optional(),
   settingsSyncFirstRunPromptHandled: z.boolean().optional(),
   webRemoteControlExternalRelayDevice: webRemoteControlExternalRelayDeviceSchema.optional(),
   webRemoteControlLastEnabledContext: webRemoteControlLastEnabledContextSchema.optional(),

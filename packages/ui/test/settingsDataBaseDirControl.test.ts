@@ -187,8 +187,6 @@ async function renderGeneralSection(
       closeToTrayOnWindows: true,
       keepAwakeWhileRunning: false,
       isDesktop: true,
-      receivePreviewUpdates: false,
-      autoDownloadAndInstallUpdates: false,
       desktopChromiumHardwareAccelerationEnabled: true,
       dataBaseDir: "/Users/test",
       terminalInheritSystemProfile: true,

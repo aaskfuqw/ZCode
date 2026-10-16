@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "inputHashEncoding": "UTF-8 with CRLF normalized to LF; notice and source snapshot hashes remain byte-exact",
   "scope": "Production dependency union across current workspace projects, copied source/assets and native tools; not a per-installer SBOM or a certification of all licensing obligations.",
-  "noticesSha256": "5c9b538d09bd3769e6630db4032deb4f8ae01fb518e61712618bbef91f640057",
+  "noticesSha256": "c3aa1d3418a9ab40b0f4aecef5e35e144bc52576b94c39eb5b15a0a61cecd162",
   "inputs": {
     ".agents/skills/agent-browser/references/authentication.md": "e2c3b0f4a1dc1368dee821f03c000d818a48421d09f3872525dddffe73f2112b",
     ".agents/skills/agent-browser/references/commands.md": "17522fc56d742663f47231ff06c4811abc87e12c7f78e11f94d253ddd540a909",
@@ -434,7 +434,7 @@
     "docs/knip/docs/tsconfig.json": "662b1f10a5e572b49a45669e4be9ee46c22f987dcf277c204948777b367df1cd",
     "package.json": "aa5c2171f1240a90d5013db4ffc38695da8629485167c726ef12f79dd5bdcc32",
     "packages/client/package.json": "e76f441549130dc3e5e68072a36b6cb9044e19a6625f1e813f19a4def2b1b689",
-    "packages/desktop/package.json": "f748cb6e1b7db2813153290b8b25aba67badee60de2393169fe78f144de6880b",
+    "packages/desktop/package.json": "eec6d64eabc5dd884d5cceb6f3e327e25c443eaf37797c481667e60e685d2035",
     "packages/desktop/src/renderer/public/material-icons/3d.svg": "9527b849f0fba57ca7640e2717b3a19cb5f5e046712cbbd8b75d73af338c68fb",
     "packages/desktop/src/renderer/public/material-icons/abap.svg": "1335bd7eb9a0ed49deb622330d680c2e97731726a7a5eee8e4f46dc1e5db4de4",
     "packages/desktop/src/renderer/public/material-icons/abc.svg": "d1a68020e8f020ef29dca5f94dc8613b7ae8fb5b212d8b1cc23b0f975ac7acda",
@@ -2882,7 +2882,7 @@
     "patches/@arms__rum-electron@0.0.3.patch": "36855354851ea495bc47a03340b0484ff62836b739cad56904b8a69f18e2ae97",
     "patches/vitest@4.1.7.patch": "11fdb66aa985e1d77e68752deeb7c1130ae33c9a4e2968f23aae8adaf8bc9ba0",
     "patches/wdio-electron-service@9.2.1.patch": "52481dae5e76772fcb8c2a9ff42feb3d0e1478e28815a4b975c81b9287e3385f",
-    "pnpm-lock.yaml": "763b3f63bccf174fea66b0c2e950970d5928e8eb55fbe478e19ccbd1635d65e5",
+    "pnpm-lock.yaml": "6919adb33692802c55dc6725eb3967d61959bcbf2ca68e46964a384bcaed394f",
     "pnpm-workspace.yaml": "ddf4d195a433a1fae0a991462b9b19281435d7055d768d2a2942de8f4aff89f3",
     "scripts/license-texts/Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "scripts/native-search-tools-config.mjs": "06e9d2b066a22f4bb731fb7356d786b52cf08e20dd6faf91e1a82b167d7462e8",
@@ -3004,7 +3004,7 @@
     "third-party/native-search/licenses/f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af.txt": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
     "third-party/native-search/licenses/f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505.txt": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505",
     "third-party/native-search/sources.json": "5e1aedef96227f4deefe6f07cda644bd25e638443e86e93ddb2e9578a73d9609",
-    "third-party/npm-overrides.json": "7218355ca434ddaa1ec9d97af813e82d222ccba61ab00f12d7194c49ceeeaa1f",
+    "third-party/npm-overrides.json": "cf22a4b3a86343d4c9373542adc7bf741ea4906a0da8511d8898d9d37fd697f4",
     "third-party/runtime/node-22.16.0-LICENSE.txt": "1ae62e2015784ba438db7b04ebd33f3c4ff3efdb824c111c4ececd99945fd52d",
     "third-party/runtime/node-24.14.0-LICENSE.txt": "4573185d56580da2b890ba34a85a409257640f1c5632eade4300137266194d18",
     "third-party/runtime/sources.json": "b27bc8d81aeb71108e523602364ffbb6a1b19c2d5d47733fd43094b769006741",
@@ -3082,7 +3082,6 @@
     "third-party/upstream/e49e62397b603438476e0d6b5ca3b6e6d4f23a80594e596aff29ac04fa3e1b1c.txt": "e49e62397b603438476e0d6b5ca3b6e6d4f23a80594e596aff29ac04fa3e1b1c",
     "third-party/upstream/ebb2e920800c6353474e3e23d84f714ee8aaecd8f5a71851aa03594a4129d855.txt": "ebb2e920800c6353474e3e23d84f714ee8aaecd8f5a71851aa03594a4129d855",
     "third-party/upstream/f158b3bd10b867740fdbf81447216f1f8685473acf61e6a105ef91ba9fe8ebc3.txt": "f158b3bd10b867740fdbf81447216f1f8685473acf61e6a105ef91ba9fe8ebc3",
-    "third-party/upstream/f18c12b8e7daf98d572518b7db133b2dc66a713921dac4825410dd656e0c1a1a.txt": "f18c12b8e7daf98d572518b7db133b2dc66a713921dac4825410dd656e0c1a1a",
     "third-party/upstream/f29b60ea39a2132e3baa98927c2d473b349a54143da44a0c6762b243e6459452.txt": "f29b60ea39a2132e3baa98927c2d473b349a54143da44a0c6762b243e6459452",
     "third-party/upstream/f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af.txt": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
     "third-party/upstream/fc7d762e0ebf8720d0a03cf00058aaa3a198347e9651be2f50a25e3b3ec13985.txt": "fc7d762e0ebf8720d0a03cf00058aaa3a198347e9651be2f50a25e3b3ec13985"
@@ -8643,18 +8642,6 @@
       ]
     },
     {
-      "name": "builder-util-runtime",
-      "version": "9.5.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/electron-userland/electron-builder.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
-        }
-      ]
-    },
-    {
       "name": "bun-ffi-structs",
       "version": "0.2.2",
       "license": "MIT",
@@ -10571,23 +10558,15 @@
       ]
     },
     {
-      "name": "electron-updater",
-      "version": "6.8.3",
-      "license": "MIT",
-      "repository": "git+https://github.com/electron-userland/electron-builder.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "bed8d0ab3e6031817f775a641ff37313b0f5591bc8ba0ed79b978dafbd4231ce"
-        }
-      ]
-    },
-    {
       "name": "electron",
       "version": "41.0.3",
       "license": "MIT",
       "repository": "https://github.com/electron/electron",
       "notices": [
+        {
+          "member": "dist/LICENSE",
+          "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
+        },
         {
           "member": "LICENSE",
           "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
@@ -11455,22 +11434,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "415657352a5a182c4e3aae6941fff39eb8fe4e0cbd275fcc06a870504317818f"
-        }
-      ]
-    },
-    {
-      "name": "fs-extra",
-      "version": "10.1.0",
-      "license": "MIT",
-      "repository": "https://github.com/jprichardson/node-fs-extra",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "1e76029602ae9b21cc4e612db2496d92febed882ba13ba745f8b3309e85f9d39"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "99418da6b0279959da793d62433978847d00236e852c4be780f384b7f506d425"
         }
       ]
     },
@@ -13287,18 +13250,6 @@
       ]
     },
     {
-      "name": "lazy-val",
-      "version": "1.0.5",
-      "license": "MIT",
-      "repository": "develar/lazy-val",
-      "notices": [
-        {
-          "member": "https://registry.npmjs.org/lazy-val/1.0.5",
-          "sha256": "f18c12b8e7daf98d572518b7db133b2dc66a713921dac4825410dd656e0c1a1a"
-        }
-      ]
-    },
-    {
       "name": "lexical",
       "version": "0.42.0",
       "license": "MIT",
@@ -13399,18 +13350,6 @@
       ]
     },
     {
-      "name": "lodash.escaperegexp",
-      "version": "4.1.2",
-      "license": "MIT",
-      "repository": "lodash/lodash",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "ffd8b33b354585f4ce119f19c53728281e48a97b074491eb6bf6d5c5ff305272"
-        }
-      ]
-    },
-    {
       "name": "lodash.identity",
       "version": "3.0.0",
       "license": "MIT",
@@ -13419,18 +13358,6 @@
         {
           "member": "LICENSE.txt",
           "sha256": "2b61a34ef17beffb1e555efa8b46110d25398d47f2e88b2cacc46f8bd382c639"
-        }
-      ]
-    },
-    {
-      "name": "lodash.isequal",
-      "version": "4.5.0",
-      "license": "MIT",
-      "repository": "lodash/lodash",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "e159c6d48c989185448658f276375bfb2300362ec6d4ae5525a2d49c4bcb947d"
         }
       ]
     },
@@ -18035,18 +17962,6 @@
         {
           "member": "LICENSE",
           "sha256": "b1c501095de70182748cb8e8d97ac5577701a4ef3b755ba30d59fd87b24bdb0f"
-        }
-      ]
-    },
-    {
-      "name": "tiny-typed-emitter",
-      "version": "2.1.0",
-      "license": "MIT",
-      "repository": "https://github.com/binier/tiny-typed-emitter.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "4b3faf884ee71eec3df920b66c98fc6618af28e824cf3a32ef3d8774048cc76d"
         }
       ]
     },
@@ -31549,26 +31464,6 @@
       }
     },
     {
-      "package": "lazy-val@1.0.5",
-      "repo": "develar/lazy-val",
-      "refs": [
-        "b69ad4119f1b19bdab13c61ee2fcc88d46b89071"
-      ],
-      "file": "third-party/upstream/f18c12b8e7daf98d572518b7db133b2dc66a713921dac4825410dd656e0c1a1a.txt",
-      "sha256": "f18c12b8e7daf98d572518b7db133b2dc66a713921dac4825410dd656e0c1a1a",
-      "source": "https://registry.npmjs.org/lazy-val/1.0.5",
-      "evidenceKind": "publisher-license-identifier-and-standard-terms",
-      "license": "MIT",
-      "reviewEvidence": {
-        "checkedOn": "2026-09-21",
-        "result": "The versioned npm archive contains no standalone complete LICENSE; existing publisher declaration and original README license sections remain preserved. Upstream authorization/copyright material is still required to close this review.",
-        "npmArchiveSha256": "7d8602ad98db3d19fbd5b46fbf3831dd996197a013ef1ff7badc205e41435372",
-        "sourceRevision": "b69ad4119f1b19bdab13c61ee2fcc88d46b89071",
-        "sourceTreeUrl": "https://api.github.com/repos/develar/lazy-val/git/trees/b69ad4119f1b19bdab13c61ee2fcc88d46b89071?recursive=1",
-        "upstreamLicenseFiles": []
-      }
-    },
-    {
       "package": "semaphore@1.1.0",
       "repo": "abrkn/semaphore.js",
       "refs": [
@@ -31990,10 +31885,6 @@
     },
     {
       "id": "strict-event-emitter@0.5.1",
-      "reason": "Original version-specific publisher copyright/license material remains incomplete."
-    },
-    {
-      "id": "lazy-val@1.0.5",
       "reason": "Original version-specific publisher copyright/license material remains incomplete."
     },
     {

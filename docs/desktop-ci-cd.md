@@ -1,6 +1,6 @@
 # Desktop CI/CD
 
-`z-code` 的桌面端 CI/CD 入口是根目录的 `.gitlab-ci.yml`，具体 job 按职责拆分在 `.gitlab/ci/*.yml` 中。正式发布在普通 tag 管道上为 `approve -> validate -> upload -> preload -> publish -> release-notify`。发布日志由 infra API 直接编辑 runner 共享目录中的 `latest.yml`；z-code CI 在人工确认后、上传前统一校验六个平台和 remote assets，只上传版本化静态产物，不读取仓库 changelog、不生成独立 locale 清单，也不覆盖 CDN 上的旧 generic stable feed。
+`z-code` 的桌面端 CI/CD 入口是根目录的 `.gitlab-ci.yml`，具体 job 按职责拆分在 `.gitlab/ci/*.yml` 中。正式发布在普通 tag 管道上为 `approve -> validate -> upload -> preload -> publish -> release-notify`。这一 fork 不提供应用内自动更新：CI 在人工确认后、上传前统一校验六个平台和 remote assets，只上传版本化静态安装产物。
 
 ## 配置文件结构
 
@@ -22,11 +22,11 @@ Desktop CI 不再定义 `build:web-remote-control:image` 和 `deploy:web-remote-
 - `build`：macOS / Windows / Linux runner 负责各自平台 runtime assets、签名与安装包生成；正式打包只执行资产准备、静态校验和产物构建，不运行 `test:native-search:e2e`、`test:sea-runtime-tools:e2e` 等行为 E2E，这些命令保留为独立验证入口；`build:cua-helper:arm64` 与 `build:cua-helper:x64` 在所有被 workflow 接纳的流水线中自动运行，同架构 macOS job 等待并消费本次流水线的 Helper artifact；macOS job 在收集产物后直接执行 DMG 公证；Windows 和 Linux 都按 x64 / arm64 两个并行 job 构建，Linux 同时产出 AppImage、deb、rpm 三种安装包；另有独立 `build:remote:assets` 负责 remote manifest 与 component artifacts 产出。
 - `notify`：构建成功时向飞书发送各平台产物通知；macOS 通知依赖对应的 `build:macos:*`，因此只在对应架构的打包与公证都成功后出现。每个平台另有失败通知 Job，在构建失败时发送同样的摘要并附 GitLab Job 地址，不展示下载地址。
 - `approve`：全部构建完成且 infra 编辑完六个平台日志后出现的人工门禁；人工确认后自动进入完整性检查
-- `validate`：approve 放行后自动校验六个平台 `latest.yml` 的版本、日志、引用文件、size/sha512，并校验 remote component sha256；upload 只能在本阶段成功后执行
-- `upload`：上传当前纳入正式发布的 macOS / Windows / Linux 版本化构建产物，以及 remote manifest/components 到 OSS；Electron 产物写入 `<version>/<platform>-<arch>/`，例如 `v3.3.3/macos-arm64/`，本阶段解析更新元数据生成 `release-meta-*.json`，但不覆盖 stable feed。
-- `preload`：`release:preload:cdn` 在 upload 成功后自动预热版本化平台/架构产物和 remote components；该阶段必须成功后才允许进入 publish，避免服务端 manifest 发布后客户端拉到尚未预热的安装包或 blockmap。
+- `validate`：approve 放行后自动校验六个平台安装包的引用文件、size/sha512，并校验 remote component sha256；upload 只能在本阶段成功后执行
+- `upload`：上传当前纳入正式发布的 macOS / Windows / Linux 版本化构建产物，以及 remote manifest/components 到 OSS；Electron 产物写入 `<version>/<platform>-<arch>/`，例如 `v3.3.3/macos-arm64/`，本阶段生成 `release-meta-*.json`。
+- `preload`：`release:preload:cdn` 在 upload 成功后自动预热版本化平台/架构产物和 remote components；该阶段必须成功后才允许进入 publish，避免发布后客户端拉到尚未预热的安装包。
 - `publish`：`release:publish:gray` 在预热成功后自动执行。job 先直接调用后端灰度控制接口 `https://zcode-api.z.ai/api-admin/v1/releases/gray`（可由 `ROLLOUT_API_URL` 或 `ZCODE_RELEASE_GRAY_API_URL` 覆盖）并携带 `Authorization: Bearer $ROLLOUT_ADMIN_TOKEN`，将灰度开关重置为关闭且比例归零；重置成功后才调用后端 release API 写入 `status=3`，避免新版本继承上一轮灰度策略。`release:publish:stable` 位于同一 stage，通过 `needs` 等待 gray，人工触发后复用同一批 `release-meta-*.json` 写入 `status=1`；`ci*` 分支默认只允许自动验证到 gray，脚本会阻止它默认写正式 stable 状态。
-- `release-notify`：手动读取共享目录 `macos-arm64/latest.yml` 中由 infra 编辑的 `releaseNotes`，发送飞书发版成功通知
+- `release-notify`：手动发送飞书发版成功通知
 
 Linux 桌面构建与 `notify:feishu:linux:*` 已启用；正式 tag 的 macOS、Windows、Linux x64/arm64 都进入主 upload、preload、publish 链路。sandbox/test-tag 验证链路仍维持现有 macOS arm64 上传范围。Linux 相关远程 runtime 仍由 `build:remote:assets` 作为 manifest/components 产出。
 
@@ -35,13 +35,13 @@ Linux 桌面构建与 `notify:feishu:linux:*` 已启用；正式 tag 的 macOS�
 | job                                  | 触发                       | 职责                                                                                                                                |
 | ------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `release:approve`                    | 全部构建完成后手动         | 确认 infra 已完成六个平台日志编辑并放行完整性检查                                                                                   |
-| `release:validate`                   | approve 后自动             | 校验共享目录中六个平台安装包、更新清单、日志和 remote assets，失败时不开放 upload                                                   |
+| `release:validate`                   | approve 后自动             | 校验共享目录中六个平台安装包和 remote assets，失败时不开放 upload                                                                  |
 | `release:upload:<platform>:<arch>`   | 自动                       | 上传版本化安装包、remote components，生成 `release-meta-*.json` 和版本化 CDN 预热清单                                               |
 | `release:upload:sandbox:macos:arm64` | sandbox 手动流水线自动运行 | 验证 sandbox 上传链路，不触达正式发布路径                                                                                           |
-| `release:preload:cdn`                | approve 后自动             | 预热版本化平台/架构安装包、更新清单、blockmap 和 remote components CDN URL                                                          |
+| `release:preload:cdn`                | approve 后自动             | 预热版本化平台/架构安装包和 remote components CDN URL                                                                               |
 | `release:preload:cdn:sandbox`        | 手动                       | 预热 sandbox 版本化产物 CDN URL                                                                                                     |
 | `release:publish:gray`               | approve 后自动             | 等 `release:preload:cdn` 成功后，先关闭灰度开关并把比例重置为 `0`，再调后端 release API 发布灰度状态 `status=3`                     |
-| `release:publish:stable`             | 灰度确认后手动             | 复用 upload 元数据调后端 release API 发布全量状态 `status=1`，不上传 stable feed；`ci*` 分支默认被脚本拦截，避免验证包写正式 stable |
+| `release:publish:stable`             | 灰度确认后手动             | 复用 upload 元数据调后端 release API 发布全量状态 `status=1`；`ci*` 分支默认被脚本拦截，避免验证包写正式 stable                       |
 | `release:notify:feishu`              | 手动                       | 发送正式发版飞书通知                                                                                                                |
 
 ## MR 手动 Job 命名
@@ -58,17 +58,17 @@ Linux 桌面构建与 `notify:feishu:linux:*` 已启用；正式 tag 的 macOS�
 
 | 环节                  | 修改前                                                                                      | 修改后                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| update metadata       | 构建与日志注入发生在同一阶段，修改日志可能要求重新打包                                      | 构建只产出基础 `latest.yml`，infra 在共享目录编辑日志，approve 后由 validate 校验，不生成独立 locale 文件    |
-| `upload`              | 上传版本化产物时会一并覆盖 stable feed，客户端可能在后端 release API 前看到新 `latest*.yml` | 只上传版本化产物和 remote components，只产出 `release-meta-*.json` 与版本化预热 URL，不覆盖 stable feed       |
+| 发布元数据            | 构建与日志注入发生在同一阶段，修改日志可能要求重新打包                                      | 构建只产出安装包，发布日志与版本信息在 approve 后由 validate 校验                                             |
+| `upload`              | 上传版本化产物时会一并刷新发布元数据，客户端可能在后端 release API 前看到新版本             | 只上传版本化产物和 remote components，只产出 `release-meta-*.json` 与版本化预热 URL                          |
 | `release:preload:cdn` | upload 后预热版本化产物，后续发布 job 需要等待它完成                                        | 独立 `preload` stage；approve 放行并 upload 成功后自动预热版本化平台/架构产物，必须成功后才允许 publish       |
-| `release:publish:*`   | 非手动或可能跟随前置阶段自动进入；stable feed 覆盖职责不明确                                | 灰度和全量阶段都只调用后端 release API，stable / preview 可见性由服务端 manifest 控制，不再上传 stable feed   |
+| `release:publish:*`   | 非手动或可能跟随前置阶段自动进入；发布可见性职责不明确                                      | 灰度和全量阶段都只调用后端 release API，可见性由服务端状态控制                                                |
 | `release-notify`      | publish 成功后可能自动通知                                                                  | 全量 publish 成功后提供手动通知 job                                                                           |
 | macOS 公证与产物通知  | `notarize:macos:*` 独立 stage/job 负责公证，并在 after_script 里发送 macOS 产物通知         | `build:macos:*` 在构建阶段完成签名、收集与公证；`notify:feishu:macos:*` 在 notify 阶段单独发送 macOS 产物通知 |
 
 ## 触发规则
 
 - tag（不含 `test`）：正式发布，产物目录为 `release/$CI_COMMIT_TAG/`
-- tag（含 `test`，大小写不敏感）：自动切换 `SANDBOX_RELEASE=1`，上传路径改为 `OSS_PATH_PREFIX_SANDBOX/$CI_COMMIT_REF_SLUG`，用于验证 CI/CD 流水线，不污染正式更新 feed
+- tag（含 `test`，大小写不敏感）：自动切换 `SANDBOX_RELEASE=1`，上传路径改为 `OSS_PATH_PREFIX_SANDBOX/$CI_COMMIT_REF_SLUG`，用于验证 CI/CD 流水线，不污染正式发布目录
 - `ci*` 分支 push：非 tag 的真实 release 链路验证入口，产物目录为 `@electron/ci/$CI_COMMIT_REF_SLUG/`，上传路径为 `OSS_PATH_PREFIX_SANDBOX/$CI_COMMIT_REF_SLUG`；`release:approve` 放行后自动执行 validate、upload、preload 和 gray publish，stable promote / release-notify 为手动。默认不允许 `ci*` 把验证包发布为正式 `status=1`；只有发布负责人明确批准演练时才可临时设置 `ALLOW_CI_RELEASE_STABLE_PUBLISH=1`。
 - Merge Request 到 `main` / `staging`：默认 production 打包验证，产物目录为 `@electron/dev/$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME/`
 - Merge Request 到 `main` / `staging`：`approve-mr` 阶段额外展示 `build:preview`；不点击时不阻塞现有 MR 流水线，点击后以相同 MR ref/SHA 启动子流水线，Preview 产物目录为 `@electron-preview/$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME/`
@@ -211,14 +211,14 @@ sockets are minted as random `broker-<hex>.sock` files; do not hard-code
 - **Linux Docker**  
   与常见 runner 配置 **`volumes = ["/Users/dev/shared/zcode:/output", ...]`** 对齐：容器内写入  
   **`${ZCODE_CI_LINUX_CONTAINER_OUT}/${TARGET_OUTPUT_DIR}`**（默认 **`ZCODE_CI_LINUX_CONTAINER_OUT=/output`**），宿主机上即 **`/Users/dev/shared/zcode/${TARGET_OUTPUT_DIR}`**。  
-  若挂载点不是 `/output`，可在 GitLab CI/CD 变量中覆盖 **`ZCODE_CI_LINUX_CONTAINER_OUT`**，或仅用 **`LINUX_SHARED_OUTPUT_ROOT`** 覆盖收集根目录。x64/arm64 并行构建会先写入当前 job 工作区的 `.tmp/linux-<arch>-collect` 临时目录，再同步到 **`linux-x64/`**、**`linux-arm64/`** 架构隔离子目录，正式 upload 只读取对应子目录，避免两个架构统一命名后的 `latest.yml` 互相覆盖导致发布元数据或更新 feed 串架构。
+  若挂载点不是 `/output`，可在 GitLab CI/CD 变量中覆盖 **`ZCODE_CI_LINUX_CONTAINER_OUT`**，或仅用 **`LINUX_SHARED_OUTPUT_ROOT`** 覆盖收集根目录。x64/arm64 并行构建会先写入当前 job 工作区的 `.tmp/linux-<arch>-collect` 临时目录，再同步到 **`linux-x64/`**、**`linux-arm64/`** 架构隔离子目录，正式 upload 只读取对应子目录，避免两个架构统一命名后的产物互相覆盖导致发布元数据串架构。
 - **Windows**  
-  默认 **`ZCODE_CI_WINDOWS_SHARED_ROOT=//172.16.0.10/shared/zcode`**，拼接规则同 mac。x64/arm64 并行构建会先写入当前 job 工作区的 `.tmp/windows-<arch>-collect` 临时目录，再同步到 **`windows-x64/`**、**`windows-arm64/`** 架构隔离子目录，正式 upload 只读取对应子目录，避免两个架构的 `latest.yml` 互相覆盖导致发布元数据或更新 feed 串架构。
+  默认 **`ZCODE_CI_WINDOWS_SHARED_ROOT=//172.16.0.10/shared/zcode`**，拼接规则同 mac。x64/arm64 并行构建会先写入当前 job 工作区的 `.tmp/windows-<arch>-collect` 临时目录，再同步到 **`windows-x64/`**、**`windows-arm64/`** 架构隔离子目录，正式 upload 只读取对应子目录，避免两个架构的同名产物互相覆盖导致发布元数据串架构。
 - 以上变量均可在 GitLab **CI/CD 变量**中按环境覆盖。
 
 ## Linux 安装包格式与 glibc 基线
 
-Linux 打包产出 `AppImage`、`deb`、`rpm` 三种安装包，x64 / arm64 双架构。`deb` 与 `rpm` 的 packageName 均按 flavor 拆分（`zcode` / `zcode-preview`），避免系统包管理器把另一 flavor 的安装当成升级替换。`latest.yml` 与 electron-updater 在 Linux 上固定以 AppImage 作为更新产物，`deb` / `rpm` 只做首次安装分发，不参与自更新；`upload-oss.sh` 解析更新元数据时也强制校验更新产物必须是 AppImage。
+Linux 打包产出 `AppImage`、`deb`、`rpm` 三种安装包，x64 / arm64 双架构。`deb` 与 `rpm` 的 packageName 均按 flavor 拆分（`zcode` / `zcode-preview`），避免系统包管理器把另一 flavor 的安装当成升级替换。`upload-oss.sh` 按归一化名收集 AppImage、deb、rpm 与 pacman 产物。
 
 rpm 面向 RHEL 8+（glibc 2.28）基线。整包 glibc 下限按 ELF `GLIBC_*` symbol version 实测：随包 node-pty prebuild 与 `bfs` / `ugrep` 为 2.28，Electron 41 主二进制为 2.25，`rg` 为 musl 静态无 glibc 依赖，整体 floor = 2.28；Ubuntu 20.04+、Debian 10+、RHEL 8+/9 均满足，CentOS 7、Ubuntu 18.04、Amazon Linux 2 不在支持范围。rpm 产物文件名复用统一 `artifactName` 模板，electron-builder 对 rpm/deb 使用包管理器架构名（`x86_64` / `amd64` / `aarch64`）落盘，Preview flavor 带 `_TEST` 后缀；`ci-collect-artifacts` 收集阶段统一归一化为 `-linux-x64` / `-linux-arm64` 命名（扩展名无关，`.rpm` 同样生效），`upload-oss.sh` 按归一化名收集，其扩展名 pattern 均已包含 `.rpm`。
 
@@ -241,11 +241,10 @@ rpm Requires 在 electron-builder 默认集（gtk3、nss、libnotify、libXScrnS
 - `ZCODE_NATIVE_SEARCH_DEPS_ROOT`：`ci:ensure-native-search-deps` 使用的共享 deps 根。平台 job 分别从上述 macOS、Linux container 与 Windows 根自动推导，通常不需要单独配置
 - `ZCODE_NATIVE_SEARCH_ALLOW_PUBLISH`：显式补产开关。三个平台打包 template 已设为 `1`；其他调用方只应在确认具有共享 deps 写入职责时设置。protected ref 即使未设置也可补齐缺失的自产归档
 - `LINUX_SHARED_OUTPUT_ROOT`（可选，仅 Linux Docker）：覆盖容器内产物收集根目录
-- `OSS_BUCKET` / `OSS_PATH_PREFIX` / `CDN_DOMAIN`：OSS 上传与主 CDN URL 生成所需变量（仓库 `.gitlab-ci.yml` 默认：`cgx-public`、`zcode/electron/releases`、`cdn-zcode.z.ai`；可在 GitLab CI/CD 设置中覆盖）。CI URL 校验、upload 和 preload 脚本的域名兜底也统一为 `cdn-zcode.z.ai`。`CDN_DOMAIN` 和 `OSS_BUCKET` 支持逗号列表并按顺序对应；`OSS_PATH_PREFIX` 支持单值复用，也可配置同样数量的逗号列表。upload/publish 阶段会展开全部目标；桌面包不再把这些变量写入可配置的旧 generic feed。
+- `OSS_BUCKET` / `OSS_PATH_PREFIX` / `CDN_DOMAIN`：OSS 上传与主 CDN URL 生成所需变量（仓库 `.gitlab-ci.yml` 默认：`cgx-public`、`zcode/electron/releases`、`cdn-zcode.z.ai`；可在 GitLab CI/CD 设置中覆盖）。CI URL 校验、upload 和 preload 脚本的域名兜底也统一为 `cdn-zcode.z.ai`。`CDN_DOMAIN` 和 `OSS_BUCKET` 支持逗号列表并按顺序对应；`OSS_PATH_PREFIX` 支持单值复用，也可配置同样数量的逗号列表。upload/publish 阶段会展开全部目标；桌面包不再把这些变量写入打包产物。
 - `OSS_CONFIG_FILE`：可选，控制每组 OSS 目标调用 `ossutil` 时使用的配置文件。支持单值复用，或配置为与 `CDN_DOMAIN` 等长的逗号列表；为空时使用 runner 默认 ossutil 配置。新旧 OSS AK/SK 或 region 不一致时，应把 AK/SK 和 region 写入对应配置文件，并按 `CDN_DOMAIN` 顺序配置文件路径。
 - `CDN_PRELOAD_PROFILE` / `ALIYUN_CDN_PROFILE`：可选，控制 `cdn-preload.sh` 调用阿里云 CDN OpenAPI 时使用的 aliyun CLI profile。`CDN_PRELOAD_PROFILE` 优先级更高；支持单值复用，或配置为与 `CDN_DOMAIN` 等长的逗号列表。预热脚本不显式传 `--region`，region 由对应 profile 或 aliyun CLI 默认配置决定，避免覆盖多账号迁移时每个 profile 自带的 endpoint 配置。
 - `CDN_PRELOAD_DOMAINS`：历史兼容变量；当前 upload/preload 链路不再读取，新 OSS/CDN 迁移通过 `CDN_DOMAIN` 列表展开预热域名。
-- `ZCODE_UPDATE_FEED_URL`：可选运行时诊断变量，用完整服务端 manifest 接口 URL 覆盖默认更新检查接口。客户端仍会写入当前 `platform` / `device_mid` / `channel` 查询参数和对应 header，不切换到旧 generic feed。
 - `ZCODE_ENV`：可选，`production` 打正式包，`test` 打测试包。测试包文件名会追加 `_TEST`，构建产物飞书通知会把环境标识放进卡片标题；测试环境标题背景色使用红色，正式环境使用默认蓝色。`publish-release.sh` 会拒绝 `ZCODE_ENV=test` 调用正式 release API。
 - `APPLE_ID` / `APPLE_PASSWORD` / `APPLE_TEAM_ID`：macOS notarytool 公证凭据
 - `APPLE_SIGNING_IDENTITY` 或 `CSC_NAME`：macOS 签名身份
@@ -259,28 +258,28 @@ rpm Requires 在 electron-builder 默认集（gtk3、nss、libnotify、libXScrnS
 ## 关键脚本
 
 - `scripts/assert-node-version.mjs`：确保 CI 上的 Node 版本符合仓库要求
-- `scripts/ci-collect-artifacts.mjs`：从 `packages/desktop/dist` 收集当前平台构建产物、更新元数据和 blockmap
+- `scripts/ci-collect-artifacts.mjs`：从 `packages/desktop/dist` 收集当前平台构建产物
 - `scripts/notarize-macos.sh`：由 `build:macos:*` 在产物收集后执行 DMG Developer ID 签名、公证、stapler 与 Gatekeeper 验收；正式 tag 发布缺少 Apple 凭据或签名身份时会失败，非正式链路仍可跳过并保留未公证产物命名供测试排查使用。
-- `scripts/upload-oss.sh`：上传 Electron 版本化安装包并解析唯一的 `latest.yml` 生成发版元数据；不读取或上传 locale/legacy 更新清单，也不覆盖 stable feed。Electron 版本化路径为 `oss://<bucket>/<path-prefix>/$VERSION/<platform>-<arch>/`，例如 `.../3.3.3/macos-arm64/`，remote manifest 路径为 `oss://<bucket>/<path-prefix>/$VERSION/`，remote components 路径为 `oss://<bucket>/<path-prefix>/components/...`。当 `CDN_DOMAIN` / `OSS_BUCKET` 配置多值时，每组目标都会上传完整版本目录、remote manifest 和 components；release metadata 使用第一组 CDN 目标。
+- `scripts/upload-oss.sh`：上传 Electron 版本化安装包并生成发版元数据。Electron 版本化路径为 `oss://<bucket>/<path-prefix>/$VERSION/<platform>-<arch>/`，例如 `.../3.3.3/macos-arm64/`，remote manifest 路径为 `oss://<bucket>/<path-prefix>/$VERSION/`，remote components 路径为 `oss://<bucket>/<path-prefix>/components/...`。当 `CDN_DOMAIN` / `OSS_BUCKET` 配置多值时，每组目标都会上传完整版本目录、remote manifest 和 components；release metadata 使用第一组 CDN 目标。
   - 正式 macOS tag 发布只允许上传已完成签名、公证和 staple 的 `*.dmg`；如共享目录仍存在 `*.unnotarized.dmg`，upload 会直接失败，避免 Gatekeeper 校验不完整的安装包进入 CDN。
   - upload job 会同时输出 `release-meta-*.json`（由 `RELEASE_META_OUT` 指定），供 publish 阶段聚合；正式发布主链路默认会有 `darwin-aarch64`、`darwin-x86_64`、`windows-x86_64`、`windows-aarch64`、`linux-x86_64`、`linux-aarch64`。
-  - Linux upload 手动执行时必须存在有效的 `latest.yml`，并基于其中的 AppImage `path` / `sha512` 生成发版元数据。
+  - Linux upload 手动执行时必须存在 AppImage 产物，并基于其 `path` / `sha512` 生成发版元数据。
   - 通过 `EXTRA_UPLOAD_SOURCE_DIR` 与 `EXTRA_UPLOAD_FILES` 可附带上传 remote manifest 与 components。manifest 会进入版本目录，`components/...` 会进入跨版本目录，并自动写入 `CDN_URLS_OUT` 参与 CDN 预热
 - `scripts/cdn-preload.sh`：对上传后的 CDN URL 执行预热。`upload-oss.sh` 会保留第一组 CDN URL 用于 release metadata，同时按 `CDN_DOMAIN` 目标列表把所有域名写入 `cdn-urls-*.txt`；`release:preload:cdn` 消费版本化平台/架构产物和 remote components URL 并执行预热。脚本默认处理清单中所有带有效 size 的 URL，不再按体积跳过小文件；`PRELOAD_MIN_BYTES` 仅作为人工调试开关，显式设置为大于 0 时才按记录的文件大小筛选。阿里云 OpenAPI region 与 CDN 预热范围由 aliyun profile 和域名自身配置管理，脚本不显式传 `--region` 或 `--Area`。
-- `scripts/publish-release.sh`：读取 `release-meta-*.json` 组装 `{ releases: [...] }` 请求体并调用后端 release API。灰度 job 发送 `status=3`，全量 job 发送 `status=1`；配置 `RELEASE_API_URL_TEST` 时同步双写测试 release API。脚本不执行任何 OSS feed 上传。
-- `scripts/notify-release-feishu.js`：读取共享目录 `macos-arm64/latest.yml` 中的 `releaseNotes`，校验清单版本与通知版本一致后，通过 Zara 飞书发送 Card 2.0 交互卡片；Tag pipeline 使用 `CI_COMMIT_TAG`，非 Tag release 演练必须显式设置 `ZARA_RELEASE_NOTIFY_VERSION`。支持逗号分隔的多群接收配置、接收方级稳定 `uuid`、失败群继续发送及 `ZARA_RELEASE_NOTIFY_RETRY_RECEIVE_ID` 精确补发。`ZARA_RELEASE_NOTIFY_DRY_RUN=1` 只输出卡片 JSON 和 payload 大小，不调用飞书 API
+- `scripts/publish-release.sh`：读取 `release-meta-*.json` 组装 `{ releases: [...] }` 请求体并调用后端 release API。灰度 job 发送 `status=3`，全量 job 发送 `status=1`；配置 `RELEASE_API_URL_TEST` 时同步双写测试 release API。脚本不执行任何 OSS 上传。
+- `scripts/notify-release-feishu.js`：校验发布版本与通知版本一致后，通过 Zara 飞书发送 Card 2.0 交互卡片；Tag pipeline 使用 `CI_COMMIT_TAG`，非 Tag release 演练必须显式设置 `ZARA_RELEASE_NOTIFY_VERSION`。支持逗号分隔的多群接收配置、接收方级稳定 `uuid`、失败群继续发送及 `ZARA_RELEASE_NOTIFY_RETRY_RECEIVE_ID` 精确补发。`ZARA_RELEASE_NOTIFY_DRY_RUN=1` 只输出卡片 JSON 和 payload 大小，不调用飞书 API
 - `scripts/notify-feishu.mjs`：构建阶段产物通知，发送自组装的 Feishu Card 2.0；标题展示构建状态、环境、架构和分支，正文展示提交人及提交信息，底部按钮打开产物或失败 Job 地址，卡片失败由 CI 包装脚本吞掉，不阻断主流水线
 
-## CDN 与自动更新清单缓存
+## CDN 缓存
 
-- 唯一的 `latest.yml` 更新清单进入版本化平台/架构目录并包含 `releaseNotesByLocale`；同一版本目录应按不可变资产处理。当前 CI 不生成 locale 或旧 generic stable feed 副本。
-- 服务端 manifest 发布后若 CDN 对新版本目录尚未完成预热，客户端可能短时间下载失败，因此 `publish` 必须等待 `release:preload:cdn` 成功。
+- 版本化平台/架构目录按不可变资产处理；同一版本目录不覆盖。
+- 发布后若 CDN 对新版本目录尚未完成预热，客户端可能短时间下载失败，因此 `publish` 必须等待 `release:preload:cdn` 成功。
 
 ## 排障重点
 
 - 如果 `prepare:desktop-runtime` 失败，先看下载日志里打印的 URL，通常是外网访问或上游发布资产变化
 - 如果 `build:remote:assets` 失败，优先检查 `packages/desktop/mock-cdn/releases/<version>/` 下是否存在 `node/<platform-arch>`，以及 runner 对上游二进制下载源的网络访问
 - 如果 macOS 公证失败，先确认 `APPLE_*` 三个变量是否完整，以及 runner 上是否能执行 `xcrun notarytool`
-- 如果 upload 阶段报错缺少更新元数据，优先检查共享目录里是否存在对应平台目录下的 `latest.yml`
+- 如果 upload 阶段报错缺少安装包，优先检查共享目录里对应平台目录下的产物是否齐全
 - 如果某个平台没有产物，优先检查 `packages/desktop/dist` 下文件名是否仍符合 `ZCode-{version}-{os}-{arch}` 约定
 - 如果共享目录里缺少文件，先确认 build job 的 `CI_ARTIFACT_OUTPUT_DIR` 是否指向 runner 实际挂载的共享路径

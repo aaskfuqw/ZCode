@@ -32,7 +32,6 @@ describe("WorkspaceHeader", () => {
         workspaceAbsPath: "/workspace",
         projectName: "workspace",
         activeTaskTitle: "Task",
-        hasUpdateReady: false,
         activeTaskId: "task-1",
         activeTraceId: "trace-1",
         activeSessionId: "session-1",

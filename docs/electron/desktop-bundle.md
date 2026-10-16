@@ -73,8 +73,6 @@ pnpm bundle:desktop -- win arm64
 
 ```bash
 ZCODE_TARGET_OS=linux ZCODE_TARGET_ARCH=x64 pnpm bundle:desktop
-
-正式发版打包不再注入可配置的 generic update feed。新版客户端运行时使用服务端 manifest provider；`electron-builder` 的 generic `publish.url` 只保留本地占位，真实更新检查接口由默认 endpoint 或 `ZCODE_UPDATE_FEED_URL` 覆盖。
 ```
 
 ## 预检查
