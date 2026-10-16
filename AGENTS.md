@@ -5,6 +5,7 @@
 
 ## Core principles
 
+- This repository is a personal fork. Existing behavior and architecture are the starting point; explicit requirements and decisions for this fork may change them.
 - Before adding or changing behavior, establish the product rules, state owner, interfaces, and acceptance scenarios.
 - Treat the checked-out source, `package.json`, and architecture policies as authoritative. Document only features, commands, and files that currently exist in this repository; remove references from instructions and skills when removing a feature.
 - When investigating a problem, diagnose the cause before changing code unless a fix was explicitly requested. Combine source, logs, and runtime evidence, and distinguish confirmed causes from hypotheses.
@@ -37,7 +38,6 @@ Choose test commands from the target package's current `package.json` and actual
 - `packages/services`: business services; `packages/rpc`: RPC framework.
 - `packages/shared`: shared protocols and types; `packages/client`: Agent client SDK.
 - `apps/zcode-cli`: Agent CLI and runtime.
-- Read `CONTEXT.md` before changing plugin store UI; it defines the plugin store vocabulary.
 - Read `DESIGN.md` before changing UI; it defines the UI design standards.
 
 ## Implementation and verification

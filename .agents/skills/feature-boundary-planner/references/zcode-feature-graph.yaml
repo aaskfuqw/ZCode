@@ -3743,7 +3743,6 @@ nodes:
       - "插件 Catalog Runtime 分离"
     docs:
       - "docs/plugin-management-lifecycle-case-catalog.md"
-      - "docs/adr/0001-store-listing-in-marketplace-catalog.md"
     codeSeeds:
       - symbol: "seedBundledOfficialPlugins"
         file: "apps/zcode-cli/packages/bootstrap/src/app/bundled-plugins.ts"
