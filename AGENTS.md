@@ -44,8 +44,7 @@ Choose test commands from the target package's current `package.json` and actual
 
 - For code changes, use `.agents/skills/architecture-governance/SKILL.md`: run the architecture check first, then read the target module's controlled context.
 - Keep one state owner and one write path. Establish interfaces, dependency direction, event order, and idempotency boundaries; do not hide synchronization problems with timeouts.
-- Add corresponding tests before changing behavior. Interaction changes require E2E scenarios. Check that tests match the implementation and run the available verification; report checks that were not run or were limited by the environment.
-- When fixing a bug, use Chinese comments to explain the cause and the evidence for the fix. Align with the user on design flaws before adding further fallback branches.
+- Only add tests that catch meaningful regressions not already covered by existing tests. Keep verification proportional to risk and remove obsolete tests.
 - Use a diagram to show ownership and event order for proposals involving state, timing, remote systems, or asynchronous synchronization.
 - Run `pnpm typecheck` and `pnpm lint`, and report their actual results, including existing failures.
 - Use asynchronous file and network IO. Import other packages through their public entry points and follow existing path aliases.

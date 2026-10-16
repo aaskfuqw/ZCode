@@ -19,5 +19,5 @@ This file supplements the [root rules](../../AGENTS.md) for components, pages, s
 ## Debugging and verification
 
 - Use [src/logger.ts](src/logger.ts) for logging to the console and local files; do not call `console.log` or `window.zcode.log` directly.
-- Diagnose interaction bugs with logs or browser/CDP execution evidence. Keep Chinese comments that explain non-obvious root causes.
+- Diagnose interaction bugs with logs or browser/CDP execution evidence. Keep comments that explain non-obvious root causes.
 - Maintain E2E coverage for interaction changes according to the root verification rules. Verify desktop/mobile and themes for purely visual changes. Apply existing React skills when relevant to a React task.
