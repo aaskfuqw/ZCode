@@ -39,6 +39,7 @@ import {
   importChromeBrowserData,
   resolveChromeDefaultProfilePath,
 } from "../src/main/browserDataManager.js";
+import * as chromeProfileDiscovery from "../src/main/chromeProfileDiscovery.js";
 import {
   getEmbeddedBrowserSitePermissionSnapshot as snapshotSitePermissions,
   initEmbeddedBrowserSitePermissions,
@@ -73,6 +74,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await rm(tempRoot, { recursive: true, force: true });
 });
 
@@ -779,9 +781,12 @@ describe("browserDataManager", () => {
       Buffer.from("binary\0META:https://chat.z.ai", "latin1"),
     );
 
+    // 非支持平台仍可能命中宿主的 Chrome 安装路径，显式模拟缺失才能稳定验证快照中的 origin。
+    vi.spyOn(chromeProfileDiscovery, "resolveChromeExecutablePath").mockResolvedValue(null);
+
     const result = await importChromeLocalStorage({
       profilePath,
-      platform: "aix",
+      platform: "linux",
       logger,
       targetSession: {} as Electron.Session,
     });

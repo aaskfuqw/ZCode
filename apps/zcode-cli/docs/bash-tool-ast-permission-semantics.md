@@ -52,6 +52,3 @@ prefix resolver 复用同一份 `unbash` AST。安全 simple invocation 可借�
 匹配。`allow` 只有在全部需审批 invocation 都被规则集合覆盖时成立；`deny`/`ask` 任一
 invocation 命中即成立。因而 `npm run:*` 不得匹配
 `npm run test && rm -rf ...`，但多条 allow rules 可以共同覆盖一个安全 compound command。
-
-完整协议、存储和 UI 设计见
-`docs/superpowers/specs/2026-07-13-bash-command-permission-registry-design.md`。

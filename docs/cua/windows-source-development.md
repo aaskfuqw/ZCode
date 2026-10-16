@@ -164,8 +164,7 @@ resources。它验证 ready/health/`broker_info` PID 一致，随后 `stop()` �
 关闭系统策略。此时可以用 exact、hash 已验证且 ABI 相同的 Electron 41.0.3 executable
 完成 packaged-resources/ABI 验收，但必须在报告中明确它不等于最终 branded/signed exe
 验收。最终结论仍需 CI/签名机完整完成 `rcedit`、原生文件/EXE 签名、afterPack 和 branded
-exe lifecycle。2026-07-29 的具体路径、版本、hash、live smoke 与本地构建限制记录在
-`docs/cua/windows-product-runtime.md`。
+exe lifecycle。
 
 Windows 指针实机冒烟必须在已解锁的交互桌面上显式 opt in：
 

@@ -372,7 +372,7 @@ export function handleDesktopWindowCloseRequest(options: {
   explicitQuitRequested?: boolean;
   closeToTray?: boolean;
   /**
-   * Linux 关闭驻留的托盘能力（spec：docs/desktop/linux-close-to-tray.md）。
+   * Linux 关闭驻留的托盘能力。
    * GNOME 等无 StatusNotifierWatcher 的桌面托盘不渲染且不报错，必须在隐藏前显式确认能力；
    * 空值按"不可用"安全默认，走确认退出路径，避免窗口隐藏后失联。
    */

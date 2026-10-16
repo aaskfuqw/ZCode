@@ -10,8 +10,7 @@ Plugin item 的描述与辅助元数据统一使用 `text-ui-sm text-foreground-
 - Plugin 资源：来自已启用 plugin manifest 中声明的 `skills`、`commands`、`mcpServers`。
 - Plugin 资源在对应设置页中只读展示，并提示“由插件注册，修改请到对应插件中进行”。
 - manifest `skills` 数组项按 Claude 规范指向「技能目录本身」（项内直接是 `SKILL.md`），
-  字符串形式指向「技能集合目录」；两种形态均可被发现（共享扫描规则见
-  `docs/claude-marketplace-triplet-plugin-compat.md` 的 skills 字段语义一节）。
+  字符串形式指向「技能集合目录」；两种形态均可被发现。
   显式声明的路径扫描为 0 个技能时，插件详情页「警告」区会展示
   `plugin_skill_root_empty` 诊断，不再静默。
 

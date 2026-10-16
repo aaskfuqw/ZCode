@@ -1,7 +1,6 @@
 # 用户社群入口配置
 
 > Todo103：本文保留 staging 的既定行为与历史验收记录；历史通过数不计为本次通过。
-> 本次整合证据另记在 todo103-staging-integration-ledger.md，未改变 Provider/Selection 边界。
 
 帮助菜单里的“用户社群”入口与平台“问题反馈”统一从当前 endpoint 的
 `client/configs.data.configs.feedbackUrl` 读取；内置 `config/default.json` 用作默认值。

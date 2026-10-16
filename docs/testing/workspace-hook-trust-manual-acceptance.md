@@ -129,5 +129,4 @@ test -f "<workspace>/.workspace-hook-trust-uat/executions.jsonl" \
 - `executions.jsonl` 内容；
 - `~/.zcode/cli/log` 中对应 session 的日志片段（不要附敏感命令内容）。
 
-自动化验证范围见
-[`workspace-hook-trust-persistent-only.md`](../specs/workspace-hook-trust-persistent-only.md)。
+自动化验证范围见 `docs/testing/hooks-e2e-coverage-matrix.md`。

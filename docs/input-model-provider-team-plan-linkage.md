@@ -94,8 +94,6 @@ default，不再通过 `taskConfigOptionsByTaskId`、task meta 或 last-selected
   runtime provider 通过 `switchModelConfig` CAS 切到新连接方式；不能只更新设置页 selected key
   或 provider registry，否则连接方式与输入框模型会分叉。
 
-详细模型链路见 `docs/chat/model-resolution-chain-audit.md`。
-
 ## Coding Plan 与 Start Plan
 
 - Z.ai Coding Plan 在 authenticated 或 snapshot 尚未水合时可保留；BigModel Coding Plan 必须有有效

@@ -113,7 +113,6 @@ skippedElectronUpdateVersions?: Partial<Record<"stable" | "preview", string>>;
 - 新安装包默认使用服务端 manifest provider；`ZCODE_UPDATE_FEED_URL` 保留为诊断/应急覆盖入口，值必须是完整 manifest 接口 URL。显式配置时仍走服务端 manifest provider，并由客户端覆盖 `platform` / `device_mid` / `channel` 查询参数和对应 header，不再切换到旧 generic feed。
 - post-update release notes、已下载待安装状态和 Windows 安装前资源释放逻辑继续沿用现有实现。
 - Windows 从 `quitAndInstall()` 到 NSIS 的进程退出、快捷方式和完成页启动边界见
-  `docs/desktop/windows-update-install-handoff.md`。
 
 ## 本地调试启动
 

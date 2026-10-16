@@ -118,7 +118,7 @@ describe("AmendWorkflow tool description", () => {
     expect(AMEND_WORKFLOW_TOOL_DESCRIPTION).not.toContain("in flight starts again");
   });
 
-  // 第 4 环（docs/design/v2/tool/00-tool-change-chain.md）：provider-visible 的那一份必须真的
+  // provider-visible 的那一份必须真的
   // 经 ToolRegistry.toContracts() 投影出去，否则改了描述模型也看不见。
   it("经 ToolRegistry.toContracts() 投影给模型", () => {
     const registry = createToolRegistry();

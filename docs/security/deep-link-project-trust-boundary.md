@@ -1,8 +1,6 @@
 # Deep Link 与项目配置信任边界
 
 > 状态：Implemented（2026-08-06）
->
-> 关联规格：`docs/specs/workspace-hook-trust.md`
 
 ## 背景
 

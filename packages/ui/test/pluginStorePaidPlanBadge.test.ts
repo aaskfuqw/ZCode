@@ -12,8 +12,7 @@ vi.mock("@/ControlHintTooltip.js", () => ({
 }));
 
 // 付费套餐提示：市场目录条目的 `listing.requiresPaidPlan` 决定商店卡片与详情页标题
-// 右侧是否出现渐变徽标。缺字段（无需套餐/老目录）时整个标记不渲染，
-// 见 docs/plugin-marketplace-ui-ux.md「降级矩阵」。
+// 右侧是否出现渐变徽标。缺字段（无需套餐/老目录）时整个标记不渲染。
 function makeItem(requiresPaidPlan: boolean | undefined): StorePluginItem {
   return {
     id: "pro-plugin@zcode-plugins-official",

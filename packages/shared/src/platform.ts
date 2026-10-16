@@ -441,7 +441,7 @@ export interface DesktopZoomState {
 }
 
 /**
- * 桌面端"关闭驻留托盘"能力（spec：docs/desktop/linux-close-to-tray.md）。
+ * 桌面端"关闭驻留托盘"能力。
  * Linux 上取决于 session DBus 是否有 StatusNotifierWatcher（KDE/XFCE 原生有，
  * GNOME 需 AppIndicator 扩展）；Windows 固定 supported=true；macOS/Web 不查询。
  */

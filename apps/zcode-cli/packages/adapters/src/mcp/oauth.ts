@@ -258,8 +258,8 @@ class ZCodeMcpAuthorizationCodeProvider implements OAuthClientProvider {
       publishedGeneration: published.generation.slice(0, 12),
       refreshTokenRotated: Boolean(
         previousTokens?.refresh_token &&
-          tokens.refresh_token &&
-          previousTokens.refresh_token !== tokens.refresh_token,
+        tokens.refresh_token &&
+        previousTokens.refresh_token !== tokens.refresh_token,
       ),
       status: "completed",
       tokenExpiresInSeconds: tokens.expires_in,
@@ -272,7 +272,7 @@ class ZCodeMcpAuthorizationCodeProvider implements OAuthClientProvider {
     // 锁死在注册当时的随机端口，`authorizationUrl` 因此可能带「旧 client_id + 新 redirect_uri」。
     // 授权服务器按 RFC 6749 §4.1.2.1 禁止回跳、就地渲染错误页，回调永不到达且重试永不自愈。
     // 所以这里不再投影该 URL、也不打开浏览器，而是抛出 interactiveRequired，由 adapter 编排层
-    // 转入 Phase 2 的 fresh DCR 授权事务（见 docs/mcp-oauth-two-phase.md §4.7）。
+    // 转入 Phase 2 的 fresh DCR 授权事务。
     this.logger?.warn("MCP OAuth authorization handed off to interactive transaction", {
       event: "mcp.oauth.authorization.handoff",
       ...this.logContext(),
@@ -491,7 +491,6 @@ class ZCodeMcpAuthorizationCodeProvider implements OAuthClientProvider {
     this.storedCredentialPairLoaded = true;
     return this.storedCredentialPair;
   }
-
 
   private resetCredentialSnapshots(): void {
     this.canonicalSnapshot = undefined;

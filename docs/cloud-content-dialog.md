@@ -142,5 +142,3 @@ visibility=false/reducedMotion -> 停止RAF；destroy -> 停止全部动画
 Web/手机真实 ZIP 资源托管未接入，Desktop 投放客户端已接 Marketing Touch，但真实后端仍待联调，不能把 Desktop E2E 通过描述成全端云端上线。未改变 desktop continuous / web remote replayable、owner/lease、workspaceIdentity 或 Agent 协议；这里的资源 lease 不是 task owner lease。
 
 生产阶段另验收：可信 HTTPS/CDN 发布认证、签名、账号隔离、投放频控、灰度/回滚与 Web 资源托管。SHA-256 仅证明字节一致，不证明发布者可信。
-
-完整阶段计划与验收记录见 [cloud-content-dialog-plan.md](./cloud-content-dialog-plan.md)。

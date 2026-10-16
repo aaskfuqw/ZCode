@@ -66,6 +66,17 @@ export default defineConfig({
     },
   },
   test: {
+    // 桌面存储协议测试直接执行 CLI 源码；解析到公开源码入口，避免依赖尚未生成或过期的 dist。
+    alias: [
+      {
+        find: /^@zcode\/adapters\/storage$/,
+        replacement: resolve(__dirname, "apps/zcode-cli/packages/adapters/src/storage/index.ts"),
+      },
+      {
+        find: /^@zcode\/contracts$/,
+        replacement: resolve(__dirname, "apps/zcode-cli/packages/contracts/src/index.ts"),
+      },
+    ],
     setupFiles: ["./vitest.setup.ts"],
     // 修复原因：全量 run 的 stdout 会把**通过**测试里的 console 输出一并转发——services 层
     // 用 createServiceLogger 的用例在绿态下也要刷几千行多行日志，全量输出因此膨胀到

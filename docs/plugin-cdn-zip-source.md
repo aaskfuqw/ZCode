@@ -18,10 +18,10 @@
   `buildMarketplaceGitEnv()` 和 `applyNetworkEgressEnv()` 注入 `ZCODE_HTTP_PROXY` 等显式网络环境；
   zip 下载应使用同一网络出口语义，而不是绕过代理配置。
 - 保持 Claude Marketplace Git 兼容性。本 Phase 1 原本不改变 `github`、`git`、`url`、
-  `git-subdir`；后续 [公开 GitHub 插件源无 Git安装规格](./plugin-github-archive-source.md)
-  已将可匿名读取的 GitHub HTTPS 来源收敛到同一安全 ZIP materializer，其他来源仍走系统 Git。
+  `git-subdir` 的行为；当前可匿名读取的 GitHub HTTPS 插件源已收敛到同一安全 ZIP materializer，
+  其他来源仍走系统 Git。
   `npm` / `pip` 仍是识别但不安装的诊断路径。
-- 在 spec 先行的基础上，给后续 coding agent 留出具体文件、测试和 rollout checklist。
+- 为后续实现提供具体文件、测试和 rollout checklist。
 
 ### Non-goals
 
@@ -55,15 +55,15 @@
 
 字段语义：
 
-| 字段 | Phase 1 语义 |
-| --- | --- |
-| `source` | 固定为 `"url"`。这是 plugin entry source，不是 marketplace source。 |
-| `type` | zip artifact 必填为 `"zip"`。缺失或 `"git"` 时保持 legacy git clone。未知值直接诊断/报错，不 fallback。 |
-| `url` | 必填，远端 CDN 必须是 `https://` URL。本地测试/fixture 允许 loopback HTTP（`localhost` / `127.0.0.1` / `::1`）。 |
-| `sha256` | zip source 必填，64 位小写 hex。下载后必须先校验 digest，校验通过才允许解压。 |
-| `path` | 可选，zip 解压后的插件子目录。语义对齐 git source 的 `path`，先安全解压到临时根，再在临时根内 `resolveInside(path)` 定位插件根。 |
-| `headers` | 可选，仅允许普通字符串 header；禁止 `Authorization`、`Cookie` 等敏感 header 进入 marketplace JSON。Phase 1 建议仅支持公开 CDN，不把 credential 写入 marketplace。 |
-| `stripRoot` | 可选布尔值。`true` 表示 zip 所有条目都有同一个安全顶层目录时，定位 root 时可剥离这一层；默认推荐 `true`，但实现要和 `path` 互斥或明确优先级。 |
+| 字段        | Phase 1 语义                                                                                                                                                      |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source`    | 固定为 `"url"`。这是 plugin entry source，不是 marketplace source。                                                                                               |
+| `type`      | zip artifact 必填为 `"zip"`。缺失或 `"git"` 时保持 legacy git clone。未知值直接诊断/报错，不 fallback。                                                           |
+| `url`       | 必填，远端 CDN 必须是 `https://` URL。本地测试/fixture 允许 loopback HTTP（`localhost` / `127.0.0.1` / `::1`）。                                                  |
+| `sha256`    | zip source 必填，64 位小写 hex。下载后必须先校验 digest，校验通过才允许解压。                                                                                     |
+| `path`      | 可选，zip 解压后的插件子目录。语义对齐 git source 的 `path`，先安全解压到临时根，再在临时根内 `resolveInside(path)` 定位插件根。                                  |
+| `headers`   | 可选，仅允许普通字符串 header；禁止 `Authorization`、`Cookie` 等敏感 header 进入 marketplace JSON。Phase 1 建议仅支持公开 CDN，不把 credential 写入 marketplace。 |
+| `stripRoot` | 可选布尔值。`true` 表示 zip 所有条目都有同一个安全顶层目录时，定位 root 时可剥离这一层；默认推荐 `true`，但实现要和 `path` 互斥或明确优先级。                     |
 
 推荐的最小公开 CDN entry：
 
@@ -308,7 +308,6 @@ Phase 1 为最小改动，也可以扩展现有 `readPluginSourceSha()`：
 
 - `docs/plugin-cdn-zip-source.md`
   - 本 spec，随实现更新决策和验收结果。
-- `docs/claude-code-marketplace-plugin-compat.md`
   - 在 plugin entry source 矩阵新增 `{source:"url", type:"zip"}`。
   - 明确无 `type` 的 `{source:"url"}` 仍是 git clone 兼容路径，不代表 HTTP zip。
 - `apps/zcode-cli/packages/adapters/package.json`
@@ -468,7 +467,6 @@ cache/{marketplace}/{plugin}/{version}/
 - `sha256` required。
 - 安全下载、sha256 校验、安全解压、root locate。
 - 复用 `resolvePluginSourceRoot()` -> `{ path, cleanup? }` -> `cacheMarketplacePlugin()`。
-- 更新 `docs/claude-code-marketplace-plugin-compat.md` source matrix。
 - 单元测试覆盖 install、validate、describe、update detection、zip slip、limits。
 - 不改 marketplace-as-zip。
 - 不改 runtime 和 UI 业务语义；UI 只自然展示现有 install/diagnostic 结果。
@@ -511,9 +509,8 @@ cache/{marketplace}/{plugin}/{version}/
 
 ## 10. Implementation task checklist
 
-- [ ] 阅读并保持本 spec 与 `docs/claude-code-marketplace-plugin-compat.md` 一致。
 - [ ] 在 adapters 增加 zip dependency：优先评估 `yauzl`，并在 `apps/zcode-cli/packages/adapters/package.json`
-  显式声明，不依赖 desktop/services 的 transitive dependency。
+      显式声明，不依赖 desktop/services 的 transitive dependency。
 - [ ] 新建 `apps/zcode-cli/packages/adapters/src/plugins/zip-source.ts`：
   - [ ] `resolveZipPluginSource(input): Promise<ResolvedPluginSourceRoot>`；
   - [ ] HTTPS URL 和 redirect 校验；
@@ -533,7 +530,6 @@ cache/{marketplace}/{plugin}/{version}/
   - [ ] 将 `readPluginSourceSha()` 重命名/扩展为 identity pin helper。
 - [ ] 修改 `bootstrap/src/plugins.ts` 使用 identity pin helper，确保 zip sha256 进入 update overview。
 - [ ] 修改 `version-compare.ts` 注释/类型，保持 version primary、identity pin secondary。
-- [ ] 更新 `docs/claude-code-marketplace-plugin-compat.md` 的 plugin source 矩阵。
 - [ ] 新增 adapters 单测：
   - [ ] valid zip install；
   - [ ] zip `path` install；

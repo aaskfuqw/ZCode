@@ -243,7 +243,7 @@ export const PlatformChannels = {
   LoadMcpFromUserDirectory: "zcode:load-mcp-from-user-directory",
   /** Renderer → Main：保存 CLI MCP 配置到用户目录 */
   SaveMcpToUserDirectory: "zcode:save-mcp-to-user-directory",
-  /** Renderer → Main：查询"关闭驻留托盘"能力（Linux 置灰判断；spec：docs/desktop/linux-close-to-tray.md） */
+  /** Renderer → Main：查询"关闭驻留托盘"能力（Linux 置灰判断） */
   GetCloseToTrayCapability: "zcode:get-close-to-tray-capability",
   /** Renderer 日志转发到 main 进程统一存储 */
   Log: "zcode:log",

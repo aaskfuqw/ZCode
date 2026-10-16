@@ -399,7 +399,10 @@ describe("ToolExecutor trace propagation", () => {
         optionSpecs: model.optionSpecs,
         properties: model.properties,
       };
-    expect(capturedModels.map(identityOf)).toEqual([identityOf(activeModel), identityOf(activeModel)]);
+    expect(capturedModels.map(identityOf)).toEqual([
+      identityOf(activeModel),
+      identityOf(activeModel),
+    ]);
     for (const captured of capturedModels) {
       await expect(captured!.generateText({ messages: [] })).resolves.toEqual({
         finishReason: "stop",
@@ -1549,7 +1552,7 @@ describe("ToolExecutor trace propagation", () => {
     expect(result?.additionalContexts).toEqual(["Ralph iteration 2", "repeat the original task"]);
   });
 
-  // 契约更新（docs/design/v2/permission-responder-race.md）：hook 与 broker 并发竞速，
+  // 契约更新：hook 与 broker 并发竞速，
   // broker 的应答通道总是先建立（会被调用），但 hook 决定先到时 broker 等待被 abort、
   // 其应答不被消费。旧断言「broker 不被调用」属于串行时代，已作废。
   it("lets a PermissionRequest hook approval win the race over a pending broker", async () => {

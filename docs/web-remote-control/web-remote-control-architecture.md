@@ -46,18 +46,15 @@
 
 | 内容                               | 文档                                                                 |
 | ---------------------------------- | -------------------------------------------------------------------- |
-| 手机首页、聊天、新建任务与页面状态 | [手机任务首页](./mobile-task-home-design.md)                         |
 | 手机任务时间线与排序               | [移动端任务时间线](../ui/web-remote-control-mobile-task-timeline.md) |
 | 宽屏任务列表、搜索与归档           | [宽屏任务列表](./wide-screen-task-list.md)                           |
 | 手机主题与浏览器表面               | [主题控制](./mobile-theme-control.md)                                |
 | 远程工作区断开与重连               | [工作区重连](./mobile-remote-workspace-reconnect.md)                 |
 | 实时同步、snapshot 与 gap 恢复     | [任务实时同步](./task-realtime-sync.md)                              |
 | 输入 admission、队列与跨端命令路由 | [任务命令队列](../web-remote-control-task-command-queue.md)          |
-| V4 静态资源发布                    | [V4 部署](./remote-v4-static-deployment.md)                          |
 | 独立 OAuth 登录入口                | [Web Remote Login](./web-remote-login.md)                            |
 
-下文描述当前技术实现；[最小跑通规划](./web-remote-control-minimal-plan.md)仅作为历史记录，
-其中的仓库内 relay、专用 mobile host 和旧联调命令不适用于当前链路。
+下文描述当前技术实现。
 
 ## 入口
 
@@ -449,7 +446,7 @@ Mobile web 连接流程：
 2. 通过 `WebRemoteControlTerminalTransport` 认证为 `terminal`
 3. paired 后发送 `bootstrap-request`；v4 使用响应中的可选 `desktopAppVersion` 校验 URL。
    首次不一致时校正并导航，已进入页面时保留页面并提示确认后重新加载；旧桌面缺字段时保持原行为。
-   重连/回前台时即使 bridge 健康也重新校验，具体边界见 [v4 版本同步](./remote-v4-static-deployment.md#v4-url-与桌面实际版本同步)。
+   重连或回前台时，即使 bridge 健康也重新校验版本。
 4. 按 `mobileViewState -> initialViewState -> first workspace` 选择初始 workspace
 5. 若目标远程工作区尚不具备 bridge 条件，渲染 home-only `Root`，保留工作区列表与重连入口；
    此时不创建 workspace bridge，也不开放依赖工作区服务的任务操作。没有可选工作区时显示错误页。
@@ -503,7 +500,7 @@ IPC handler 的 manager 依赖类型只允许暴露 `authorizeStart`、`startAut
 启动、刷新配对、窗口关闭、用户停止和票据超时都必须使未消费票据失效。应用启动时恢复
 “上次已启用”仍是内部生命周期操作，不得绕过 workspace/session 绑定。
 
-Office 文档 XSS 的根因边界由 `docs/ui/office-file-preview.md` 定义：不可信链接必须经过协议白名单、
+Office 文档 XSS 的安全边界：不可信链接必须经过协议白名单、
 DOM 净化、点击拦截和受控外链打开。移除原生远控确认不改变这些根因修复；代价是如果未来出现新的
 renderer XSS 或上述边界被绕过，攻击代码可以再次直接调用远控启动 IPC，内部票据不会提供用户在场
 证明。安全评估不得把该票据当作 Office XSS 的补偿控制。

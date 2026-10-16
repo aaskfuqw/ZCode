@@ -2,13 +2,13 @@
 
 ## Feature/change summary
 
-| Field                 | Value                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Change                | Plan 模式下从 composer 提交 goal 控制命令时，在 UI admission 边界拒绝并提示切换模式                                                        |
-| User-visible surfaces | 桌面端 composer、普通 Web composer、手机 `/remote` composer                                                                                |
-| Existing docs         | `docs/conversation-protocol-declaration.md`、`docs/conversation-product-state-space.md`、`docs/v4-refactor/v4-goal-command-parity-plan.md` |
-| Existing code owners  | `packages/ui/src/v4/SessionPane.tsx`、`packages/ui/src/v4/ConversationComposer.tsx`、`packages/ui/src/v4/slashCommands.ts`                 |
-| Out of scope          | 改写 CLI goal runtime、修改 queue/goal persistence、改变 desktop continuous 或 mobile replayable 的交付协议                                |
+| Field                 | Value                                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Change                | Plan 模式下从 composer 提交 goal 控制命令时，在 UI admission 边界拒绝并提示切换模式                                        |
+| User-visible surfaces | 桌面端 composer、普通 Web composer、手机 `/remote` composer                                                                |
+| Existing docs         | `docs/conversation-protocol-declaration.md`、`docs/conversation-product-state-space.md`                                    |
+| Existing code owners  | `packages/ui/src/v4/SessionPane.tsx`、`packages/ui/src/v4/ConversationComposer.tsx`、`packages/ui/src/v4/slashCommands.ts` |
+| Out of scope          | 改写 CLI goal runtime、修改 queue/goal persistence、改变 desktop continuous 或 mobile replayable 的交付协议                |
 
 ## Clarification log
 
@@ -18,13 +18,13 @@
 
 ## Boundary decisions
 
-| Boundary            | Decision                           | Includes                                                                                      | Excludes / prunes                                                               | Source                             |
-| ------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------- |
-| Collaboration mode  | 仅 `config.mode=plan` 拒绝         | draft/prewarmed session、已有 session                                                         | build/edit/yolo 保持原语义                                                      | user                               |
+| Boundary            | Decision                           | Includes                                                                      | Excludes / prunes                                                               | Source                             |
+| ------------------- | ---------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------- |
+| Collaboration mode  | 仅 `config.mode=plan` 拒绝         | draft/prewarmed session、已有 session                                         | build/edit/yolo 保持原语义                                                      | user                               |
 | Command class       | 拒绝 parser 已识别的 goal 控制命令 | `/goal`、`/goal <内容>`、`/goal replace/resume/...` 及既有 `/target` 等价入口 | `/compact`、普通文本                                                            | user + existing parser equivalence |
-| Attachments/context | 沿用现有 parser guard              | 无附件、无网页/会话选择上下文时才是 slash command                                             | 带附件或 context 的 `/goal` 文本仍走普通 `sendText`                             | existing code                      |
-| Side effects        | 只 toast 并返回 `blocked`          | 输入、附件、草稿记录保持                                                                      | 不 dispatch `sendGoalCommand`/`resumeGoal`，不创建 session，不写 prompt history | user                               |
-| Client boundary     | 共用 `SessionPane` admission guard | desktop continuous、普通 Web、web-remote replayable                                           | 不在 relay/main/Host/CLI 各写一份 guard                                         | architecture docs                  |
+| Attachments/context | 沿用现有 parser guard              | 无附件、无网页/会话选择上下文时才是 slash command                             | 带附件或 context 的 `/goal` 文本仍走普通 `sendText`                             | existing code                      |
+| Side effects        | 只 toast 并返回 `blocked`          | 输入、附件、草稿记录保持                                                      | 不 dispatch `sendGoalCommand`/`resumeGoal`，不创建 session，不写 prompt history | user                               |
+| Client boundary     | 共用 `SessionPane` admission guard | desktop continuous、普通 Web、web-remote replayable                           | 不在 relay/main/Host/CLI 各写一份 guard                                         | architecture docs                  |
 
 ## Domain scope and high-risk cross-products
 

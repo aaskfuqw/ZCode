@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { IServiceAccessor } from "@zcode/services";
 
-// 回归背景（docs/remote-workspace-provider-sync-hang.md）：3.8.1 中 onSelectProject 的
+// 回归背景：3.8.1 中 onSelectProject 的
 // Promise 永久 pending 会让向导「选择目录」按钮永远停在加载中。修复保证该 Promise 必定
 // settle 后，这里锁定向导侧的收口契约：rejection 必须复位 selecting 并把错误展示给用户。
 const captured = vi.hoisted(() => ({

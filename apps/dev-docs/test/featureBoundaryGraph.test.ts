@@ -132,7 +132,6 @@ describe("feature boundary graph helpers", () => {
     const graph = normalizeFeatureBoundaryGraph(parseYaml(source));
     const capabilityId = "capability.dangerous-command-approval";
     const capability = graph.nodes.find((node) => node.id === capabilityId);
-    expect(capability?.docs).toContain("docs/dangerous-command-approval-v1-plan.md");
     expect(capability?.codeSeeds).toEqual([
       "matchDangerousCommand · apps/zcode-cli/packages/core/src/tool/handlers/guarded/command.ts",
       "resolveToolPermission · apps/zcode-cli/packages/core/src/tool/executor/permission-flow.ts",

@@ -3,7 +3,7 @@ import type { HighspeedMockScenario } from "@zcode/shared";
 export const HIGHSPEED_MOCK_SCENARIO_ENV = "ZCODE_HIGHSPEED_MOCK_SCENARIO";
 
 // Mock 场景在 Host 进程内固定、draw 后冷却 2 分钟，一个 spec 文件只能完成一次 draw，
-// 所以每个场景对应一个 spec 文件（docs/highspeed/highspeed-card-spec.md §7）。
+// 所以每个场景对应一个 spec 文件。
 // 文件名互不为子串，按 includes 匹配不会串场景。
 const HIGHSPEED_E2E_SPEC_SCENARIOS: ReadonlyArray<readonly [string, HighspeedMockScenario]> = [
   ["conversation-session-highspeed-card.test.ts", "hit-fast"],

@@ -698,7 +698,7 @@ describe("AgentRuntime model selection event", () => {
   });
 
   it("falls back to the Session Selection on any execution provider failure with a single-attempt budget", async () => {
-    // docs/highspeed/highspeed-card-spec.md §2.2：加速请求任何失败（这里是网关 401，没有业务码）都退回；
+    // 加速请求任何失败（这里是网关 401，没有业务码）都退回；
     // 加速句柄 0 次重试（single-attempt），退回后的会话模型恢复默认预算。
     const sessionId = createSessionId("runtime-execution-selection-any-failure-fallback");
     const eventStore = createTestSessionEventStore();
@@ -1246,17 +1246,20 @@ describe("AgentRuntime model selection event", () => {
             yield { id: "text-1", type: "text_start" };
             if (providerId === highspeedProviderId) {
               yield { id: "text-1", text: "partial accelerated output", type: "text_delta" };
-              throw Object.assign(new Error("Network connection failed for the provider request."), {
-                code: "model_request_failed",
-                context: {
-                  providerId,
-                  modelId: "GLM-5.3",
-                  reason: "network_error",
-                  retryable: true,
-                  source: "network",
+              throw Object.assign(
+                new Error("Network connection failed for the provider request."),
+                {
+                  code: "model_request_failed",
+                  context: {
+                    providerId,
+                    modelId: "GLM-5.3",
+                    reason: "network_error",
+                    retryable: true,
+                    source: "network",
+                  },
+                  name: "AiSdkModelAdapterError",
                 },
-                name: "AiSdkModelAdapterError",
-              });
+              );
             }
             yield { id: "text-1", text: "continued with the session model", type: "text_delta" };
             yield { id: "text-1", type: "text_end" };

@@ -135,7 +135,7 @@ export function GeneralSectionContent({
   isWindowsDesktop?: boolean;
   /** Linux 桌面端（isDesktop 且非 win/mac）；关闭驻留托盘设置在 Linux 上按能力自适应展示 */
   isLinuxDesktop?: boolean;
-  /** Linux 关闭驻留托盘能力状态（spec：docs/desktop/linux-close-to-tray.md）；Windows 不传 */
+  /** Linux 关闭驻留托盘能力状态；Windows 不传 */
   linuxCloseToTray?: {
     /** 能力探测中或确认不可用，开关锁定 */
     disabled: boolean;
@@ -661,8 +661,7 @@ export function GeneralSectionContent({
             control={
               <Switch
                 checked={closeToTrayOnWindows}
-                // Linux 上托盘能力未知（探测中）或确认不可用时都锁定，防止误开导致关窗失联
-                //（spec：docs/desktop/linux-close-to-tray.md）。
+                // Linux 上托盘能力未知（探测中）或确认不可用时都锁定，防止误开导致关窗失联。
                 disabled={Boolean(linuxCloseToTray?.disabled)}
                 onCheckedChange={(checked) => {
                   void onCloseToTrayOnWindowsChange(checked);

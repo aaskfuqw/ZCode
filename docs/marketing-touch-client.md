@@ -169,7 +169,7 @@ CLI task owner → sessions-index 只读投影 → 工作区 hook 观察成功�
 
 ### 左下角与 Highspeed 分享卡共享槽位优先级（2026-09-20）
 
-左下角侧栏底部的「领 token」营销 Banner 与 Highspeed 分享卡（全局通知 `highspeed-share`）折叠到**同一展示槽位**，两者同时命中时**领 token Banner 优先覆盖在上**；Banner 消失或被关闭后，同一槽位才显示 Highspeed 分享卡。仲裁由只读投影组件 `SidebarBottomActivity` 完成：读取两侧各自 store 的可见性择一渲染，不复制状态、不新增计时器。Banner「可见」复用唯一谓词 `isMarketingBannerRenderable`（`banner && resource_position === "banner" && (image || bannerHero)`，领取 `pending` 期间仍算可见）。完整时序与归属见 [Highspeed 卡规格 §9.5](highspeed/highspeed-card-spec.md)。
+左下角侧栏底部的「领 token」营销 Banner 与 Highspeed 分享卡（全局通知 `highspeed-share`）折叠到**同一展示槽位**，两者同时命中时**领 token Banner 优先覆盖在上**；Banner 消失或被关闭后，同一槽位才显示 Highspeed 分享卡。仲裁由只读投影组件 `SidebarBottomActivity` 完成：读取两侧各自 store 的可见性择一渲染，不复制状态、不新增计时器。Banner「可见」复用唯一谓词 `isMarketingBannerRenderable`（`banner && resource_position === "banner" && (image || bannerHero)`，领取 `pending` 期间仍算可见）。
 
 ```text
 banner 可见 → 渲染领 token Banner（覆盖 Highspeed）
@@ -242,7 +242,7 @@ Controller 仍是投放/动作唯一 owner；组件仅持有 iframe 就绪状态
 
 新动作见 [navigate 与 copy_text 协议方案](marketing-touch-actions.md)：客户端已接入设置各分区、插件管理/市场与详情导航，以及纯文本复制；不包含新建任务或切换模型。导航等目标组件确认后关闭内容并报 confirm；复制成功保留内容，每次真实复制报 confirm，随后关闭 Banner/独立 Popup 仍报 cancel。两者均不触发 success_popup。
 
-HTML 描述支持不经过类名白名单过滤的 class，以及经过属性和值校验的 inline style，完整规则见 [HTML 样式](cloud-content-html-styling.md)。仅已打包 Tailwind CSS 生效，外层 description.style 不变；服务端内容必须可信，不承诺任意 class 的布局隔离。
+HTML 描述支持不经过类名白名单过滤的 class，以及经过属性和值校验的 inline style。仅已打包 Tailwind CSS 生效，外层 description.style 不变；服务端内容必须可信，不承诺任意 class 的布局隔离。
 
 升级购买使用 `{"type":"navigate","args":{"page":"upgrade"}}`，仅桌面复用现有内嵌官网购买页及侧栏提供商选择，不接受套餐或自动支付参数。等待页面 ready 时隐藏营销弹窗，失败/取消/超时恢复内容且不报 confirm；页面 ready 后报一次 confirm，表示打开成功而非购买成功。登录与支付继续由原购买页处理。
 

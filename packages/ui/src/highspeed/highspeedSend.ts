@@ -58,7 +58,6 @@ export type HighspeedSendContext = {
  *
  * 加速本轮通过标准 modelSelection + modelExecution{selectionScope:"execution"} 表达：
  * 端点等静态事实来自 Built-in Provider Config，凭据只属于这一次执行、不写 session 常驻选择。
- * 见 docs/highspeed/highspeed-access-mode-migration.md。
  */
 export function buildHighspeedRuntimeOverride(
   result: HighspeedPrepareTurnResult | null | undefined,

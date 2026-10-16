@@ -35,6 +35,3 @@ This keeps Electron-specific `window.zcode` access inside desktop renderer boots
   desktop main 不保存 MCP tool/kernel state 或 conversation state。
 - desktop `desktop-continuous` 与 mobile `web-remote-replayable` 的消息投递边界不因 MCP process
   共享而改变。
-
-完整合同见 `docs/mcp-stateless-node-repl.md`。
-通用 client 协商合同见 `docs/mcp-dual-era-version-negotiation.md`。

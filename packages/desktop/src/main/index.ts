@@ -322,7 +322,7 @@ let closeToTrayOnWindows = true;
 // CR-01：托盘实例创建结果（模块级，关窗分支读取）。DBus 能力探测通过不等于 Electron
 // Tray 创建成功；隐藏窗口前必须确认最终用户入口真实存在，否则隐藏即失联。
 let desktopTrayReady = false;
-// 关闭驻留托盘能力 monitor（spec：docs/desktop/linux-close-to-tray.md）。
+// 关闭驻留托盘能力 monitor。
 // Linux 关窗分支是同步回调，只能读缓存；启动后首次探测完成前按"不可用"安全默认。
 const closeToTrayCapabilityMonitor = createCloseToTrayCapabilityMonitor({
   platform: process.platform,
@@ -2120,7 +2120,7 @@ app.whenReady().then(async () => {
       loadedBootstrapLocale = true;
       currentApplicationLocale = bootstrapSettings.locale;
     }
-    // Linux 默认值归位迁移（spec：docs/desktop/linux-close-to-tray.md）：shared 迁移无平台
+    // Linux 默认值归位迁移：shared 迁移无平台
     // 概念、曾把存量 Linux 用户归为 true，但 Linux 此前无设置入口，存量 true 非用户显式
     // 选择；首次启动强制归位为默认关并落标记，之后尊重用户选择。
     const closeToTrayBootstrap = resolveCloseToTrayBootstrapValue({
@@ -2290,7 +2290,7 @@ app.whenReady().then(async () => {
     if (process.platform !== "linux" || desktopTrayReady) {
       return;
     }
-    // Linux 托盘创建跟随能力而非设置开关（spec：docs/desktop/linux-close-to-tray.md）：
+    // Linux 托盘创建跟随能力而非设置开关：
     // 无 StatusNotifierWatcher 的桌面（GNOME 默认）上 new Tray() 静默失败，注册无人渲染的
     // DBus name 没有意义；能力探测通过后再创建。用户装扩展后经设置页查询也会走到这里补建。
     const capability = await closeToTrayCapabilityMonitor.refresh();

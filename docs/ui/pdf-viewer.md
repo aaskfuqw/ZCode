@@ -45,4 +45,3 @@
 - `packages/ui/src/previewPanePdfContent.tsx`：preview pane 的懒加载接入层
 - `packages/ui/src/assets.d.ts`：Vite `?url` 资源导入的类型声明
 - `packages/services/src/file/fileService.ts`：`readFileRange` 分段读取与 `stat` 的 `size` 字段（range 加载的数据来源）
-- `docs/ui/preview-pane.md`：preview pane 的 `pdf` source 分派与数据加载策略约定

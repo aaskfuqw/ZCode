@@ -34,8 +34,7 @@ core 只计算本轮最终 `maxOutputTokens`，不再附带请求类别或 Provi
 Adapter 在 AI SDK 完成基础序列化和协议兼容之后、请求安全校验与网络发送之前执行该 Map。它不再同时向
 AI SDK 传递通用 `maxOutputTokens`，也不再保留 32K fallback、Provider ID 分支、fixed-thinking
 加减或原始字段清洗。具体映射只属于命中当前 `providerId/modelId/api.type/baseURL` 的 Model Config
-Rule，完整契约见
-[Model Option Map 与原始请求体](./working-memory/provider-refactor/design/model/model-option-map.md)。
+Rule。
 
 ## 固定预算策略（3.12.2）
 

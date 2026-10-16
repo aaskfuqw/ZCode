@@ -1653,7 +1653,7 @@ describe("SessionPane model switch recovery", () => {
   });
 
   it("Highspeed 降级行按 fallbackReason 区分 Toast 文案；旧数据无原因时按卡过期处理", async () => {
-    // docs/highspeed/highspeed-card-spec.md §2.2：卡过期与加速服务不可用分别提示，且每轮只提示一次。
+    // 卡过期与加速服务不可用分别提示，且每轮只提示一次。
     const fallbackAt = Date.now();
     const highspeedRow = (
       sourceCommandId: string,

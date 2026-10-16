@@ -18,4 +18,4 @@ Electron RelaunchApp
 消费 marker 并进入登录页
 ```
 
-当前平台 userinfo/customerInfo、企业定价、团队订阅详情请求携带当前业务 access_token 并返回 HTTP 401 或 HTTP 200 + JSON 数值 `code: 401` 时，也复用上述流程；具体范围见 [401 自动退出](jwt-401-auto-logout.md)。空响应、其它业务错误、普通 API Key、支付/API key 管理请求不纳入新增判断。Web 端没有 `RelaunchApp`，用户确认后写入 marker 并调用 `location.reload()`，刷新后同样消费 marker 进入 `session-expired` 登录页。
+当前平台 userinfo/customerInfo、企业定价、团队订阅详情请求携带当前业务 access_token 并返回 HTTP 401 或 HTTP 200 + JSON 数值 `code: 401` 时，也复用上述流程。空响应、其它业务错误、普通 API Key、支付/API key 管理请求不纳入新增判断。Web 端没有 `RelaunchApp`，用户确认后写入 marker 并调用 `location.reload()`，刷新后同样消费 marker 进入 `session-expired` 登录页。

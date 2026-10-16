@@ -1,4 +1,4 @@
-// Session 常驻池验收网（spec: apps/zcode-cli/docs/design/v2/session-idle-deactivation.md）：
+// Session 常驻池验收网：
 // 单个 app-server 以 idle TTL 主动回收长期空闲 runtime，并用 high/low water LRU
 // 限制突发 resident 数量；运行、后台 work、订阅和协议操作必须优先保活。
 //

@@ -6,7 +6,7 @@
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Change                | Composer 提交文本时只过滤与上一条相同的连续历史；`↑/↓` 继续读取历史                                                                  |
 | User-visible surfaces | Desktop / Web 共用的 V4 conversation composer                                                                                        |
-| Existing docs         | `docs/v4-refactor/m5-composer-parity.md`、`docs/conversation-session-case-catalog.md`                                                |
+| Existing docs         | `docs/conversation-session-case-catalog.md`                                                                                          |
 | Existing code owners  | `packages/ui/src/lib/promptHistory.ts`、`packages/ui/src/lib/promptHistoryStorage.ts`、`packages/ui/src/v4/ConversationComposer.tsx` |
 | Out of scope          | 全局去重、旧数据迁移、历史容量和 workspace key 变更、协议/Agent/relay 状态                                                           |
 

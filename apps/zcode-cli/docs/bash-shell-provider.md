@@ -112,5 +112,4 @@ overlay、cwd capture、background behavior、startup source、snapshot restore/
 - shell provider 不承诺用户 rc/profile 的全部交互式行为；启动参数和 source 策略以 adapter 测试为准。
 - persisted executable 在 resume 时可能失效，必须降级并留下 notice，不能因保持历史 shell 而阻止 session
   恢复。
-- Bash tool 的 provider-visible 行为契约以 `apps/zcode-cli/docs/design/v2/tool/04-bash.md` 为准；本文件只描述
-  selection/execution architecture。
+- 本文件描述 Bash tool 的 selection/execution architecture；provider-visible 行为由工具 schema 和回归测试约束。

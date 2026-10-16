@@ -58,8 +58,7 @@ arm64 Helper 与主 App 一起交付。
 ## 本地 dev 模式
 
 > Helper 与模型侧 SDK/node_repl bridge 是两类独立资产。Helper 显示 ready 但工具仍不可用时，还需要检查
-> [`cua-dev-mcp-runtime-assets.md`](./cua-dev-mcp-runtime-assets.md) 中的 Dev 构建、插件缓存与
-> session MCP 注册链路。
+> Dev 构建、插件缓存与 session MCP 注册链路。
 
 `ZCODE_CUA_HELPER_ALLOW_UNSIGNED_LOCAL=1` 用于解决开发机没有 Developer ID 签名身份时的
 迭代测试问题。产品 Helper resolver 默认启用，不需要额外开启变量；只有

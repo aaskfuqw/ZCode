@@ -1,7 +1,7 @@
 # Browser Use Phase 1 Spec
 
 > 状态：历史阶段规格。运行时启停边界以 `browser-use-plugin-runtime-boundary.md` 为准，Node REPL
-> 载体以 `2026-07-13-node-repl-mcp-runtime-spec.md` 为准；下文保留 Phase 1 范围，但示例按当前
+> 下文保留 Phase 1 范围，但示例按当前
 > `globalThis.browser + list → match → get` guidance 更新，避免被误当作现行操作说明。
 
 ## 背景

@@ -1,6 +1,6 @@
 ---
 name: feature-boundary-planner
-description: Use when the agent needs to discover the blast radius of a ZCode feature or behavior change, answer "if I change X what other features or UI surfaces should I inspect?", map shared UI components, option builders, state owners, protocol commands, persistence and tests with codegraph, clarify product boundaries, prune state combinations, and prepare specs, case catalogs, coverage matrices, or E2E handoffs before implementation.
+description: Use when the agent needs to discover the blast radius of a ZCode feature or behavior change, answer "if I change X what other features or UI surfaces should I inspect?", map shared UI components, option builders, state owners, protocol commands, persistence and tests with codegraph, clarify product boundaries, prune state combinations, and prepare impact briefs, case catalogs, coverage matrices, or E2E handoffs.
 ---
 
 # Feature Boundary Planner
@@ -17,7 +17,7 @@ Do not begin with a large Cartesian product. Build a compact semantic impact map
 ## Choose The Operating Mode
 
 - `impact-only`: Produce an Impact Brief. Do not change product code or existing product specs.
-- `planning`: Produce the Impact Brief, clarify product semantics, and update specs or planning documents before code.
+- `planning`: Produce the Impact Brief, clarify product semantics, and identify acceptance cases. Maintain existing contracts and machine-consumed test catalogs when affected.
 - `implementation-handoff`: Complete planning and prepare accepted cases for implementation or `e2e-case-lifecycle`.
 
 Infer the least expansive mode from the user's request. A request to scan, explain, diagnose, or report impact is `impact-only`. A request to change or build uses `planning` unless the user explicitly limits the work.
@@ -35,7 +35,7 @@ For `planning` or `implementation-handoff`, also read:
 
 - `packages/formal-proof/README.md`
 - `references/case-planning-template.md`
-- the current feature spec, nearby case catalog, coverage matrix, decision worksheet, and testing workflow.
+- the relevant current contracts, nearby case catalog, coverage matrix, decision worksheet, and testing workflow.
 
 When conversation/session behavior is affected, read:
 
@@ -135,9 +135,9 @@ Run this section only in `planning` or `implementation-handoff` mode.
 6. Give every pruned case a guard/invariant reason. Give every undefined case a concrete question and candidate answers.
 7. Record accepted cases with setup, action, assertions, and evidence.
 
-## Write Docs Before Code
+## Keep Planning Evidence
 
-In planning modes, update or create the feature spec, catalog, matrix, decision worksheet, or backlog before implementation. For conversation-related E2E work, update the conversation case catalog and coverage matrix and obtain pruning decisions before writing tests.
+In planning modes, capture the confirmed behavior and acceptance cases in the Impact Brief or change description. Maintain existing catalogs and matrices consumed by test tooling when their cases change. Create additional specs, worksheets, or backlogs when requested.
 
 Hand accepted E2E cases to `e2e-case-lifecycle` when they require manual-review specs, provider replay fixtures, Docker isolation, timing control, or CI promotion.
 
@@ -168,7 +168,7 @@ For planning modes, append the sections in `references/case-planning-template.md
 - Do not turn an `impact-only` request into code or product-spec edits.
 - Do not enumerate a large matrix before the first impact and clarification pass.
 - Do not guess undefined product behavior. Record the decision and ask the user.
-- Do not write E2E code until accepted semantics exist in docs.
+- Establish accepted setup, actions, and assertions before writing E2E code.
 - Do not claim coverage from a path that lacks setup, action, and assertion.
 - Mark implementation/spec conflicts as `bug-candidate`; do not rewrite the contract to match current code without confirmation.
 - Keep desktop `desktop-continuous` and mobile `web-remote-replayable` semantics separate.

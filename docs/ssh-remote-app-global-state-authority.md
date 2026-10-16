@@ -1,7 +1,6 @@
 # SSH 远端 Workspace 状态权威边界
 
-> 当前事实文档。旧的 Desktop Provider Registry 快照下发方案已经退出；历史方案与事故轨迹只在
-> working-memory、旧 plan/spec 和事故复盘中保留。
+> 当前事实文档。旧的 Desktop Provider Registry 快照下发方案已经退出；当前状态归属与同步边界以下文为准。
 
 ## 核心结论
 
@@ -111,7 +110,7 @@ Registry 重放。
 ## 配置与凭据 Provisioning
 
 把配置或凭据复制到另一 Environment 是独立 Provisioning 产品能力，不属于 remote workspace runtime
-attachment；当前实现与范围见 `docs/remote/provider-provisioning.md`：
+attachment。其边界如下：
 
 ```text
 Source Environment Config / Credential
@@ -144,8 +143,5 @@ Local → Remote；本地登出或删除不会撤销已经写入远端的凭据�
 
 ## 相关当前设计
 
-- `docs/working-memory/provider-refactor/design/environment/environment.md`
-- `docs/working-memory/provider-refactor/design/registry/runtime.md`
-- `docs/working-memory/provider-refactor/design/registry/configuration.md`
 - `docs/remote/zcode-agent-remote-deployment.md`
 - `docs/web-remote-control/web-remote-control-architecture.md`

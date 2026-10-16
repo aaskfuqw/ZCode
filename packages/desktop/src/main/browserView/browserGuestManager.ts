@@ -3057,8 +3057,7 @@ export class BrowserGuestManager {
   /**
    * `closeSession({ closeTabs: true })`：真正关闭该 session 名下的全部 tab。按 session 归属而非完整
    * browser scope 匹配——finalize / deliverable 已释放回该 session 的 tab 换到了 `unclaimed-iab` scope，
-   * 仍归它。只给永不回来认领的 session 用（dwf 子代理，
-   * docs/browser-use/2026-07-14-browser-tab-conversation-isolation-spec.md §2.3）：它的 sessionId 不是任何
+   * 仍归它。只给永不回来认领的 session 用（dwf 子代理）：它的 sessionId 不是任何
    * 对话，closeSession 保留的 view 无人可见、无人可认领，只会一直挂着 guest。
    */
   private async closeSessionTabs(context: InternalExecutionContext): Promise<void> {

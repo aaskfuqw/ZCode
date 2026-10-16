@@ -338,7 +338,7 @@ describe("script workflow child runtime — actor transcript 直播通道", () =
  * 事故复盘（2026-09-02 日志包）：自定义 provider 起初被存成 openai-compatible，主 turn 与 actor 都
  * 404；用户改成 anthropic 并推送 registry 后主 turn 恢复，但两分钟后启动的 actor 仍用旧 kind——
  * 因为 child 拿 app 创建时冻结的配置自建了一份 registry。provider 重构后 Registry 视图是进程级的、
- * Model 由 factory 按创建时刻的视图造出（docs/working-memory/provider-refactor/design/registry/runtime.md），
+ * Model 由 factory 按创建时刻的视图造出，
  * 所以这里只剩一条要钉住：child 造 Model 走的必须是 deps 里父会话那一份 factory，且以父会话
  * **当前**的选择为基线。
  */
@@ -428,11 +428,13 @@ describe("script workflow child runtime — 与父会话共享 model factory", (
       {
         eventStore: createInMemorySessionEventStore(),
         fileSystemPort: createNodeFileSystemAdapter(),
-        modelFactory: parentModelFactory as unknown as ScriptWorkflowAgentRuntimeDeps["modelFactory"],
+        modelFactory:
+          parentModelFactory as unknown as ScriptWorkflowAgentRuntimeDeps["modelFactory"],
       },
     );
     const deps = baseDeps(parentRuntime);
-    deps.modelFactory = parentModelFactory as unknown as ScriptWorkflowAgentRuntimeDeps["modelFactory"];
+    deps.modelFactory =
+      parentModelFactory as unknown as ScriptWorkflowAgentRuntimeDeps["modelFactory"];
 
     const actorRuntime = createScriptWorkflowAgentRuntime({
       childSessionId: createSessionId("dwf-actor-model-wiring"),
@@ -506,30 +508,26 @@ describe("script workflow child runtime — 对外交互端口由父 runtime 铸
     tempRoot = await mkdtemp(join(tmpdir(), "zcode-actor-routing-"));
     refreshes = [];
     permissionRequests = [];
-    parentRuntime = createTestAgentRuntime(
-      parentSessionId,
-      { workingDirectory: tempRoot },
-      {
-        eventStore: createInMemorySessionEventStore(),
-        fileSystemPort: createNodeFileSystemAdapter(),
-        // 主 runtime 的端口：每次调用报自己的 sessionId；child 拿到的是父 runtime 派生的实例，
-        // 派生层把 sessionId 改写成父会话（core 的 child-client-ports.ts）。
-        providerRuntimeHeadersPort: {
-          shouldRefreshBeforeModelRequest: () => true,
-          async refreshBeforeModelRequest(input) {
-            refreshes.push({ providerId: input.providerId, routedSessionId: input.sessionId });
-            return { headersApplied: true };
-          },
+    parentRuntime = createTestAgentRuntime(parentSessionId, { workingDirectory: tempRoot }, {
+      eventStore: createInMemorySessionEventStore(),
+      fileSystemPort: createNodeFileSystemAdapter(),
+      // 主 runtime 的端口：每次调用报自己的 sessionId；child 拿到的是父 runtime 派生的实例，
+      // 派生层把 sessionId 改写成父会话（core 的 child-client-ports.ts）。
+      providerRuntimeHeadersPort: {
+        shouldRefreshBeforeModelRequest: () => true,
+        async refreshBeforeModelRequest(input) {
+          refreshes.push({ providerId: input.providerId, routedSessionId: input.sessionId });
+          return { headersApplied: true };
         },
-        modelFactory: routingModelFactory,
-        permissionBroker: {
-          async requestPermission(request) {
-            permissionRequests.push({ sessionId: request.sessionId, origin: request.origin });
-            return { decision: "allow" };
-          },
+      },
+      modelFactory: routingModelFactory,
+      permissionBroker: {
+        async requestPermission(request) {
+          permissionRequests.push({ sessionId: request.sessionId, origin: request.origin });
+          return { decision: "allow" };
         },
-      } as never,
-    );
+      },
+    } as never);
   });
 
   afterEach(async () => {

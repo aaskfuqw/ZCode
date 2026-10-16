@@ -6,7 +6,7 @@ import {
 } from "../src/runtime/methods/turn-execution-fallback.js";
 import { resolveExecutionModelRetryBudget } from "../src/runtime/methods/turn-model.js";
 
-// docs/highspeed/highspeed-card-spec.md §2.2：加速请求任何失败都退回会话模型；卡过期按 3402 单独给原因。
+// 加速请求任何失败都退回会话模型；卡过期按 3402 单独给原因。
 const HIGHSPEED_PROVIDER_ID = "account:zai-highspeed-card";
 const SESSION_PROVIDER_ID = "builtin:zai-coding-plan";
 const CARD_EXPIRED_CODE = "3402";

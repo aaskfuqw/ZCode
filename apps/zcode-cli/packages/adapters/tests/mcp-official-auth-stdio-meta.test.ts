@@ -1,5 +1,4 @@
-/* OMCP-S01~S06 —— stdio 官方 MCP 的身份头随所有出站请求与通知的 `_meta` 下发
-   （phase-2 spec §6：docs/coding-plan/zcode-official-server-mcp-stdio-meta-phase-2-spec.md）。
+/* OMCP-S01~S06 —— stdio 官方 MCP 的身份头随所有出站请求与通知的 `_meta` 下发。
 
    这里验证"注入点的行为"：命中/失败/不信任/无端口/非官方 server 五种形态下 `_meta` 的形状。
    凭证解析本身在 services 侧测试，配置解析在 plugin-official-mcp-auth.test.ts。 */

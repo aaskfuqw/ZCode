@@ -1,4 +1,4 @@
-// submit_result 工具卡（docs/chat/submit-result-tool-card.md）。
+// submit_result 工具卡。
 //
 // 文件名刻意是 `.test.ts` 而不是 `.test.tsx`：根 vitest 配置只收
 // `packages/*/test/**/*.test.ts`（vitest.config.ts:68），`.test.tsx` 一个用例都不会被采集

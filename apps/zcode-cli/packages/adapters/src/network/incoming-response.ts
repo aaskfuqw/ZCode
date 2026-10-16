@@ -2,8 +2,7 @@ import type http from "node:http";
 import { Readable } from "node:stream";
 
 /**
- * adapter 自己发请求时（代理、自定义 CA、公网 DNS 校验），把 Node 的 `IncomingMessage` 交给上层的唯一入口
- * （docs/design/v2/model/http-proxy.md「行为」）。
+ * adapter 自己发请求时（代理、自定义 CA、公网 DNS 校验），把 Node 的 `IncomingMessage` 交给上层的唯一入口。
  *
  * 修复原因（2026-09-29 实测）：两处 adapter 都在 `http.request` 的回调里直接
  * `new Response(stream, { status })`。WHATWG `Response` 只收 200–599，204 / 205 / 304 还不许挂正文；

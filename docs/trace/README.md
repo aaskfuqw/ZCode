@@ -19,25 +19,12 @@
 ## 相邻但独立的本地观测
 
 - [Desktop Renderer 用户操作 Trace](./desktop-renderer-user-action-trace.md)
-- [CLI 本地 Usage Observability](../../apps/zcode-cli/docs/design/v2/usage-observability.md)
-- [CLI 本地 Debug Observability](../../apps/zcode-cli/docs/design/v2/debug-observability.md)
 
-Desktop Renderer Trace 只记录 Desktop UI 语义操作，不传播到 CLI；Usage 和 Debug 文档保留在
-CLI 包内，分别描述本地 SQLite 事实源和本地调试设施。它们不属于 CLI Agent ARMS Trace Schema，
-可用于 Trace 对账和故障诊断。
-
-## 历史设计
-
-以下文档只用于追溯，不得作为新增 Span、Attribute、Event、Metric、查询或大盘的依据：
-
-- [V1 Model API 可观测设计](./archive/model-api-observability-v1.md)
-- [V2 Turn Trace 可观测设计](./archive/turn-trace-observability-v2.md)
-- [V4 → V5 升级设计](./archive/telemetry-v4-to-v5-upgrade-design.md)
+Desktop Renderer Trace 只记录 Desktop UI 语义操作，不传播到 CLI，不属于 CLI Agent ARMS Trace Schema。
 
 ## 文档维护规则
 
 1. 整体原则、接入接口或系统边界变化时，更新核心规范。
 2. 新增或修改 Span、Attribute、Event、Metric、枚举、兼容别名、隐私或统计口径时，必须更新
    对应专题参考；完整字段字典必须随代码变更同步维护。
-3. 阶段性评审和迁移方案完成后移入 `archive/`，不在主目录保留多个版本。
-4. 代码、测试、ARMS 查询和 Dashboard 不得依赖归档文档。
+3. 代码、测试、ARMS 查询和 Dashboard 以当前契约为依据。

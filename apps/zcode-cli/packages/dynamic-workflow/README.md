@@ -4,10 +4,9 @@ Self-contained library for the dynamic workflow feature: the TypeScript facade t
 main agent writes scripts against, and the compiler that recovers rigor from those
 scripts (typecheck, schema synthesis, dependency inference, site identity).
 
-**Spec / decision record:** `docs/dynamic-workflow.md` in the z-code app repo is the
-entry point. The facade, compiler options and authoring rules are decided in
+The facade, compiler options and authoring rules are decided in
 `docs/dynamic-workflow/authoring.md`; the analysis and the engine in this package's
-`docs/`. This package implements the spec; amend the spec first when behaviour changes.
+`docs/`. Keep these contracts aligned with the implementation.
 
 ## Boundaries
 
@@ -167,7 +166,7 @@ diagnostics/schemas/graph output, implement until green.
    an ask is (actor name, per-actor ask sequence) checked against the recorded
    `inputHash`, and for a world node it is `{op, args}` content plus occurrence
    index — neither is positional. Site ids stay display/graph coordinates. Step 3
-   survives only if world nodes ever need a *positional* identity of their own;
+   survives only if world nodes ever need a _positional_ identity of their own;
    nothing asks for that today. See `docs/execution-engine.md` in the
    app repo.
 4. ~~Analysis: taint-based may-flow site graph, then the causality, control-flow and

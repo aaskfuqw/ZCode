@@ -343,7 +343,7 @@ test("the slash command registry knows /dwf and /workflow and has dropped /workf
   assert.equal(dwf?.type === "known" ? dwf.name : undefined, "dwf");
 
   // legacy `/workflows` 命名空间整体移除（面板机器随之删除）。`/workflow` 不是它的残留：
-  // 它是与 `/init` 同路的内置 prompt 命令（docs/design/v2/commands.md），名字由 TUI 识别、
+  // 它是与 `/init` 同路的内置 prompt 命令，名字由 TUI 识别、
   // 正文由 bootstrap 展开。
   assert.equal(parseSlashCommand("/workflow")?.type, "known");
   assert.equal(parseSlashCommand("/workflows")?.type, "unknown");

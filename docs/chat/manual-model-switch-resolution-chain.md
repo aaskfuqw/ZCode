@@ -275,9 +275,7 @@ snapshot 只是建立该订阅的首个 applied base，也只能播种观察基�
 ## 尚未实现的产品能力
 
 V4 当前没有“目标模型 context window 小于已用上下文时，先停止/压缩再切换”的 guard。当前代码允许
-running session 切模型。待实现语义以
-`docs/superpowers/specs/2026-06-10-model-switch-context-window-guard-design.md` 为准，catalog 中
-N05、N09–N14 仍应标为 planned；旧 legacy implementation plan 不能视为现行覆盖。
+running session 切模型。catalog 中 N05、N09–N14 仍应标为 planned；不能将旧实现视为现行覆盖。
 
 ## 当前代码入口
 

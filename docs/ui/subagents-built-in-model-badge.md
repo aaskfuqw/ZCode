@@ -22,4 +22,4 @@ Settings 为内置和插件 subagent 显示同一行内模型控件，但其他�
 ```
 
 主动选择新模型使用其最高档；历史缺档位不自动补齐。内置及插件覆盖一次写完整 ModelSelection，
-保存失败回滚组合，保存成功后的刷新失败不回滚。完整合同见 `docs/subagents-built-in-model-overrides.md`。
+保存失败回滚组合，保存成功后的刷新失败不回滚。

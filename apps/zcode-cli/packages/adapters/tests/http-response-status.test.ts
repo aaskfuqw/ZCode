@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createNodeHttpClientAdapter } from "../src/http/index.js";
 import { createNetworkProxyFetch } from "../src/network/proxy-fetch.js";
 
-// 上游状态码不在 WHATWG `Response` 能表示的范围里时（docs/design/v2/model/http-proxy.md「行为」）。
+// 上游状态码不在 WHATWG `Response` 能表示的范围里时。
 //
 // 回归（2026-09-29 实测）：子代理 WebFetch 一个 LinkedIn 个人页，LinkedIn 对爬虫回 999；adapter 在
 // `http.request` 回调里 `new Response(stream, { status: 999 })`，构造函数抛 RangeError，没人接得住，

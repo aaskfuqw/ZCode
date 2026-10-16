@@ -1,13 +1,14 @@
 # Agent 指令
 
-这里是 TypeScript Node.js Coding Agent CLI，支持主流模型和操作系统。通用任务边界、spec、验证和提交条件遵循[根 AGENTS.md](../../AGENTS.md)；本文件补充 CLI 特有规则。Node 版本以仓库 [mise.toml](../../mise.toml) 为准。
+这里是 TypeScript Node.js Coding Agent CLI，支持主流模型和操作系统。通用任务边界、验证和提交条件遵循[根 AGENTS.md](../../AGENTS.md)；本文件补充 CLI 特有规则。Node 版本以仓库 [mise.toml](../../mise.toml) 为准。
 
 ## 工作规范（最重要）
 
-- CLI spec 位于 `apps/zcode-cli/docs/design/v2/`；新功能、行为变化先更新，bugfix 和纯重构按根规则判断。下文未带 `apps/zcode-cli/` 的代码与文档路径相对于本目录。
-- 改动任何 tool（新增、删除、schema、权限、执行、prompt、adapter、事件、UI/V4 投影等）之前，必须先阅读并更新 `docs/design/v2/tool/00-tool-change-chain.md`，按端到端链路检查。
+下文未带 `apps/zcode-cli/` 的代码与文档路径相对于本目录。
+
+- 改动 tool 的 schema、权限、执行、prompt、adapter、事件或 UI 投影时，按端到端链路检查受影响的契约和测试。
 - 其次是测试 case 很关键，能证明结果是否符合预期
-- 功能文档更新到最终行为，复用已有 spec；bugfix 用回归证据留痕，非显然根因和防回归约束在修复点留中文注释。
+- 保持现有功能文档与最终行为一致；bugfix 用回归证据留痕，非显然根因和防回归约束在修复点留中文注释。
 - agent 友好的项目，留好日志或者接口，让 agent 能完全接手操作
 - 长程任务优先：核心 agent loop 默认面向可持续运行的复杂任务设计，不用 tool call 次数做硬停止。资源与安全边界应由 token/context limit 自动 compact、用户取消、权限拒绝、工具超时、输出截断、provider retry 上限等明确条件承担。
 - 单个源文件默认不能超过 400 行；超过时必须优先按高内聚低耦合拆分模块，不能用大文件继续堆职责。
@@ -19,7 +20,7 @@
 
 - 与操作系统交互之前，需要考虑同时支持 windows、mac、linux
 - 保持默认的发布路径为标准 Node.js CLI 打包方式。
-- 项目自有的环境变量统一使用 `ZCODE_` 前缀命名，但不要随便新增环境变量；新增前必须先在 `docs/design/v2` 的 spec 中定义用途、优先级、错误行为和测试覆盖，能用配置文件、CLI 参数或 session 配置表达的能力，优先不要做成环境变量。
+- 项目自有的环境变量统一使用 `ZCODE_` 前缀命名，但不要随便新增环境变量；新增时明确用途、优先级、错误行为和测试覆盖，能用配置文件、CLI 参数或 session 配置表达的能力，优先不要做成环境变量。
 
 ## 跨平台兼容原则
 

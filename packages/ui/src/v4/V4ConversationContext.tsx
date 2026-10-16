@@ -222,7 +222,7 @@ export function useHasV4Conversation(): boolean {
 }
 
 export interface V4PaneConversationProviderProps {
-  /** pane 绑定的 primary workspace（连接路由键，docs/v4-split-pane-workbench.md）。 */
+  /** pane 绑定的 primary workspace（连接路由键）。 */
   scope: PaneWorkspaceScope;
   children: ReactNode;
 }

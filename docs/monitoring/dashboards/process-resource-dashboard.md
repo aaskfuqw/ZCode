@@ -62,8 +62,6 @@
 
 ### 后续更新与回滚
 
-2026-09-15 的逐图 SQL 复审见 [仪表盘 SQL 复审](./process-resource-dashboard-review.md)。其中记录已确认的口径缺陷与展示增强建议，尚未修改已交付配置。
-
 在已有线上仪表盘的「编辑 → 设置 → 仪表盘 JSON」更新同一 ID；更新前保留当前版本，禁止重复新建同名仪表盘。原生平台的「版本」页可恢复之前配置。修改 SQL 后先运行只读 SLS 查询，再核对环境、空态、实际变量替换和图例，最后同步本目录文件。首批 prod 和第二个新版本到达后，补真实群体、MCP、remote 和跨版本验收；告警另行讨论。
 
 原生格式参考：[阿里云仪表盘 JSON 导入导出说明](https://help.aliyun.com/zh/sls/import-and-export-sls-dashboards)。统计字段定义来自 [全进程资源 spec](../process-resource-telemetry.md)。

@@ -23,7 +23,7 @@ interface ShortcutSettingsShape {
 }
 
 /**
- * 快捷键设置 E2E（spec docs/desktop/shortcut-settings-spec.md §10）：
+ * 快捷键设置 E2E：
  * 录制新键位 → 落盘 → 主界面按新键位生效；冲突组合拒绝保存并标红；IME 组合中的按键不触发命令。
  */
 describe("快捷键设置 E2E", () => {

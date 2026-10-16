@@ -275,10 +275,7 @@ interface McpToolCatalogContext {
 
   beginFetch(): McpToolCatalogFetchTicket;
 
-  publishIfNewest(
-    ticket: McpToolCatalogFetchTicket,
-    tools: McpToolDescriptor[],
-  ): void;
+  publishIfNewest(ticket: McpToolCatalogFetchTicket, tools: McpToolDescriptor[]): void;
 
   invalidate(): void;
 }
@@ -297,12 +294,7 @@ interface McpToolCatalogPort {
 ```ts
 type McpCatalogToolDescriptor = Pick<
   McpToolDescriptor,
-  | "serverName"
-  | "toolName"
-  | "name"
-  | "description"
-  | "inputSchema"
-  | "outputSchema"
+  "serverName" | "toolName" | "name" | "description" | "inputSchema" | "outputSchema"
 >;
 ```
 
@@ -601,8 +593,7 @@ process-scoped control-plane 协议处理器可以注入同一个 `McpToolCatalo
 - catalog hit 不投影成 `connected`，也不改变 tool count/status UI。
 - status-only 请求不连接、不发布新 catalog。
 - connect replace 只有成功取得 live tools 时才发布。
-- OAuth pending、workspace epoch、配置 readiness 和敏感信息隔离继续遵守
-  `docs/mcp-oauth-client-auth.md`。
+- OAuth pending、workspace epoch、配置 readiness 和敏感信息继续按会话与工作区隔离。
 
 ## Subagent
 
@@ -915,6 +906,4 @@ conversation E2E，必须先把 accepted case 回写
 
 - `docs/mcp-platform-boundary.md`
 - `docs/runtime-tools/mcp-status-list-control-plane.md`
-- `docs/design/v2/mcp-stdio-process-lifecycle.md`
-- `docs/mcp-oauth-client-auth.md`
 - `docs/plugin-mcp-session-runtime-merge.md`

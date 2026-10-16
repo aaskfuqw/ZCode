@@ -154,8 +154,7 @@ Windows 官方 `node.exe` 通常带 Authenticode 签名。脚本构建 Windows t
 - host target 构建完成后运行 `--version` smoke test。
 - foreign target 不在 host 上执行，只检查二进制已生成并完成注入流程。
 - OpenTUI SEA asset manifest 必须包含 `@zcode/tui` 的完整 runtime dependency
-  closure，包括 workspace package 的 `package.json` 与 `dist`；具体契约见
-  `tui-opentui-sea-packaging.md`。
+  closure，包括 workspace package 的 `package.json` 与 `dist`。
 - macOS host 构建 macOS target 时，在 smoke test 前完成 ad-hoc 签名。
 - Windows target 在注入前完成 Authenticode 签名移除；最终正式签名由 release/signing pipeline 在注入后处理。
 - CI 后续可以用 matrix 在每个 OS 上对对应产物执行 smoke test。

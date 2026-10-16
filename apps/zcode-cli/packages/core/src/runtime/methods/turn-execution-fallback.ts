@@ -34,7 +34,7 @@ export interface ExecutionSelectionFallbackResult {
 }
 
 /**
- * 纯解析：退回目标候选按优先级排序（docs/highspeed/highspeed-card-spec.md §2.2）。
+ * 纯解析：退回目标候选按优先级排序。
  * - 先取发起方声明的 `target`（抽卡时的提交选择，即会话原模型），再取 runtime 会话常驻 Selection。
  *   Bug 根因：退回目标曾只依赖会话常驻 Selection，而它只在 runtime 内存里——冷恢复落在 Registry
  *   刚就绪、账号权益未解析的窗口时校验失败不绑定，之后只发加速轮也不会再绑定，3402 时降级静默跳过、
@@ -65,7 +65,7 @@ export function resolveExecutionFallbackCandidates(input: {
 }
 
 /**
- * 纯匹配：本次模型请求失败是否命中执行 Selection 的退回声明（docs/highspeed/highspeed-card-spec.md §2.2）。
+ * 纯匹配：本次模型请求失败是否命中执行 Selection 的退回声明。
  * - 只看本轮 step 实际使用的模型 provider 是否就是声明 provider；失败必须明确归因到该 provider/network 边界。
  * - 用户取消与上下文超窗不参与退回：取消按取消收口，超窗交给 reactive compact（退回同模型同窗口只会再超一次）。
  * - 规则按声明顺序匹配，缺省 providerErrorCode 的规则匹配任意上游请求失败；core 不自行解释 provider 错误码，

@@ -2,8 +2,7 @@
 
 ## 2026-09-14 Agent 目录承载更新
 
-当前目录承载合同见 [Agent listing attachment](subagent-listing-attachment.md)：目录
-从工具 description 迁移到 `agent_listing_delta` attachment（按能力和位置投影为 MCS 或 user reminder），compact 后按保留历史补齐。
+Agent 目录从工具 description 迁移到 `agent_listing_delta` attachment（按能力和位置投影为 MCS 或 user reminder），compact 后按保留历史补齐。
 通过只读 definitions 入口预留未来增删；现有加载、覆盖优先级和执行快照保持原合同。
 
 > **当前状态**：runtime alias 规则仍有效；UI 历史兼容已迁移到 V4 tool row 适配与统一 ToolCall renderer。

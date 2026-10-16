@@ -223,8 +223,7 @@ Worker. A remote runtime that is not ready waits for its own Provider Runtime st
 bootstrapped from Desktop state.
 
 Configuration or credential synchronization is a separate provisioning feature. The current
-Environment-level automatic Local → Remote flow is specified in `docs/remote/provider-provisioning.md`;
-it writes the target Environment's Config/Credential stores and lets that Environment rebuild its
+Environment-level automatic Local → Remote flow writes the target Environment's Config/Credential stores and lets that Environment rebuild its
 Registry. Desktop Main only coordinates Environment identity and generations; it never carries Config
 or Secret. This flow must not revive runtime Registry injection.
 

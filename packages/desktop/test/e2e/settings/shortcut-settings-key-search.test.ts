@@ -14,7 +14,7 @@ import {
 import { sel } from "../helpers/selectors.js";
 
 /**
- * 快捷键「按组合键搜索」E2E（spec docs/desktop/shortcut-settings-spec.md §8/§10）：
+ * 快捷键「按组合键搜索」E2E：
  * 武装态捕获组合 → 物理等价口径过滤命令表 → 清除恢复全量 → 无命中空态 → Escape 退出武装态。
  */
 describe("快捷键按组合键搜索 E2E", () => {

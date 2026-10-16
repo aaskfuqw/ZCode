@@ -234,7 +234,7 @@ describe("project Memory foreground permission", () => {
           permissionBroker: {
             requestPermission(_request, requestOptions) {
               brokerCallCount += 1;
-              // 契约更新（docs/design/v2/permission-responder-race.md）：初始 ask 总会
+              // 契约更新：初始 ask 总会
               // 并发武装 broker（第 1 次调用），hook 决定胜出后它被 abort、不产生应答；
               // 只有敏感目标 recheck 的重新提问（第 2 次调用）才真正消费用户应答。
               if (brokerCallCount === 1) {

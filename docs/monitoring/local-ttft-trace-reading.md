@@ -2,9 +2,9 @@
 
 Status: ready
 
-[父合同](ttft-stage-telemetry.md) · [查询与诊断合同](local-ttft-queries.md) · [看板模板](dashboards/local-ttft.json) · [上线清单](local-ttft-rollout-checklist.md)
+[看板模板](dashboards/local-ttft.json)
 
-面向第一次打开 `zcode-local-ttft` 瀑布图的人。查询入口和指标口径见查询合同，本文只讲怎么把一条 Trace 读成结论。
+面向第一次打开 `zcode-local-ttft` 瀑布图的人。本文说明如何把一条 Trace 读成结论。
 
 ## 三个先决常识
 
@@ -34,7 +34,7 @@ Status: ready
 
 ## 六个主阶段
 
-按真实时间顺序，边界定义见[父合同的阶段与时间合同](ttft-stage-telemetry.md#阶段与时间合同)。
+下表按真实时间顺序列出阶段与含义。
 
 | 阶段                | 这段时间在干什么                                    | 变大意味着                    |
 | ------------------- | --------------------------------------------------- | ----------------------------- |

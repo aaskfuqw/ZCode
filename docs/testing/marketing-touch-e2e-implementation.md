@@ -113,17 +113,17 @@ MTE-02 经真实 Custom 模板创建空 provider，读取节点的 providerId，
 
 ## Feature Summary / Impact Brief
 
-沿用 [审计](marketing-touch-e2e-audit.md) 的 UI Surface Matrix、共享/差异行为、关系分级、状态 owner、提交点、不变量及 codegraph 限制。模式由 impact-only 转为 planning / implementation-handoff；范围是本分支相对 staging 的营销业务、必要的 provider 迁移修复、测试与覆盖率工具，不扩展远端动作。代码图工具当前不可用，使用审计确认的调用路径与当前源码复核。
+本次验收覆盖 UI Surface Matrix、共享/差异行为、关系分级、状态 owner、提交点及不变量。模式由 impact-only 转为 planning / implementation-handoff；范围是本分支相对 staging 的营销业务、必要的 provider 迁移修复、测试与覆盖率工具，不扩展远端动作。代码图工具当前不可用，使用审计确认的调用路径与当前源码复核。
 
 ## Clarification Log / Boundary Decisions
 
-| 决定                     | 状态                 | 范围                                                                                              |
-| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------- |
-| 修复现有失败、补齐 P0/P1 | accepted             | 用户明确要求 Goal 继续完成；包括必要产品缺陷，不只改断言                                          |
-| 覆盖率                   | accepted             | 用户调整为 90%，排除 Lottie；当前 Renderer 90.07%，不冒充跨域整体结果；函数/分支单列，不以单测补数 |
-| 动作能力                 | accepted             | 保留 close/open_url/claim/navigate/copy_text；不创建任务、不切模型、不自动安装/支付               |
-| 旧 API 迁移              | bug-candidate → 修复 | 使用 providerSettingsService.refresh 与当前 providerId/连接结构；不恢复退役服务                   |
-| 测试生命周期             | accepted             | case-local 场景与清理；用户授权达到目标且全部通过后转正，只用本机 Electron 验证，不用 Docker、不 push |
+| 决定                     | 状态                 | 范围                                                                                                   |
+| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| 修复现有失败、补齐 P0/P1 | accepted             | 用户明确要求 Goal 继续完成；包括必要产品缺陷，不只改断言                                               |
+| 覆盖率                   | accepted             | 用户调整为 90%，排除 Lottie；当前 Renderer 90.07%，不冒充跨域整体结果；函数/分支单列，不以单测补数     |
+| 动作能力                 | accepted             | 保留 close/open_url/claim/navigate/copy_text；不创建任务、不切模型、不自动安装/支付                    |
+| 旧 API 迁移              | bug-candidate → 修复 | 使用 providerSettingsService.refresh 与当前 providerId/连接结构；不恢复退役服务                        |
+| 测试生命周期             | accepted             | case-local 场景与清理；用户授权达到目标且全部通过后转正，只用本机 Electron 验证，不用 Docker、不 push  |
 | 第三方/平台              | pruned combinations  | 官方版本安全校验使用确定性回调替身；真实购买/生产资格不执行。macOS 运行不能替代 Windows/Linux/手机实机 |
 
 ## Domain Scope / Concept Map / State Owners
@@ -350,7 +350,7 @@ App 退出登录确认 -> OAuth 清理真实测试凭据 -> 原 Host 释放
 ### 第一批过程记录
 
 - 实施开始：工作区干净，基线新鲜度通过；代码变更前 architecture 0 违规。
-- 首轮新构建：delivery 原有 16 例全通过；权益独立用例修复跨 spec 场景依赖后，暴露旧 `family:bigmodel` 分组断言。当前 `docs/subagents-built-in-model-overrides.md` 明确候选只来自 Environment Selection View，不重新引入 family selected-key；用例改为 registry provider ID。实测切回 Individual 后 Selection View 不再提供原 Start 候选，触发器显示 Select model，保留该断言；不能仅凭 UI 分组源码推断 Start 仍可用。
+- 首轮新构建：delivery 原有 16 例全通过；权益独立用例修复跨 spec 场景依赖后，暴露旧 `family:bigmodel` 分组断言。当前候选只来自 Environment Selection View，不重新引入 family selected-key；用例改为 registry provider ID。实测切回 Individual 后 Selection View 不再提供原 Start 候选，触发器显示 Select model，保留该断言；不能仅凭 UI 分组源码推断 Start 仍可用。
 - 关闭扩展回归：X 两例与普通 Popup Esc 通过；结果 Popup Esc 失败，正在采集实际焦点。遮罩用例首次使用 WDIO 居中相对偏移误点内容，已改绝对视口坐标，待重跑。
 - Lottie 无当前营销协议入口，已询问用户是否扩大协议范围；不删除未覆盖分母、不用直接调用内部函数冒充 E2E。
 - 多次 `reloadSession` 的 Node 原始覆盖文件直到 worker 结束才归一化，单文件多例会堆积重复 source map。本轮已实际发生 ENOSPC；补齐每例记录结果时的既有增量归一化调用，不丢 counters，不改覆盖口径，失败作为采集错误保留而不覆盖测试结果。
@@ -362,7 +362,7 @@ App 退出登录确认 -> OAuth 清理真实测试凭据 -> 原 Host 释放
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | 现有用例   | 逐例重启/HTTP reset；迁接 providerId、当前账户 ID、Selection View 分组；真实非空连接快照断言                                         | 自定义 provider 导航的独立 E2E                                           |
 | 关闭与上报 | 新增普通/领取结果 Popup × X/Esc/遮罩 6 例；修复 iframe 默认焦点吞 Esc                                                                | 主动进入 iframe 后的键盘边界未扩展协议                                   |
-| 请求/故障  | 新增 seq 首次 0/连续递增/POST 不计数、必要请求头、report 500 不阻塞、query 503 恢复 3 例                                             | 匿名/凭据切换、安全校验失败/取消、慢响应竞态、完整退避/隐藏恢复            |
+| 请求/故障  | 新增 seq 首次 0/连续递增/POST 不计数、必要请求头、report 500 不阻塞、query 503 恢复 3 例                                             | 匿名/凭据切换、安全校验失败/取消、慢响应竞态、完整退避/隐藏恢复          |
 | 媒体/缓存  | 新增主题资源、坏 dark/default 图片、坏 ZIP 有/无 fallback 5 例；原 Bundle 用例追加解包文件不重写和 lease 404；修复 Host 异步清理漏调 | 解码/超时/大小/重定向边界、伪造握手、视频与 reduced-motion、Web fallback |
 | 产品修复   | Root 错误态图标、领取后的 ProviderSettingsService 刷新、自定义 providerId 匹配、Popup 初始焦点、异步-only 服务回收                   | 更广 P0/P1 仍按 MTE 矩阵推进，不能宣称全部完成                           |
 | 采集设施   | 每例复用 Node 覆盖归一化，避免重启累积 source map 撑满磁盘                                                                           | Node V8/source-map 跨域可执行行口径仍需统一，不能 OR 合并为全分支百分比  |

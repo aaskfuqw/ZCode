@@ -10,8 +10,7 @@ import {
 } from "../src/plugins/marketplace.js";
 
 // 商店信息（Store Listing）与 featured 策展名单的解析测试：
-// 输入形状对齐官方 CDN 目录 schema（description_i18n / displayName_i18n / author 对象等），
-// 见 docs/plugin-marketplace-ui-ux.md「数据模型与 schema 扩展」。
+// 输入形状对齐官方 CDN 目录 schema（description_i18n / displayName_i18n / author 对象等）。
 describe("marketplace store listing", () => {
   const cleanups: string[] = [];
   afterEach(async () => {

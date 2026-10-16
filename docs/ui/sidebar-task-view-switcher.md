@@ -100,7 +100,7 @@ Web 远控侧栏仍只使用 `Project` 一级模式，不展示 `Group` 滑块�
 
 移动端远控仍保持顶部导航区域的纵向滚动和高度拖拽逻辑；本变更不修改 `clientMode`、`deliveryKind`、task stream、snapshot 或 replayable 恢复边界。
 
-section 顺序是 renderer-local 偏好：当前窗口立即更新，其他已打开窗口不要求实时同步；重新挂载后读取同一持久化值。完整边界与用例见 `docs/ui/sidebar-purpose-section-order.md`。
+section 顺序是 renderer-local 偏好：当前窗口立即更新，其他已打开窗口不要求实时同步；重新挂载后读取同一持久化值。
 
 ## 兼容性
 

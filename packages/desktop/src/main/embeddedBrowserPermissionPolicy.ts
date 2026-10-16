@@ -8,8 +8,7 @@ import {
 } from "./embeddedBrowserSitePermissions.js";
 
 /**
- * 内置浏览器 partition 的权限闸门（CNVD「内置浏览器未授权访问」修复，spec 见
- * docs/browser-use/2026-10-08-embedded-browser-permission-governance-spec.md）。
+ * 内置浏览器 partition 的权限闸门（CNVD「内置浏览器未授权访问」修复）。
  *
  * Electron 未设置 permission handler 的 session 会自动批准所有权限请求，恶意页面可静默
  * 拿到摄像头/麦克风/剪贴板/地理位置；设备类 API 未监听 select-* 事件时还会静默授权
@@ -110,10 +109,7 @@ export interface EmbeddedBrowserPermissionPolicyOptions {
    * 屏幕共享源选择（Step 2）注入；源列表与 callback 语义需要 desktopCapturer
    * 上下文，整体转发给 bridge，policy 只保留日志与默认拒绝。
    */
-  onDisplayMediaRequest?: (
-    input: { origin: string },
-    callback: (result: unknown) => void,
-  ) => void;
+  onDisplayMediaRequest?: (input: { origin: string }, callback: (result: unknown) => void) => void;
 }
 
 export const EMBEDDED_BROWSER_PERMISSION_LOG_TAG = "[embedded-browser-permission]";
@@ -127,7 +123,6 @@ export function originFromUrl(url: string | undefined): string {
     return UNKNOWN_ORIGIN;
   }
 }
-
 
 export async function applyEmbeddedBrowserPermissionPolicy(
   targetSession: EmbeddedBrowserPermissionSession,
@@ -220,8 +215,7 @@ export async function applyEmbeddedBrowserPermissionPolicy(
           });
           if (action === "allow-always") {
             void writeEmbeddedBrowserSitePermission(origin, permission, "allow");
-          }
-          else if (action === "allow-session") {
+          } else if (action === "allow-session") {
             const grantedSet = sessionAllow.get(origin) ?? new Set<string>();
             grantedSet.add(permission);
             sessionAllow.set(origin, grantedSet);
@@ -379,9 +373,11 @@ export async function applyEmbeddedBrowserPermissionPolicy(
     ) => {
       // 同 hid/usb：阻止默认取消，等待用户选择。
       (event as { preventDefault?: () => void }).preventDefault?.();
-      const contents = webContents as
-        | { hostWebContents?: { id?: number }; id?: number; getURL?: () => string }
-        | null;
+      const contents = webContents as {
+        hostWebContents?: { id?: number };
+        id?: number;
+        getURL?: () => string;
+      } | null;
       const hostWebContentsId = contents?.hostWebContents?.id ?? contents?.id;
       settleDeviceSelection(
         "select-serial-port",
@@ -395,4 +391,3 @@ export async function applyEmbeddedBrowserPermissionPolicy(
     },
   );
 }
-

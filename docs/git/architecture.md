@@ -1,9 +1,5 @@
 # Git 架构设计
 
-## 相关文档
-
-- [Git 分支切换与创建底层能力设计](./branch-switching-service-design.md)
-
 ## 背景
 
 当前项目已经具备一套比较清晰的分层和跨端通信骨架：

@@ -184,9 +184,7 @@ async function run(options: RunOptions): Promise<RunOutcome> {
         ...(options.maxConcurrency === undefined
           ? {}
           : { max_concurrency: options.maxConcurrency }),
-        ...(options.subagentModel === undefined
-          ? {}
-          : { subagent_model: options.subagentModel }),
+        ...(options.subagentModel === undefined ? {} : { subagent_model: options.subagentModel }),
       },
       name: "CreateWorkflow",
     },
@@ -321,7 +319,7 @@ describe("CreateWorkflow run confirmation", () => {
 
     const outcome = await run({
       // rebase 语义修正（2026-08-27）：staging 引入 responder race 后 broker 请求总是与
-      // hook 链并发发起（docs/design/v2/permission-responder-race.md），不再是"hook 先答
+      // hook 链并发发起，不再是"hook 先答
       // 则 broker 不被触达"。这里让 broker 悬置不应答，成功只能来自 hook 的自动应答，
       // 用例仍然证明 hook 是有效的自动化出口。
       broker: {
@@ -1062,7 +1060,9 @@ describe("CreateWorkflow subagent_model", () => {
     });
 
     expect("subagentModel" in submits[0]!).toBe(false);
-    expect((outcome.result.output as CreateWorkflowOutput).response).not.toContain("Subagents run on");
+    expect((outcome.result.output as CreateWorkflowOutput).response).not.toContain(
+      "Subagents run on",
+    );
   });
 
   it("解不出来的模型名在确认窗之前就退回：没弹窗、没启动", async () => {

@@ -21,11 +21,7 @@ nodes:
     kind: "capability"
     label: "Approval full access updates task and pending input permissions"
     aliases: ["完全访问", "审批权限同步", "fullAccess"]
-    docs:
-      [
-        "docs/permission-project-approval.md",
-        "docs/working-memory/provider-refactor/steps/todo-158-permission-dialog-full-access-and-queued-mode.md",
-      ]
+    docs: []
     codeSeeds:
       - file: "apps/zcode-cli/packages/core/src/runtime/permission-full-access.ts"
         symbol: "grantPermissionFullAccess"
@@ -43,7 +39,8 @@ nodes:
     kind: "capability"
     label: "Public plugin categories ordered by interface mode"
     aliases: ["插件分类排序", "Code Work 插件排序", "pluginStoreOrder", "@ 插件排序", "+ 插件排序"]
-    docs: ["docs/plugins/plugin-store-mode-order.md", "docs/plugin-marketplace-ui-ux.md"]
+    docs:
+      - "docs/plugins/plugin-store-mode-order.md"
     codeSeeds:
       - file: "packages/ui/src/settings/PluginStoreListView.tsx"
         symbol: "PluginStoreListView"
@@ -108,7 +105,8 @@ nodes:
     kind: "capability"
     label: "Background Bash live output details"
     aliases: ["后台 Bash 输出", "后台终端进展", "background Bash logs"]
-    docs: ["docs/background-bash-output-details.md", "docs/bash-background-parity.md"]
+    docs:
+      - "docs/bash-background-parity.md"
     codeSeeds:
       - file: "packages/ui/src/v4/ConversationStatusPanel.tsx"
         symbol: "RunningStatusItem"
@@ -149,8 +147,7 @@ nodes:
     kind: "capability"
     label: "Guarded permission mode"
     aliases: ["guarded", "dangerousCommandRules", "危险命令确认", "强制单次确认"]
-    docs:
-      - "docs/dangerous-command-approval-v1-plan.md"
+    docs: []
     codeSeeds:
       - symbol: "matchDangerousCommand"
         file: "apps/zcode-cli/packages/core/src/tool/handlers/guarded/command.ts"
@@ -242,9 +239,7 @@ nodes:
       - "subagent CUA restriction"
       - "子 Agent Computer Use 限制"
       - "subagent computer use unavailable"
-    docs:
-      - "docs/cua/2026-08-18-subagent-computer-use-unavailable-spec.md"
-      - "apps/zcode-cli/docs/design/v2/tool/07-subagent.md"
+    docs: []
     codeSeeds:
       - symbol: "createBorrowedSubagentMcpAccess"
         file: "apps/zcode-cli/packages/core/src/subagent/borrowed-mcp-port.ts"
@@ -268,7 +263,6 @@ nodes:
       - "模型轨迹全量保留"
     docs:
       - "docs/model-io-full-retention-setting.md"
-      - "apps/zcode-cli/docs/design/v2/model/README.md"
     codeSeeds:
       - symbol: "writeModelIODebugRecord"
         file: "apps/zcode-cli/packages/adapters/src/model/runner-debug.ts"
@@ -283,11 +277,7 @@ nodes:
       - "turn runtime"
       - "智能体核心"
       - "回合运行时"
-    docs:
-      - "docs/product-capability-map.md"
-      - "apps/zcode-cli/docs/design/v2/runtime-refactor.md"
-      - "apps/zcode-cli/docs/design/v2/loop/architecture.md"
-
+    docs: []
   - id: "capability.read-pdf"
     kind: "capability"
     label: "Read PDF native input and page extraction"
@@ -295,9 +285,7 @@ nodes:
       - "Read pages"
       - "PDF Read"
       - "PDF 页面提取"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/tool/01-read.md"
-      - "apps/zcode-cli/docs/design/v2/tool/00-tool-change-chain.md"
+    docs: []
     codeSeeds:
       - symbol: "readToolEntry"
         file: "apps/zcode-cli/packages/core/src/tool/handlers/read.ts"
@@ -327,8 +315,6 @@ nodes:
       - "浏览器智能体定位"
       - "弹窗标签恢复"
     docs:
-      - "docs/browser-use/2026-07-31-browser-generic-target-popup-recovery-guidance-spec.md"
-      - "docs/browser-use/2026-07-10-browser-use-codex-parity-spec.md"
       - "docs/testing/browser-use-codex-parity-coverage-matrix.md"
     codeSeeds:
       - symbol: "loadBrowserDocumentation"
@@ -352,12 +338,7 @@ nodes:
       - "Browser Use SEA assets"
       - "浏览器插件版本"
       - "浏览器插件发布"
-    docs:
-      - "docs/browser-use/2026-08-14-browser-use-plugin-version-0-3-0-spec.md"
-      - "docs/browser-use/2026-08-06-browser-use-plugin-version-0-2-1-spec.md"
-      - "docs/browser-use/2026-08-02-browser-use-plugin-version-0-1-3-spec.md"
-      - "apps/zcode-cli/docs/design/v2/plugin-compat.md"
-      - "docs/browser-use/2026-07-13-node-repl-mcp-runtime-spec.md"
+    docs: []
     codeSeeds:
       - file: "apps/zcode-cli/packages/browser-use-plugin/package.json"
       - file: "apps/zcode-cli/packages/browser-use-plugin/.zcode-plugin/plugin.json"
@@ -392,27 +373,8 @@ nodes:
       - "GLM-x-preview-f"
       - "x-preview-f-free"
     docs:
-      - "docs/product-capability-map.md"
-      - "docs/working-memory/provider-refactor/steps/03-staging-integration.md"
-      - "docs/working-memory/provider-refactor/design/registry/configuration.md"
-      - "docs/working-memory/provider-refactor/design/registry/provider-and-model-configuration-overview.md"
-      - "docs/working-memory/provider-refactor/design/registry/request-compatibility-and-access-protocols.md"
-      - "docs/working-memory/provider-refactor/design/registry/model-membership-and-enablement.md"
-      - "docs/working-memory/provider-refactor/design/registry/zcode-builtin-provider-config.md"
-      - "docs/working-memory/provider-refactor/design/model/input-output-format.md"
-      - "docs/working-memory/provider-refactor/design/model/model-option-map.md"
-      - "docs/working-memory/provider-refactor/design/model/option-map-writing-style.md"
-      - "docs/working-memory/provider-refactor/steps/todo-98-builtin-option-map-formatting-regression.md"
-      - "docs/working-memory/provider-refactor/steps/todo-95-builtin-reasoning-map-simplification-and-fallback.md"
-      - "docs/working-memory/provider-refactor/steps/todo-03-provider-model-ownership-and-property-totality.md"
-      - "docs/working-memory/provider-refactor/steps/todo-14-post-refactor-mechanical-zero.md"
-      - "docs/working-memory/provider-refactor/steps/todo-55-provider-template-inheritance-cutover.md"
       - "docs/model-provider-opencode-config.md"
       - "docs/model-request-output-tokens.md"
-      - "docs/superpowers/specs/2026-07-10-glm-52-suffixed-variant-media-fallback-design.md"
-      - "docs/superpowers/specs/2026-07-17-kimi-k3-model-adapter-design.md"
-      - "docs/superpowers/specs/2026-08-14-glm-5-3-model-adapter-design.md"
-      - "docs/superpowers/specs/2026-08-21-model-provider-modality-settings-design.md"
     codeSeeds:
       - symbol: "ModelInputFormatConfig"
         file: "packages/provider/src/config/model-config.ts"
@@ -450,20 +412,8 @@ nodes:
       - "模型选择"
       - "切换模型"
     docs:
-      - "docs/ui/chat-model-select-menu.md"
       - "docs/chat/manual-model-switch-resolution-chain.md"
       - "docs/chat/new-task-model-resolution-chain.md"
-      - "docs/working-memory/provider-refactor/steps/todo-12-model-selection-validation-boundary-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-13-target-host-model-selection-authority.md"
-      - "docs/working-memory/provider-refactor/steps/todo-14-post-refactor-mechanical-zero.md"
-      - "docs/working-memory/provider-refactor/design/interaction/selection-state.md"
-      - "docs/working-memory/provider-refactor/steps/todo-34-model-selection-async-state-and-repo-wiki-draft.md"
-      - "docs/working-memory/provider-refactor/steps/todo-68-active-model-context-single-source.md"
-      - "docs/working-memory/provider-refactor/steps/todo-87-selection-view-unified-resolution.md"
-      - "docs/working-memory/provider-refactor/steps/todo-95-builtin-reasoning-map-simplification-and-fallback.md"
-      - "docs/working-memory/provider-refactor/steps/todo-96-selection-offline-migration-and-resolution-consolidation.md"
-      - "docs/working-memory/provider-refactor/steps/todo-97-subagent-markdown-in-place-migration-and-legacy-read-audit.md"
-      - "docs/working-memory/provider-refactor/steps/todo-99-worker-account-selection-repair.md"
     codeSeeds:
       - symbol: "ModelSelectionFacade"
         file: "packages/provider/src/facades.ts"
@@ -495,11 +445,7 @@ nodes:
       - "template-created provider"
       - "供应商模板"
       - "模板创建供应商"
-    docs:
-      - "docs/working-memory/provider-refactor/design/registry/configuration.md"
-      - "docs/working-memory/provider-refactor/design/registry/provider-and-model-configuration-overview.md"
-      - "docs/working-memory/provider-refactor/steps/todo-55-provider-template-inheritance-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-61-provider-template-picker-and-brand-metadata.md"
+    docs: []
     codeSeeds:
       - symbol: "ProviderTemplateMap"
         file: "packages/provider/src/config/provider-config.ts"
@@ -528,12 +474,8 @@ nodes:
       - "套餐权益"
       - "套餐额度"
     docs:
-      - "docs/usage-stats-app-coding-plan-split.md"
       - "docs/zai-start-plan-provider.md"
-      - "docs/model-provider-family-merge.md"
       - "docs/input-model-provider-team-plan-linkage.md"
-      - "docs/working-memory/provider-refactor/steps/todo-32-team-plan-settings-effective-provider-boundary.md"
-      - "docs/working-memory/provider-refactor/steps/todo-51-provider-access-consumer-and-offpeak-auth-closeout.md"
     codeSeeds:
       - symbol: "ModelProviderSectionDetail"
         file: "packages/ui/src/settings/model-provider-section/Detail.tsx"
@@ -560,11 +502,7 @@ nodes:
       - "usage stats"
       - "应用用量"
       - "用量统计"
-    docs:
-      - "docs/product-capability-map.md"
-      - "docs/usage-stats-app-coding-plan-split.md"
-      - "apps/zcode-cli/docs/design/v2/usage-observability.md"
-
+    docs: []
   - id: "capability.data-observability"
     kind: "capability"
     label: "Product telemetry, runtime observability, and monitoring"
@@ -576,7 +514,6 @@ nodes:
       - "监控"
       - "可观测性"
     docs:
-      - "docs/product-capability-map.md"
       - "docs/monitoring/performance-telemetry-catalog.md"
       - "docs/monitoring/business-monitoring.md"
       - "docs/monitoring/event-report-delivery-reliability.md"
@@ -675,7 +612,6 @@ nodes:
       - "docs/electron/resource-manager.md"
       - "docs/electron/resource-manager-network.md"
       - "docs/electron/process-naming.md"
-      - "docs/settings-storage-management.md"
       - "docs/windows-caption-help-menu.md"
     codeSeeds:
       - symbol: "WorkspaceHelpMenuButton"
@@ -717,10 +653,7 @@ nodes:
       - "developer productivity"
       - "工程基础设施"
       - "研发效能"
-    docs:
-      - "docs/product-capability-map.md"
-      - "docs/product-capability-map-engineering-infrastructure.md"
-
+    docs: []
   - id: "capability.build-release-engineering"
     kind: "capability"
     label: "Build and release engineering"
@@ -730,9 +663,7 @@ nodes:
       - "packaging"
       - "构建发布"
       - "发版"
-    docs:
-      - "docs/product-capability-map-engineering-infrastructure.md"
-      - "docs/desktop/zcode-preview-packaging.md"
+    docs: []
     codeSeeds:
       - symbol: "runDesktopProductionBuild"
         file: "packages/desktop/scripts/run-production-build.mjs"
@@ -787,7 +718,6 @@ nodes:
       - "测试自动化"
       - "回放测试"
     docs:
-      - "docs/product-capability-map-engineering-infrastructure.md"
       - "docs/testing/conversation-session-e2e-development-workflow.md"
       - "docs/testing/desktop-e2e-container.md"
     codeSeeds:
@@ -806,7 +736,6 @@ nodes:
       - "质量数据"
       - "覆盖率治理"
     docs:
-      - "docs/product-capability-map-engineering-infrastructure.md"
       - "docs/testing/desktop-e2e-reporting.md"
       - "docs/testing/e2e-failure-artifact-report-upload.md"
     codeSeeds:
@@ -826,10 +755,7 @@ nodes:
       - "办公套件"
       - "文档预览编辑"
       - "计算机操作"
-    docs:
-      - "docs/product-capability-map.md"
-      - "docs/product-capability-map-office-computer-use.md"
-
+    docs: []
   - id: "capability.office-suite"
     kind: "capability"
     label: "Office document preview, editing, and Agent production"
@@ -842,9 +768,7 @@ nodes:
       - "表格编辑"
       - "演示文稿编辑"
     docs:
-      - "docs/product-capability-map-office-computer-use.md"
       - "docs/document-skills-plugin.md"
-
   - id: "capability.pptx-element-reference"
     kind: "capability"
     label: "PPTX preview element reference and verified OOXML update"
@@ -855,7 +779,6 @@ nodes:
       - "PPTX 元素引用"
       - "演示文稿元素选择"
     docs:
-      - "docs/ui/pptx-preview.md"
       - "docs/conversation-session-case-catalog.md"
     codeSeeds:
       - symbol: "PresentationPreviewDocument"
@@ -883,12 +806,8 @@ nodes:
       - "电脑控制"
       - "桌面操作"
     docs:
-      - "docs/product-capability-map-office-computer-use.md"
       - "docs/cua-permission-broker/zcode-cua-permission-broker.md"
-      - "docs/cua-get-app-state-user-title.md"
       - "docs/testing/cua-e2e-case-catalog.md"
-      - "docs/cua/2026-08-25-cua-request-access-onboarding-spec.md"
-      - "docs/superpowers/specs/2026-08-23-computer-use-plugin-display-name-spec.md"
     codeSeeds:
       - symbol: "resolvePluginDisplayName"
         file: "packages/ui/src/settings/pluginStoreListing.ts"
@@ -957,7 +876,6 @@ nodes:
       - "重连次数"
     docs:
       - "docs/v4-composer-api-retry-status.md"
-      - "apps/zcode-cli/docs/design/v2/model/stream-error-retry.md"
       - "docs/conversation-session-case-catalog.md"
     codeSeeds:
       - symbol: "ChatApiRetryStatus"
@@ -979,8 +897,6 @@ nodes:
       - "SSE 断流恢复"
       - "思考阶段重试"
     docs:
-      - "apps/zcode-cli/docs/design/v2/model/stream-error-retry.md"
-      - "apps/zcode-cli/docs/design/v2/model/streaming-tool-execution-and-recovery.md"
       - "docs/testing/conversation-session-environment-fault-catalog.md"
     codeSeeds:
       - symbol: "recoverPartialAssistantOutputFailure"
@@ -996,8 +912,7 @@ nodes:
       - "zero-output completion retry"
       - "空返回重试"
       - "finish=other 空响应"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/model/stream-error-retry.md"
+    docs: []
     codeSeeds:
       - symbol: "canRetryEmptyCompletion"
         file: "apps/zcode-cli/packages/adapters/src/model/empty-completion-retry.ts"
@@ -1014,8 +929,7 @@ nodes:
     aliases:
       - "Assistant Preview Cards"
       - "回复文件预览卡片"
-    docs:
-      - "docs/ui/assistant-preview-cards.md"
+    docs: []
     codeSeeds:
       - symbol: "buildAssistantPreviewCards"
         file: "packages/ui/src/lib/assistantPreviewCards.ts"
@@ -1038,9 +952,7 @@ nodes:
       - "会话常驻池"
       - "会话内存回收"
       - "会话去激活"
-    docs:
-      - "docs/session-idle-deactivation.md"
-      - "apps/zcode-cli/docs/design/v2/session-idle-deactivation.md"
+    docs: []
     codeSeeds:
       - symbol: "SessionResidentPool"
         file: "apps/zcode-cli/packages/bootstrap/src/zcode-protocol/session-resident-pool.ts"
@@ -1062,9 +974,7 @@ nodes:
       - "提问自动继续"
       - "提问自动倒计时"
     docs:
-      - "docs/ask-user-question-auto-resolution.md"
       - "docs/conversation-session-case-catalog.md"
-
   - id: "capability.project-memory"
     kind: "capability"
     label: "CLI project Memory"
@@ -1073,8 +983,7 @@ nodes:
       - "headless Memory Extraction gate"
       - "project memory"
       - "持久 Memory"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/memory/README.md"
+    docs: []
     codeSeeds:
       - symbol: "MemorySettingsSection"
         file: "packages/ui/src/settings/MemorySettingsSection.tsx"
@@ -1090,9 +999,7 @@ nodes:
       - "turn navigator"
       - "对话问题导航"
       - "问题目录"
-    docs:
-      - "docs/ui/conversation-turn-navigator.md"
-
+    docs: []
   - id: "capability.markdown-image-gallery"
     kind: "capability"
     label: "Responsive Markdown image gallery and preview"
@@ -1119,8 +1026,7 @@ nodes:
       - "message image thumbnails"
       - "消息图片缩略图"
       - "共享图片预览"
-    docs:
-      - "docs/ui/shared-image-preview-dialog.md"
+    docs: []
     codeSeeds:
       - symbol: "ImagePreviewDialog"
         file: "packages/ui/src/components/ai-elements/image-preview-dialog.tsx"
@@ -1138,10 +1044,7 @@ nodes:
       - "backgroundThrottling"
       - "浏览器后台截图"
       - "后台截图表面"
-    docs:
-      - "docs/superpowers/specs/2026-07-23-browser-background-screenshot-surface-design.md"
-      - "docs/superpowers/specs/2026-07-24-browser-screenshot-negative-zoom-design.md"
-      - "docs/browser-use/2026-07-15-browser-turn-final-screenshot-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "BrowserGuestManager"
         file: "packages/desktop/src/main/browserView/browserGuestManager.ts"
@@ -1158,8 +1061,6 @@ nodes:
       - "内置浏览器录屏"
       - "WebView 视频录制"
     docs:
-      - "docs/browser-use/2026-08-12-browser-webview-video-recording-spec.md"
-      - "docs/browser-use/2026-08-14-browser-use-plugin-version-0-3-0-spec.md"
       - "docs/browser-use/browser-use-plugin-runtime-boundary.md"
     codeSeeds:
       - symbol: "BrowserGuestManager"
@@ -1183,7 +1084,6 @@ nodes:
       - "内置浏览器自签名证书"
       - "内置浏览器代理"
     docs:
-      - "apps/zcode-cli/docs/design/v2/model/http-proxy.md"
       - "docs/testing/browser-use-codex-parity-coverage-matrix.md"
     codeSeeds:
       - symbol: "applyDesktopChromiumNetworkPolicies"
@@ -1203,9 +1103,7 @@ nodes:
       - "Host 外部 API 代理"
       - "Host 网络出口"
     docs:
-      - "docs/superpowers/specs/2026-08-25-host-api-proxy-design.md"
       - "docs/architecture/external-api-client.md"
-      - "apps/zcode-cli/docs/design/v2/model/http-proxy.md"
     codeSeeds:
       - symbol: "NodeApiClient"
         file: "packages/services/src/providers/api/nodeApiClient.ts"
@@ -1230,7 +1128,6 @@ nodes:
       - "浏览器显示偏好"
       - "恢复上次浏览器尺寸"
     docs:
-      - "docs/browser-use/2026-07-15-responsive-browser-viewport-spec.md"
       - "docs/testing/browser-use-codex-parity-coverage-matrix.md"
     codeSeeds:
       - symbol: "ResponsiveBrowserViewport"
@@ -1254,11 +1151,7 @@ nodes:
       - "重启清空浏览器 Tab"
       - "Browser Guest route residency"
       - "自动化页后台 Guest"
-    docs:
-      - "docs/browser-use/2026-07-31-browser-tab-residency-budget-spec.md"
-      - "docs/browser-use/2026-07-12-browser-tab-process-lifetime-spec.md"
-      - "docs/browser-use/2026-07-14-browser-tab-conversation-isolation-spec.md"
-      - "docs/browser-use/2026-08-25-browser-guest-route-residency-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "BrowserGuestManager"
         file: "packages/desktop/src/main/browserView/browserGuestManager.ts"
@@ -1276,8 +1169,7 @@ nodes:
       - "file preview"
       - "DOCX 预览"
       - "Office 文件预览"
-    docs:
-      - "docs/ui/office-file-preview.md"
+    docs: []
     codeSeeds:
       - symbol: "getOfficeFilePreviewKind"
         file: "packages/ui/src/lib/officeFilePreview.ts"
@@ -1317,7 +1209,6 @@ nodes:
       - "MCP 双版本兼容"
       - "MCP 自动协商"
     docs:
-      - "docs/mcp-dual-era-version-negotiation.md"
       - "docs/mcp-platform-boundary.md"
     codeSeeds:
       - symbol: "NodeMcpAdapter"
@@ -1337,8 +1228,6 @@ nodes:
       - "Browser Use 无状态"
       - "MCP 2026-07-28"
     docs:
-      - "docs/mcp-stateless-node-repl.md"
-      - "docs/browser-use/2026-07-28-stateless-browser-use-mcp-spec.md"
       - "docs/browser-use/browser-use-plugin-runtime-boundary.md"
     codeSeeds:
       - symbol: "createNodeReplMcpRuntime"
@@ -1360,9 +1249,7 @@ nodes:
       - "定时任务"
     docs:
       - "docs/ui/scheduled-tasks-main-view.md"
-      - "docs/automation-edit-status.md"
       - "docs/testing/automation-workspace-selection-boundary.md"
-
   - id: "capability.off-peak-telemetry"
     kind: "capability"
     label: "Off-Peak creation, upgrade, and automatic-turn telemetry"
@@ -1375,9 +1262,7 @@ nodes:
       - "闲时任务升级埋点"
     docs:
       - "docs/monitoring/off-peak-task-telemetry-v1.md"
-      - "docs/off-peak-task/spec.md"
       - "docs/coding-plan-purchase-funnel-telemetry.md"
-
   - id: "capability.off-peak-model-execution"
     kind: "capability"
     label: "Off-Peak model execution"
@@ -1388,12 +1273,7 @@ nodes:
       - "executionOnly"
       - "闲时模型"
       - "闲时任务模型执行"
-    docs:
-      - "docs/working-memory/provider-refactor/steps/04-model-execution-cutover.md"
-      - "docs/working-memory/provider-refactor/design/execution/execution.md"
-      - "docs/working-memory/provider-refactor/design/registry/model-creation.md"
-      - "docs/working-memory/provider-refactor/design/registry/zcode-builtin-provider-config.md"
-      - "docs/off-peak-task/spec.md"
+    docs: []
     codeSeeds:
       - symbol: "buildOffPeakRequestAuth"
         file: "packages/services/src/session/offPeakRuntimeModel.ts"
@@ -1423,9 +1303,7 @@ nodes:
       - "ZCode MCP quota"
       - "官方 MCP"
       - "官方 MCP 额度"
-    docs:
-      - "docs/coding-plan/zcode-official-server-mcp-auth-spec.md"
-      - "docs/coding-plan/zcode-official-server-mcp-quota-banner-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "resolveOfficialMcpCredentials"
         file: "packages/services/src/official-mcp/officialMcpCredentials.ts"
@@ -1440,7 +1318,6 @@ nodes:
       - "MCP 插件分组"
     docs:
       - "docs/settings-mcp-list.md"
-      - "docs/plugin-capabilities-settings.md"
       - "docs/runtime-tools/mcp-status-list-control-plane.md"
     codeSeeds:
       - symbol: "McpSettingsSection"
@@ -1462,13 +1339,7 @@ nodes:
       - "agent profile"
       - "子代理"
       - "智能体配置"
-    docs:
-      - "docs/subagents-built-in-model-overrides.md"
-      - "docs/subagent-session-side-tabs.md"
-      - "docs/working-memory/provider-refactor/steps/todo-97-subagent-markdown-in-place-migration-and-legacy-read-audit.md"
-      - "docs/working-memory/provider-refactor/design/execution/execution.md"
-      - "docs/working-memory/provider-refactor/steps/04-model-execution-cutover.md"
-      - "docs/superpowers/plans/2026-07-06-subagent-permission-delegation.md"
+    docs: []
     codeSeeds:
       - symbol: "AgentInputSchema"
         file: "apps/zcode-cli/packages/contracts/src/tools/agent.ts"
@@ -1500,29 +1371,6 @@ nodes:
       - "模型供应商"
       - "自定义 provider"
     docs:
-      - "docs/working-memory/provider-refactor/steps/03-staging-integration.md"
-      - "docs/working-memory/provider-refactor/design/design.md"
-      - "docs/working-memory/provider-refactor/design/registry/configuration.md"
-      - "docs/working-memory/provider-refactor/design/registry/registry.md"
-      - "docs/working-memory/provider-refactor/design/registry/model-membership-and-enablement.md"
-      - "docs/working-memory/provider-refactor/design/registry/model-creation.md"
-      - "docs/working-memory/provider-refactor/steps/04-model-execution-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-03-provider-model-ownership-and-property-totality.md"
-      - "docs/working-memory/provider-refactor/research/model-abstraction-unification-cleanup-audit.md"
-      - "docs/working-memory/provider-refactor/steps/todo-00-model-abstraction-unification-roadmap.md"
-      - "docs/working-memory/provider-refactor/steps/todo-01-core-model-adapter-boundary-cleanup.md"
-      - "docs/working-memory/provider-refactor/steps/todo-02-ai-sdk-execution-registry-retirement.md"
-      - "docs/working-memory/provider-refactor/steps/todo-04-core-model-connection-port-retirement.md"
-      - "docs/working-memory/provider-refactor/steps/todo-05-model-ref-retirement.md"
-      - "docs/working-memory/provider-refactor/steps/todo-07-account-connection-selection-and-access-context-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-10-zcode-builtin-provider-config-naming-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-12-model-selection-validation-boundary-cutover.md"
-      - "docs/working-memory/provider-refactor/steps/todo-13-target-host-model-selection-authority.md"
-      - "docs/working-memory/provider-refactor/steps/todo-20-account-overlay-atomicity-and-review-closeout.md"
-      - "docs/working-memory/provider-refactor/steps/todo-21-zcode-builtin-config-ownership-and-model-activation-order.md"
-      - "docs/working-memory/provider-refactor/steps/todo-32-team-plan-settings-effective-provider-boundary.md"
-      - "docs/working-memory/provider-refactor/steps/todo-51-provider-access-consumer-and-offpeak-auth-closeout.md"
-      - "docs/working-memory/provider-refactor/steps/todo-55-provider-template-inheritance-cutover.md"
       - "docs/model-provider-presets.md"
       - "docs/model-provider-config-overrides.md"
       - "docs/model-provider-catalog-metadata.md"
@@ -1588,10 +1436,7 @@ nodes:
       - "模型流量转发"
       - "动态端点转发"
       - "静态网关"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/model/provider-endpoint-routing.md"
-      - "apps/zcode-cli/docs/design/v2/model/http-proxy.md"
-
+    docs: []
   - id: "capability.model-request-session-type-attribution"
     kind: "capability"
     label: "Model request session type attribution header"
@@ -1600,9 +1445,7 @@ nodes:
       - "model request session type"
       - "模型请求 session 分类"
       - "主会话子代理请求归因"
-    docs:
-      - "docs/superpowers/specs/2026-06-09-agent-model-request-session-header-design.md"
-      - "apps/zcode-cli/docs/design/v2/model/README.md"
+    docs: []
     codeSeeds:
       - symbol: "ModelRequestSessionType"
         file: "apps/zcode-cli/packages/contracts/src/model/index.ts"
@@ -1632,9 +1475,7 @@ nodes:
       - "signature repair retry"
       - "Anthropic 推理历史回放"
       - "thinking 签名修复"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/model/anthropic-reasoning-history-replay.md"
-
+    docs: []
   - id: "capability.model-reasoning-request-projection"
     kind: "capability"
     label: "Provider-visible reasoning history projection"
@@ -1643,10 +1484,7 @@ nodes:
       - "reasoning_content replay"
       - "reasoning request projection"
       - "空 reasoning 请求投影"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/model/README.md"
-      - "apps/zcode-cli/docs/design/v2/model/anthropic-reasoning-history-replay.md"
-
+    docs: []
   - id: "capability.oauth-login-attribution"
     kind: "capability"
     label: "OAuth login marketing attribution"
@@ -1655,9 +1493,7 @@ nodes:
       - "marketing attribution"
       - "OAuth 归因"
       - "登录归因"
-    docs:
-      - "docs/oauth/app-marketing-attribution.md"
-
+    docs: []
   - id: "capability.remote-delivery"
     kind: "capability"
     label: "Web remote realtime delivery"
@@ -1697,9 +1533,7 @@ nodes:
       - "远程 Provider 配置同步"
       - "远程环境模型配置镜像"
     docs:
-      - "docs/remote/provider-provisioning.md"
       - "docs/remote-workspace-session-unified-settings.md"
-      - "docs/working-memory/provider-refactor/steps/todo-56-remote-provider-provisioning-environment-sync.md"
     codeSeeds:
       - symbol: "ProviderProvisioningEnvironmentCoordinator"
         file: "packages/desktop/src/main/providerProvisioningEnvironmentCoordinator.ts"
@@ -1777,7 +1611,6 @@ nodes:
     docs:
       - "docs/remote-prompt-attachment-materialization.md"
       - "docs/conversation-session-case-catalog.md"
-      - "apps/zcode-cli/docs/design/v2/message-attachments.md"
       - "docs/ui/chat-file-attachments.md"
     codeSeeds:
       - symbol: "NodeToolArtifactStore.ensureMediaAttachmentPath"
@@ -1793,10 +1626,7 @@ nodes:
       - "video Read"
       - "视频输入"
       - "视频附件"
-    docs:
-      - "docs/plans/2026-08-17-video-input-support-plan.md"
-      - "apps/zcode-cli/docs/design/v2/message-attachments.md"
-      - "apps/zcode-cli/docs/design/v2/tool/01-read.md"
+    docs: []
     codeSeeds:
       - symbol: "ModelVideoContentBlock"
         file: "apps/zcode-cli/packages/contracts/src/model/index.ts"
@@ -1817,11 +1647,7 @@ nodes:
       - "任务持久化"
       - "任务恢复"
     docs:
-      - "docs/task/task-sqlite-index.md"
       - "docs/task/task-snapshot-on-demand.md"
-      - "docs/working-memory/provider-refactor/steps/todo-109-database-migration-consolidation-and-rollback-readability.md"
-      - "docs/desktop/database-migration-startup-gate-plan.md"
-
   - id: "capability.desktop-app-shutdown"
     kind: "capability"
     label: "Desktop app shutdown and update-install handoff"
@@ -1831,10 +1657,7 @@ nodes:
       - "quitAndInstall"
       - "应用退出"
       - "更新安装退出"
-    docs:
-      - "docs/desktop/agent-shutdown-latency.md"
-      - "docs/desktop/windows-update-install-handoff.md"
-
+    docs: []
   - id: "capability.desktop-startup-critical-path"
     kind: "capability"
     label: "Desktop Local Host and active-workspace startup critical path"
@@ -1851,9 +1674,6 @@ nodes:
       - "迁移空间不足提示"
     docs:
       - "docs/desktop/startup-critical-path.md"
-      - "docs/desktop/database-migration-startup-gate-plan.md"
-      - "docs/desktop/database-startup-plan-review.md"
-      - "docs/working-memory/provider-refactor/steps/todo-145-global-database-startup-loading.md"
     codeSeeds:
       - symbol: "prepareRuntimeProcessEnvPatch"
         file: "packages/services/src/runtime-tools/runtimeCommandEnv.ts"
@@ -2011,7 +1831,6 @@ nodes:
     kind: "evidence"
     label: "Start Plan manual claim focused and Desktop E2E coverage"
     docs:
-      - "docs/testing/marketing-touch-e2e-audit.md"
       - "docs/testing/marketing-touch-e2e-implementation.md"
     codeSeeds:
       - file: "packages/ui/test/marketingTouchProvider.test.ts"
@@ -2212,8 +2031,7 @@ nodes:
       - "remote task status"
       - "手机远控任务首页"
       - "手机任务状态"
-    docs:
-      - "docs/web-remote-control/mobile-task-home-design.md"
+    docs: []
     codeSeeds:
       - symbol: "WebRemoteControlMobileTaskHome"
         file: "packages/ui/src/WebRemoteControlMobileTaskHome.tsx"
@@ -2325,7 +2143,6 @@ nodes:
       - "child session detail"
       - "子智能体详情"
     docs:
-      - "docs/subagent-session-side-tabs.md"
       - "docs/v4-composer-api-retry-status.md"
       - "docs/chat/manual-model-switch-resolution-chain.md"
     codeSeeds:
@@ -2375,10 +2192,7 @@ nodes:
       - "CUA Group"
       - "Computer Use 工具聚合"
     docs:
-      - "docs/ui/tool-display-rendering.md"
       - "docs/task-output-contract.md"
-      - "docs/subagent-respond-to-coordinator.md"
-      - "docs/cua/cua-tool-app-identity-summary.md"
     codeSeeds:
       - symbol: "resolveToolCallRenderer"
         file: "packages/ui/src/ToolCallBlocks.tsx"
@@ -2458,7 +2272,6 @@ nodes:
       - "已发送视频预览"
       - "媒体附件预览"
     docs:
-      - "docs/plans/2026-08-17-video-input-support-plan.md"
       - "docs/conversation-session-case-catalog.md"
     codeSeeds:
       - symbol: "UserInputAttachmentList"
@@ -2551,19 +2364,7 @@ nodes:
   - id: "surface.provider-settings"
     kind: "ui-surface"
     label: "Model provider settings and model capability editor"
-    docs:
-      - "docs/working-memory/provider-refactor/steps/todo-98-builtin-option-map-formatting-regression.md"
-      - "docs/working-memory/provider-refactor/steps/todo-93-account-plan-loss-manual-switch.md"
-      - "docs/working-memory/provider-refactor/steps/todo-92-model-smart-config-and-override-feedback.md"
-      - "docs/working-memory/provider-refactor/steps/todo-91-connectivity-probe-prompt-contract.md"
-      - "docs/working-memory/provider-refactor/steps/todo-90-model-add-edit-shared-recommended-draft.md"
-      - "docs/superpowers/specs/2026-06-04-model-provider-model-editor-design.md"
-      - "docs/superpowers/specs/2026-08-21-model-provider-modality-settings-design.md"
-      - "docs/working-memory/provider-refactor/design/registry/model-membership-and-enablement.md"
-      - "docs/working-memory/provider-refactor/design/registry/provider-and-model-configuration-overview.md"
-      - "docs/working-memory/provider-refactor/design/registry/settings.md"
-      - "docs/working-memory/provider-refactor/steps/todo-21-zcode-builtin-config-ownership-and-model-activation-order.md"
-      - "docs/working-memory/provider-refactor/steps/todo-61-provider-template-picker-and-brand-metadata.md"
+    docs: []
     codeSeeds:
       - symbol: "ModelProviderSection"
         file: "packages/ui/src/settings/ModelProviderSection.tsx"
@@ -2599,8 +2400,7 @@ nodes:
       - "Plugin search"
       - "Customize search"
       - "插件 MCP Skills 搜索"
-    docs:
-      - "docs/plugin-capabilities-settings.md"
+    docs: []
     codeSeeds:
       - symbol: "PluginsSection"
         file: "packages/ui/src/settings/PluginsSection.tsx"
@@ -2626,8 +2426,7 @@ nodes:
   - id: "evidence.customize-capability-settings-tests"
     kind: "evidence"
     label: "Plugin scope projection and search tests"
-    docs:
-      - "docs/plugin-capabilities-settings.md"
+    docs: []
     codeSeeds:
       - file: "packages/ui/test/pluginSettingsSection.test.ts"
       - file: "packages/ui/test/pluginCapabilityProjection.test.ts"
@@ -2640,9 +2439,7 @@ nodes:
       - ".zcode/skills and .agents/skills"
       - "技能目录发现"
       - "用户技能引用"
-    docs:
-      - "docs/external-agent-skills-import.md"
-      - "docs/ui/mention-panel-layout.md"
+    docs: []
     codeSeeds:
       - symbol: "resolveDefaultSkillRoots"
         file: "apps/zcode-cli/packages/adapters/src/skills/roots.ts"
@@ -2676,8 +2473,7 @@ nodes:
   - id: "persistence.skill-roots"
     kind: "persistence"
     label: "Workspace and user .zcode/skills and .agents/skills roots"
-    docs:
-      - "docs/external-agent-skills-import.md"
+    docs: []
     codeSeeds:
       - symbol: "resolveDefaultSkillRoots"
         file: "apps/zcode-cli/packages/adapters/src/skills/roots.ts"
@@ -2687,8 +2483,7 @@ nodes:
   - id: "evidence.skill-catalog-discovery-tests"
     kind: "evidence"
     label: "Skill root discovery and composer source filtering tests"
-    docs:
-      - "docs/external-agent-skills-import.md"
+    docs: []
     codeSeeds:
       - file: "apps/zcode-cli/packages/adapters/tests/skills.test.ts"
       - file: "packages/services/test/skillsService.test.ts"
@@ -2809,8 +2604,7 @@ nodes:
   - id: "state.cua-action-state-authority"
     kind: "state-owner"
     label: "CUA element action mutation epoch and authoritative post-state"
-    docs:
-      - "docs/cua/2026-08-18-ax-action-state-consistency.md"
+    docs: []
     codeSeeds:
       - symbol: "registerMcpTools"
         file: "apps/zcode-cli/packages/core/src/mcp/index.ts"
@@ -2847,8 +2641,7 @@ nodes:
   - id: "state.assistant-file-preview-projection"
     kind: "state-owner"
     label: "Turn-local assistant file preview projection"
-    docs:
-      - "docs/ui/assistant-preview-cards.md"
+    docs: []
     codeSeeds:
       - symbol: "buildAssistantPreviewCardsForAssistantTextRow"
         file: "packages/ui/src/v4/assistantPreviewCards.ts"
@@ -2860,9 +2653,7 @@ nodes:
   - id: "state.browser-context-handle-registry"
     kind: "state-owner"
     label: "Agent-owned BrowserControl session and tab authority"
-    docs:
-      - "docs/mcp-stateless-node-repl.md"
-      - "docs/browser-use/2026-07-28-stateless-browser-use-mcp-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "createProtocolBrowserControlBroker"
         file: "apps/zcode-cli/packages/bootstrap/src/zcode-protocol/browser-control-broker.ts"
@@ -2881,8 +2672,7 @@ nodes:
   - id: "state.browser-recording-job-registry"
     kind: "state-owner"
     label: "Desktop main transient Browser Use recording jobs"
-    docs:
-      - "docs/browser-use/2026-08-12-browser-webview-video-recording-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "BrowserGuestManager"
         file: "packages/desktop/src/main/browserView/browserGuestManager.ts"
@@ -2898,8 +2688,7 @@ nodes:
   - id: "state.embedded-browser-fit-presentation"
     kind: "state-owner"
     label: "Renderer-local responsive Fit canvas presentation"
-    docs:
-      - "docs/browser-use/2026-07-15-responsive-browser-viewport-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "ResponsiveBrowserViewport"
         file: "packages/ui/src/browser-use/ResponsiveBrowserViewport.tsx"
@@ -2909,8 +2698,7 @@ nodes:
   - id: "state.embedded-browser-human-viewport-preference"
     kind: "state-owner"
     label: "App-global human Browser viewport presentation preference"
-    docs:
-      - "docs/browser-use/2026-07-15-responsive-browser-viewport-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "useResponsiveBrowserViewportControl"
         file: "packages/ui/src/browser-use/useResponsiveBrowserViewportControl.ts"
@@ -2920,8 +2708,7 @@ nodes:
   - id: "state.browser-tab-residency"
     kind: "state-owner"
     label: "Process-local logical Browser tab catalog and LRU activity"
-    docs:
-      - "docs/browser-use/2026-07-31-browser-tab-residency-budget-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "BrowserUseSidePaneTab"
         file: "packages/ui/src/lib/workspaceSidePane.ts"
@@ -3011,8 +2798,7 @@ nodes:
   - id: "persistence.model-provider-config"
     kind: "persistence"
     label: "Sparse Personal provider membership, order and exact model configuration"
-    docs:
-      - "docs/working-memory/provider-refactor/design/registry/settings.md"
+    docs: []
     codeSeeds:
       - symbol: "NodePersonalProviderConfigRepository"
         file: "packages/provider-node/src/personal-provider-config-repository.ts"
@@ -3020,8 +2806,7 @@ nodes:
   - id: "service.workspace-file-existence-check"
     kind: "service"
     label: "Workspace Host cached file existence check"
-    docs:
-      - "docs/ui/assistant-preview-cards.md"
+    docs: []
     codeSeeds:
       - symbol: "createFileService"
         file: "packages/services/src/file/fileService.ts"
@@ -3054,9 +2839,7 @@ nodes:
   - id: "service.host-model-selection"
     kind: "service"
     label: "Target Workspace Host model selection service"
-    docs:
-      - "docs/working-memory/provider-refactor/steps/todo-13-target-host-model-selection-authority.md"
-      - "docs/working-memory/provider-refactor/steps/todo-34-model-selection-async-state-and-repo-wiki-draft.md"
+    docs: []
     codeSeeds:
       - symbol: "IModelSelectionService"
         file: "packages/services/src/model-provider/providerFacadeServices.ts"
@@ -3191,9 +2974,7 @@ nodes:
   - id: "service.shared-browser-use-mcp-runtime"
     kind: "service"
     label: "Workspace-scoped shared stateless node_repl MCP runtime"
-    docs:
-      - "docs/mcp-stateless-node-repl.md"
-      - "docs/browser-use/2026-07-28-stateless-browser-use-mcp-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "NodeMcpAdapter"
         file: "apps/zcode-cli/packages/adapters/src/mcp/index.ts"
@@ -3345,7 +3126,6 @@ nodes:
       - "CUA Helper health check"
       - "CUA Helper recovery"
     docs:
-      - "docs/cua-permission-broker/2026-09-02-helper-lifecycle-agent-runtime-isolation-spec.md"
       - "docs/testing/cua-e2e-case-catalog.md"
     codeSeeds:
       - symbol: "createDefaultCuaProductHelper"
@@ -3366,7 +3146,6 @@ nodes:
     kind: "state-owner"
     label: "Windows CUA tool-triggered operation indicator projection"
     docs:
-      - "docs/superpowers/specs/2026-08-04-windows-cua-operation-indicator-design.md"
       - "docs/testing/cua-e2e-case-catalog.md"
     codeSeeds:
       - symbol: "createWindowsCuaOperationIndicator"
@@ -3380,9 +3159,7 @@ nodes:
     aliases:
       - "cua-helper-build"
       - "CUA Helper packaging"
-    docs:
-      - "docs/superpowers/specs/2026-08-19-cua-producer-0.5.7-integration.md"
-      - "docs/desktop/macos-dmg-signing-notarization.md"
+    docs: []
     codeSeeds:
       - file: "scripts/build-cua-helper-app.mjs"
       - file: "scripts/package-cua-helper-release.mjs"
@@ -3393,7 +3170,6 @@ nodes:
     kind: "state-owner"
     label: "CUA immutable raster, WindowServer provenance, and native pixel dispatch authority"
     docs:
-      - "docs/superpowers/specs/2026-08-14-cua-final-raster-integrity-contract.md"
       - "docs/cua/2026-08-18-frame-pixel-zoom-regression.md"
     codeSeeds:
       - file: "apps/zcode-cli/packages/zcode-cua-plugin/upstream.json"
@@ -3406,8 +3182,7 @@ nodes:
   - id: "service.cua-plugin-dev-runtime-assets"
     kind: "service"
     label: "CUA SDK/skill Dev build, validation, and filesystem seed assets"
-    docs:
-      - "docs/cua-permission-broker/cua-dev-mcp-runtime-assets.md"
+    docs: []
     codeSeeds:
       - file: "scripts/build-desktop-agent-cli.mjs"
       - file: "apps/zcode-cli/packages/zcode-cua-plugin/scripts/computer-use-client.mjs"
@@ -3417,8 +3192,7 @@ nodes:
   - id: "service.cua-node-repl-bridge"
     kind: "service"
     label: "Shared node_repl Computer Use bridge"
-    docs:
-      - "docs/cua/2026-08-24-cua-node-repl-sdk-migration-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "createNodeReplMcpRuntime"
         file: "apps/zcode-cli/packages/node-repl-host/src/server.ts"
@@ -3433,8 +3207,7 @@ nodes:
   - id: "state.cua-shared-host-runtime"
     kind: "state-owner"
     label: "Shared-host CUA runtime session, frame, and safety state"
-    docs:
-      - "docs/cua/2026-08-24-cua-node-repl-sdk-migration-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "createComputerUseRuntime"
         file: "../zcode-cua/src/tools/computer-use-runtime.ts"
@@ -3449,8 +3222,7 @@ nodes:
     kind: "service"
     status: "removed"
     label: "[Removed] CUA model-facing MCP tool projection and user-title projection"
-    docs:
-      - "docs/cua-get-app-state-user-title.md"
+    docs: []
     codeSeeds:
       - symbol: "registerMcpTools"
         file: "apps/zcode-cli/packages/core/src/mcp/index.ts"
@@ -3514,8 +3286,7 @@ nodes:
   - id: "service.desktop-chromium-network-policy"
     kind: "service"
     label: "Desktop main Chromium Session proxy and certificate policy"
-    docs:
-      - "apps/zcode-cli/docs/design/v2/model/http-proxy.md"
+    docs: []
     codeSeeds:
       - symbol: "applyDesktopChromiumNetworkPolicies"
         file: "packages/desktop/src/main/desktopNetworkPolicy.ts"
@@ -3525,8 +3296,7 @@ nodes:
   - id: "service.host-api-network-policy"
     kind: "service"
     label: "Window Host lifecycle-scoped app-managed API network transport"
-    docs:
-      - "docs/superpowers/specs/2026-08-25-host-api-proxy-design.md"
+    docs: []
     codeSeeds:
       - symbol: "NodeApiClient"
         file: "packages/services/src/providers/api/nodeApiClient.ts"
@@ -3538,8 +3308,7 @@ nodes:
   - id: "service.desktop-browser-tab-residency"
     kind: "service"
     label: "Per-BrowserWindow logical Browser tab limit scheduler"
-    docs:
-      - "docs/browser-use/2026-07-31-browser-tab-residency-budget-spec.md"
+    docs: []
     codeSeeds:
       - symbol: "BrowserGuestManager"
         file: "packages/desktop/src/main/browserView/browserGuestManager.ts"
@@ -3604,10 +3373,7 @@ nodes:
   - id: "persistence.session-media-artifacts"
     kind: "persistence"
     label: "Provider-neutral session media artifacts"
-    docs:
-      - "docs/plans/2026-08-17-video-input-support-plan.md"
-      - "apps/zcode-cli/docs/design/v2/message-attachments.md"
-      - "apps/zcode-cli/docs/design/v2/session-persistence.md"
+    docs: []
     codeSeeds:
       - symbol: "persistToolResultMediaAttachments"
         file: "apps/zcode-cli/packages/core/src/runtime/helpers/tool-result-media-persistence.ts"
@@ -3689,9 +3455,7 @@ nodes:
     aliases:
       - "browser-tab-recovery.json"
       - "retired browser tab pageState repository"
-    docs:
-      - "docs/browser-use/2026-07-31-browser-tab-residency-budget-spec.md"
-
+    docs: []
   - id: "boundary.desktop-continuous"
     kind: "delivery-boundary"
     label: "Desktop continuous delivery"
@@ -3713,8 +3477,7 @@ nodes:
       - "@ and slash picker"
       - "输入框候选分组"
       - "输入框触发器"
-    docs:
-      - "docs/ui/mention-panel-layout.md"
+    docs: []
     codeSeeds:
       - symbol: "extractActivePromptInputTrigger"
         file: "packages/ui/src/lib/promptInputTriggers.ts"
@@ -3729,7 +3492,6 @@ nodes:
       - "Plan mode composer shortcut"
       - "Composer Plan 快捷命令"
     docs:
-      - "docs/plan-slash-command.md"
       - "docs/conversation-session-case-catalog.md"
     codeSeeds:
       - symbol: "parseV4VisibleSlashCommand"
@@ -3758,8 +3520,7 @@ nodes:
   - id: "service.composer-host-file-search"
     kind: "service"
     label: "Host-owned bounded Composer file search"
-    docs:
-      - "docs/superpowers/specs/2026-08-26-local-file-mention-stability.md"
+    docs: []
     codeSeeds:
       - symbol: "createFileService"
         file: "packages/services/src/file/fileService.ts"
@@ -3801,9 +3562,7 @@ nodes:
       - "session skill catalog"
       - "Skill 候选冻结"
       - "新建对话刷新 Skill"
-    docs:
-      - "docs/ui/conversation-skill-catalog-lifecycle.md"
-      - "docs/ui/mention-panel-layout.md"
+    docs: []
     codeSeeds:
       - symbol: "useSkills"
         file: "packages/ui/src/hooks/useSkills.ts"
@@ -3820,8 +3579,6 @@ nodes:
       - "插件来源物化"
       - "无 Git 安装插件"
     docs:
-      - "docs/plugin-github-archive-source.md"
-      - "docs/claude-code-marketplace-plugin-compat.md"
       - "docs/plugin-management-lifecycle-case-catalog.md"
     codeSeeds:
       - symbol: "loadMarketplaceFromSource"
@@ -3873,7 +3630,6 @@ nodes:
       - "工作区插件"
     docs:
       - "docs/plugins/workspace-level-plugin-architecture.md"
-      - "docs/plugins/workspace-level-plugin-proposal-comparison.md"
       - "docs/plugin-management-lifecycle-case-catalog.md"
     codeSeeds:
       - symbol: "createConfig"
@@ -3986,7 +3742,6 @@ nodes:
       - "内置插件卸载后详情"
       - "插件 Catalog Runtime 分离"
     docs:
-      - "docs/specs/builtin-plugin-catalog-runtime-separation.md"
       - "docs/plugin-management-lifecycle-case-catalog.md"
       - "docs/adr/0001-store-listing-in-marketplace-catalog.md"
     codeSeeds:
@@ -4008,8 +3763,7 @@ nodes:
   - id: "state.plugin-runtime-suppression"
     kind: "state-owner"
     label: "User-owned suppressed builtin runtime filter"
-    docs:
-      - "docs/specs/builtin-plugin-catalog-runtime-separation.md"
+    docs: []
     codeSeeds:
       - symbol: "suppressedBuiltins"
         file: "apps/zcode-cli/packages/adapters/src/config/schema.ts"
@@ -4021,9 +3775,7 @@ nodes:
   - id: "service.plugin-catalog-detail"
     kind: "service"
     label: "Read-only Marketplace plugin detail and component enumeration"
-    docs:
-      - "docs/specs/builtin-plugin-catalog-runtime-separation.md"
-      - "docs/plugin-marketplace-ui-ux.md"
+    docs: []
     codeSeeds:
       - symbol: "describeZCodePlugin"
         file: "apps/zcode-cli/packages/bootstrap/src/plugins.ts"
@@ -4302,7 +4054,6 @@ nodes:
       - "窗口唯一 Host"
       - "R1 Host controller"
     docs:
-      - "docs/architecture/r1-single-window-host-refactor.md"
       - "docs/architecture/zcode-code-architecture-overview.md"
     codeSeeds:
       - symbol: "createRemoteWorkspaceSessionManager"
@@ -4317,7 +4068,6 @@ nodes:
     kind: "state-owner"
     label: "Window Host workspace and task projection"
     docs:
-      - "docs/architecture/r1-single-window-host-refactor.md"
       - "docs/web-remote-control/task-realtime-sync.md"
     codeSeeds:
       - symbol: "useGlobalTaskList"
@@ -4327,8 +4077,7 @@ nodes:
   - id: "service.window-host-remote-connection-registry"
     kind: "service"
     label: "Window Host remote connection and logical session registry"
-    docs:
-      - "docs/architecture/r1-single-window-host-refactor.md"
+    docs: []
     codeSeeds:
       - symbol: "createWindowRemoteConnectionRegistry"
         file: "packages/desktop/src/host/windowRemoteConnectionRegistry.ts"
@@ -4339,7 +4088,6 @@ nodes:
     kind: "boundary"
     label: "Window Host local and remote scoped MessagePort attachment"
     docs:
-      - "docs/architecture/r1-single-window-host-refactor.md"
       - "docs/web-remote-control/web-remote-control-architecture.md"
     codeSeeds:
       - file: "packages/desktop/src/host/index.ts"
@@ -4351,7 +4099,6 @@ nodes:
     kind: "evidence"
     label: "Real SSH connection lifecycle and multi-workspace P0 Electron E2E"
     docs:
-      - "docs/testing/ssh-remote-p0-e2e-plan.md"
       - "docs/conversation-session-case-catalog.md"
       - "docs/testing/conversation-session-e2e-coverage-matrix.md"
     codeSeeds:
@@ -4368,14 +4115,11 @@ nodes:
       - "统一多端架构"
       - "多 Server 管理"
     docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
       - "docs/architecture/zcode-code-architecture-overview.md"
-
   - id: "surface.multi-server-controller-ui"
     kind: "ui-surface"
     label: "Desktop, Browser, and attached Mobile multi-server view"
-    docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
+    docs: []
     codeSeeds:
       - symbol: "Root"
         file: "packages/ui/src/Root.tsx"
@@ -4385,20 +4129,15 @@ nodes:
   - id: "state.controller-server-directory"
     kind: "state-owner"
     label: "Controller-local server connections and aggregate projection"
-    docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
-
+    docs: []
   - id: "service.zcode-stable-launcher"
     kind: "service"
     label: "Planned stable launcher, bootstrap, and version runtime manager"
-    docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
-
+    docs: []
   - id: "service.multi-server-controller"
     kind: "service"
     label: "Planned Desktop and Lite multi-server connection controller"
-    docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
+    docs: []
     codeSeeds:
       - symbol: "connectRemote"
         file: "packages/server/src/remote/connect.ts"
@@ -4408,23 +4147,17 @@ nodes:
   - id: "persistence.zcode-server-identity"
     kind: "persistence"
     label: "Planned persistent server identity and server-local workspace registry"
-    docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
-
+    docs: []
   - id: "persistence.zcode-resource-store"
     kind: "persistence"
     label: "Planned source-server prompt resource store"
     docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
       - "docs/remote-prompt-attachment-materialization.md"
-
   - id: "boundary.unified-server-transport"
     kind: "delivery-boundary"
     label: "Transport-independent Server RPC over local, WebSocket, and SSH tunnel"
     docs:
-      - "docs/architecture/unified-zcode-lite-server-multi-server-plan.md"
       - "docs/architecture/rpc.md"
-
   - id: "evidence.browser-screenshot-surface-tests"
     kind: "evidence"
     label: "Browser screenshot surface and bounded activity coverage"
@@ -4457,8 +4190,7 @@ nodes:
   - id: "evidence.host-api-network-policy-tests"
     kind: "evidence"
     label: "Host API proxy, No Proxy, custom CA, lifecycle, and remote-authority tests"
-    docs:
-      - "docs/superpowers/specs/2026-08-25-host-api-proxy-design.md"
+    docs: []
     codeSeeds:
       - file: "packages/services/test/nodeApiClient.test.ts"
       - file: "packages/services/test/nodeApiClientEndpoint.test.ts"
@@ -4497,7 +4229,6 @@ nodes:
       - "side pane tabs"
       - "侧边面板标签"
     docs:
-      - "docs/ui/side-pane-tabs.md"
       - "docs/testing/side-pane-tabs-e2e-case-catalog.md"
       - "docs/testing/side-pane-tabs-e2e-coverage-matrix.md"
     codeSeeds:
@@ -4522,8 +4253,7 @@ nodes:
       - "Windows rounded corners"
       - "Windows maximize chrome"
       - "Windows 窗口圆角"
-    docs:
-      - "docs/ui/windows-titlebar-menu.md"
+    docs: []
     codeSeeds:
       - symbol: "useAppChromeState"
         file: "packages/ui/src/app-shell/useAppChromeState.ts"
@@ -4531,8 +4261,7 @@ nodes:
   - id: "surface.workspace-shell-window-edge"
     kind: "ui-surface"
     label: "Workspace shell outer window edge"
-    docs:
-      - "docs/ui/windows-titlebar-menu.md"
+    docs: []
     codeSeeds:
       - symbol: "WorkspaceShellLayout"
         file: "packages/ui/src/app-shell/WorkspaceShellLayout.tsx"
@@ -4564,8 +4293,7 @@ nodes:
       - "workspace hook review"
       - "工作区 Hook 信任"
       - "钩子信任"
-    docs:
-      - "docs/specs/workspace-hook-trust-persistent-only.md"
+    docs: []
     codeSeeds:
       - symbol: "WorkspaceHookReviewController"
         file: "apps/zcode-cli/packages/bootstrap/src/app/workspace-hook-review-controller.ts"
@@ -4581,8 +4309,7 @@ nodes:
       - "conversation Hook icon"
       - "对话钩子图标"
       - "本轮钩子"
-    docs:
-      - "docs/chat/conversation-hook-turn-summary.md"
+    docs: []
     codeSeeds:
       - symbol: "ProductProjection.onHookRunLifecycle"
         file: "apps/zcode-cli/packages/bootstrap/src/zcode-protocol-v4/product-projection.ts"
@@ -4594,8 +4321,7 @@ nodes:
   - id: "surface.conversation-turn-hook-summary"
     kind: "ui-surface"
     label: "Conversation terminal turn Hook action and details Popover"
-    docs:
-      - "docs/chat/conversation-hook-turn-summary.md"
+    docs: []
     codeSeeds:
       - symbol: "ConversationHookDetailsAction"
         file: "packages/ui/src/v4/ConversationHookDetailsAction.tsx"
@@ -4607,8 +4333,7 @@ nodes:
   - id: "surface.workspace-hook-settings-trust-row"
     kind: "ui-surface"
     label: "Settings Workspace Hook trust row"
-    docs:
-      - "docs/specs/workspace-hook-trust-persistent-only.md"
+    docs: []
     codeSeeds:
       - symbol: "HooksSection"
         file: "packages/ui/src/settings/HooksSection.tsx"
@@ -4801,7 +4526,6 @@ nodes:
       - "工作流智能体 transcript"
     docs:
       - "docs/dynamic-workflow/presentation.md"
-      - "docs/subagent-session-side-tabs.md"
     codeSeeds:
       - symbol: "SubagentSessionSidePane"
         file: "packages/ui/src/app-shell/SubagentSessionSidePane.tsx"
@@ -4873,8 +4597,7 @@ nodes:
       - "submit_result renderer"
       - "已提交结果"
       - "提交结果工具卡"
-    docs:
-      - "docs/chat/submit-result-tool-card.md"
+    docs: []
     codeSeeds:
       - symbol: "SubmitResultToolCallBlock"
         file: "packages/ui/src/ToolCallBlocks/renderers/submit-result.tsx"
@@ -4933,8 +4656,7 @@ nodes:
   - id: "surface.conversation-share-handover"
     kind: "ui-surface"
     label: "Desktop Share URL handover task"
-    docs:
-      - "docs/working-memory/provider-refactor/steps/todo-139-share-import-new-task-selection.md"
+    docs: []
     invariants:
       - "Only reused=false import results seed an independent Composer draft before activation, keyed by the returned workspace identity. Copy initialized Root selection only; otherwise use the ordinary new-task Recent/default initializer after the View is ready. Empty history is not an import marker; user edits and reused sessions win. Import never updates Recent or waits for model execution."
     codeSeeds:
@@ -4977,7 +4699,8 @@ nodes:
     label: "Localized plugin management and bundled Plugin Creator draft entry"
     aliases:
       ["plugin-creator", "创建插件", "插件本地化", "添加插件市场", "拼音搜索", "插件默认展开"]
-    docs: ["docs/plugin-creator.md", "docs/plugin-capabilities-settings.md"]
+    docs:
+      - "docs/plugin-creator.md"
     codeSeeds:
       - file: "packages/ui/src/settings/PluginAddMenu.tsx"
       - file: "packages/ui/src/hooks/usePluginCreator.ts"
@@ -4996,7 +4719,12 @@ nodes:
     kind: "capability"
     label: "Bot group and topic collaboration"
     aliases: ["群聊机器人", "话题续接", "ReplyToChannel", "渠道提及", "Bot 历史附件"]
-    docs: ["docs/bots-feishu-group-collaboration.md", "docs/bots-topic-input-materials.md", "docs/testing/bots-e2e-coverage-matrix.md"]
+    docs:
+      [
+        "docs/bots-feishu-group-collaboration.md",
+        "docs/bots-topic-input-materials.md",
+        "docs/testing/bots-e2e-coverage-matrix.md",
+      ]
     codeSeeds:
       - file: "packages/services/src/bots/botsService.ts"
         symbol: "createBotsService"
