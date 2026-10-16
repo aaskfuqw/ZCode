@@ -6,16 +6,24 @@ import { withPinnedNodePath } from "../../../scripts/mise-toolchain-env.mjs";
 describe("mise toolchain child environment", () => {
   it("puts the launcher Node directory first without duplicating it", () => {
     const nodeDirectory = dirname(process.execPath);
-    const originalPath = ["/opt/homebrew/bin", nodeDirectory, "/usr/bin", nodeDirectory].join(
+    // 夹具里的固定目录可能与 nodeDirectory 重叠（例如 Node 由系统 /usr/bin 提供，
+    // mise 管理的 runtime 也一样）：原断言写死去重后仍有 3 项，重叠时必然失败。
+    // 这里按实现的真实契约推导预期：启动器目录置首，其余条目保序且不再重复。
+    const firstDirectory = "/opt/homebrew/bin";
+    const secondDirectory = "/usr/bin";
+    const originalPath = [firstDirectory, nodeDirectory, secondDirectory, nodeDirectory].join(
       delimiter,
     );
 
     const result = withPinnedNodePath({ PATH: originalPath, KEEP_ME: "yes" }, process.execPath);
 
-    expect(result.PATH?.split(delimiter)).toEqual([nodeDirectory, "/opt/homebrew/bin", "/usr/bin"]);
+    expect(result.PATH?.split(delimiter)).toEqual([
+      nodeDirectory,
+      ...[firstDirectory, secondDirectory].filter((directory) => directory !== nodeDirectory),
+    ]);
     expect(result.KEEP_ME).toBe("yes");
     expect(originalPath).toBe(
-      ["/opt/homebrew/bin", nodeDirectory, "/usr/bin", nodeDirectory].join(delimiter),
+      [firstDirectory, nodeDirectory, secondDirectory, nodeDirectory].join(delimiter),
     );
   });
 
