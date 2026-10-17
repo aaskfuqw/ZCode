@@ -1,4 +1,3 @@
-import type { SessionCreateSource } from "@zcode/shared";
 /* eslint-disable max-lines -- workspace 级状态动作集中在同一 slice，先保持收口便于维护。 */
 import {
   buildNativeSupplierKey,
@@ -514,7 +513,6 @@ export function createWorkspaceSlice(set: SetFn) {
       workspaceIdentity?: string,
       options?: {
         groupedDraftPlacement?: GroupedDraftTaskPlacement;
-        createSource?: SessionCreateSource;
       },
     ) => {
       const normalizedProvider = provider
@@ -595,8 +593,6 @@ export function createWorkspaceSlice(set: SetFn) {
               ...current,
               activeTaskId: null,
               groupedDraftTask: nextGroupedDraftTask,
-              draftCreateSource:
-                options?.createSource ?? (options?.groupedDraftPlacement ? "group" : "session"),
               draftRuntime: { status: "idle", error: null },
               // 从已有 task 点 New Task 时，草稿输入框必须继承当前 task 的完整配置。
               // 否则后续 workspace prepare 会按 Team Plan / 默认模型重建草稿，把已选的其他模型回弹成 GLM。

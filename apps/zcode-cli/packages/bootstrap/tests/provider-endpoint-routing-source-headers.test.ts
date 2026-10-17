@@ -7,16 +7,12 @@ import { createProviderEndpointRoutingSourceHeaders } from "../src/provider-endp
 const tempDirs: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(
-    tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })),
-  );
+  await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })));
 });
 
 describe("createProviderEndpointRoutingSourceHeaders", () => {
   it("adds runtime attribution and reuses an existing deviceMid for the config GET", async () => {
-    const dataBaseDir = await mkdtemp(
-      join(tmpdir(), "zcode-routing-source-headers-"),
-    );
+    const dataBaseDir = await mkdtemp(join(tmpdir(), "zcode-routing-source-headers-"));
     tempDirs.push(dataBaseDir);
     const stateDir = join(dataBaseDir, ".zcode", "v2");
     await mkdir(stateDir, { recursive: true });
@@ -52,10 +48,8 @@ describe("createProviderEndpointRoutingSourceHeaders", () => {
     expect(headers).not.toHaveProperty("Authorization");
   });
 
-  it("defaults to CLI attribution and does not create a missing device identity", async () => {
-    const dataBaseDir = await mkdtemp(
-      join(tmpdir(), "zcode-routing-no-device-mid-"),
-    );
+  it("defaults to CLI attribution and initializes the business device identity", async () => {
+    const dataBaseDir = await mkdtemp(join(tmpdir(), "zcode-routing-no-device-mid-"));
     tempDirs.push(dataBaseDir);
 
     const headers = await createProviderEndpointRoutingSourceHeaders({
@@ -72,7 +66,7 @@ describe("createProviderEndpointRoutingSourceHeaders", () => {
       "X-Release-Channel": "production",
       "X-Title": "Z Code@cli",
     });
-    expect(headers).not.toHaveProperty("X-Device-Mid");
+    expect(headers["X-Device-Mid"]).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 

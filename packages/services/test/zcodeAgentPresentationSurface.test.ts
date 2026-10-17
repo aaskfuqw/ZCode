@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveZCodeAgentPresentationSurface } from "../src/zcode-agent/zcodeAgentPresentationSurface.js";
 
 describe("resolveZCodeAgentPresentationSurface", () => {
-  it("从本地 Desktop Host 的 telemetry runtime surface 推导 Desktop 呈现面", () => {
+  it("从本地 Desktop Host 的 Host runtime surface 推导 Desktop 呈现面", () => {
     expect(
       resolveZCodeAgentPresentationSurface({
         runtimeSurface: "desktop_local_host",

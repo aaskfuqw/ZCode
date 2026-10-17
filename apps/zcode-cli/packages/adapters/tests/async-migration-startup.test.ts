@@ -276,7 +276,7 @@ it("publishes confirmed migration demand when lock contention recurs after prech
   expect(waits.map((state) => state.migration?.kind)).toEqual([undefined, "initialize"]);
 });
 
-it("does not send malformed ledger IDs as telemetry or fail an otherwise prepared database", async () => {
+it("does not expose malformed ledger IDs in progress events or fail an otherwise prepared database", async () => {
   const db = open();
   runSqliteSessionMigrations(db, ":memory:");
   db.prepare("INSERT INTO schema_migration VALUES (?, 'external', NULL, 0)").run(

@@ -145,16 +145,10 @@ export function App({
   const { intl, locale, setLocale } = useZCodeIntl();
   const isOfficeMode = useIsOfficeMode();
   const platform = usePlatform();
-  // 进程内存本地诊断日志：每窗口一个 60s 采样器，
-  // 经门控后写桌面主日志；Web 端无日志桥时为 no-op。同一次读数还经 preload 桥把 heap 送 main 的
-  // renderer_main 资源事件，无桥时同样 no-op。
-  const reportRendererHeapSample = platform.reportRendererHeapSample;
   useEffect(() => {
-    const memoryDiagnosticsLogger = startMemoryDiagnosticsLogger({
-      reportHeapSample: reportRendererHeapSample,
-    });
+    const memoryDiagnosticsLogger = startMemoryDiagnosticsLogger({});
     return () => memoryDiagnosticsLogger.stop();
-  }, [reportRendererHeapSample]);
+  }, []);
   const activeWorkspaceRpcTarget = useTabStore(
     useShallow((state) => {
       if (!state.activeTabId) {
@@ -726,7 +720,6 @@ export function App({
       targetWorkspacePath: string,
       targetWorkspaceIdentity?: string,
       targetWorkspacePurpose?: WorkspacePurpose,
-      createSource?: import("@zcode/shared").SessionCreateSource,
     ) => {
       const store = useZCodeSessionStore.getState();
       const resolvedTargetWorkspaceIdentity =
@@ -790,7 +783,6 @@ export function App({
         resolvedTargetWorkspaceIdentity,
         {
           groupedDraftPlacement,
-          createSource: createSource ?? (groupedDraftPlacement ? "group" : "project"),
         },
       );
       if (

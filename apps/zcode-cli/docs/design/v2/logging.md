@@ -103,7 +103,7 @@ span 表示一次可计时操作。最小字段：
 - `attributes`
 - `error`
 
-P0 只要求本地内存和日志可用；OpenTelemetry exporter、metrics 和外部 collector 放到后续 telemetry phase。
+This fork retains local diagnostic logs and memory samples. Automatic exporters and external collectors are not part of the runtime.
 
 ## 启动耗时日志
 

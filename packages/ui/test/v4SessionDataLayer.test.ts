@@ -397,11 +397,6 @@ describe("ConversationProjectionStore", () => {
     });
 
     await store.connect();
-
-    expect(store.getState().openTiming).toMatchObject({
-      cliSessionRestoreMs: 120,
-      initialFrameEncodeMs: 4,
-    });
     expect(store.getState().rendererTiming).toMatchObject({
       initialFrameTransportMs: expect.any(Number),
       rendererSnapshotApplyMs: expect.any(Number),

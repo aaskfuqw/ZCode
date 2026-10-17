@@ -11,7 +11,6 @@ import { resolveTimeoutMs } from "../src/tool/executor/timeout.js";
 import type {
   BashInput,
   BashOutput,
-  CommandExecutionSpanWriter,
   ExecutionPort,
   ExecutionRequest,
   ExecutionResult,
@@ -21,7 +20,6 @@ import type {
   ImageProcessorPort,
   ExecutionShellSelection,
   SessionEvent,
-  ToolExecutionSpanWriter,
 } from "@zcode/contracts";
 import { createReadFileStateKey } from "../src/tool/read-file-state.js";
 import type { ReadFileStateMap, ToolExecutionContext } from "../src/tool/types.js";
@@ -215,20 +213,17 @@ describe("Bash cwd policy", () => {
 
 describe("bashHandler", () => {
   it("把非零退出码保留为事实，只有结构化执行错误才标记 Command 失败", async () => {
-    const outcomes: string[] = [];
-    const telemetry = recordingBashTelemetry(outcomes);
     const nonZeroPort: ExecutionPort = {
       async run() {
         return executionResult({ status: "failed", exitCode: 1 });
       },
     };
-    await bashHandler(
+    const nonZero = await bashHandler(
       { command: "grep missing file.txt" },
-      contextWith(nonZeroPort, { telemetry }),
+      contextWith(nonZeroPort, {}),
     );
-    expect(outcomes).toEqual(["exit:1", "completed"]);
+    expect(nonZero).toMatchObject({ exitCode: 1 });
 
-    outcomes.length = 0;
     const spawnErrorPort: ExecutionPort = {
       async run() {
         return executionResult({
@@ -237,8 +232,8 @@ describe("bashHandler", () => {
         });
       },
     };
-    await bashHandler({ command: "missing-command" }, contextWith(spawnErrorPort, { telemetry }));
-    expect(outcomes).toEqual(["failed:spawn"]);
+    const failed = await bashHandler({ command: "missing-command" }, contextWith(spawnErrorPort));
+    expect(failed).toMatchObject({ status: "spawn_error" });
   });
 
   it.each([
@@ -379,58 +374,6 @@ describe("bashHandler", () => {
       (executionRequests[0] as Record<string, unknown> | undefined)?.bashStartup,
     ).toBeUndefined();
     expect(executionRequests[0]?.bashPrelude).toBeUndefined();
-  });
-
-  it("adds sanitized Bash performance attribution to structured output", async () => {
-    const executionPort: ExecutionPort = {
-      async run(_request, options) {
-        await options?.onEvent?.({
-          type: "progress",
-          timestamp: new Date(),
-          elapsedMs: 42,
-          stdoutBytes: 5,
-          stderrBytes: 0,
-          stdoutTail: "hello",
-          stderrTail: "",
-        });
-        return {
-          ...executionResult({
-            status: "completed",
-            exitCode: 0,
-            stdout: "hello",
-          }),
-          durationMs: 1234,
-        };
-      },
-    };
-
-    const output = (await bashHandler(
-      { command: "npm test -- --runInBand" },
-      contextWith(executionPort),
-    )) as BashOutput;
-
-    expect(output).toMatchObject({
-      stdout: "hello",
-      perf: {
-        detail: {
-          kind: "command",
-          command: {
-            runMs: 1234,
-            firstOutputMs: 42,
-            noOutputMs: 42,
-            exitCode: 0,
-            timedOut: false,
-            outputBytes: 5,
-            category: "test",
-            count: 1,
-            name: "npm",
-            status: "completed",
-          },
-        },
-      },
-    });
-    expect((output as any).perf.detail.command.hash).toMatch(/^[a-f0-9]{16}$/u);
-    expect(JSON.stringify((output as any).perf)).not.toContain("npm test");
   });
 
   it("accepts semantic timeout and boolean values from model input", async () => {
@@ -2624,7 +2567,6 @@ function contextWith(
     readFileState?: ReadFileStateMap;
     runtimeScope?: ToolExecutionContext["runtimeScope"];
     setWorkingDirectory?: ToolExecutionContext["setWorkingDirectory"];
-    telemetry?: ToolExecutionSpanWriter;
     workingDirectory?: string;
     workspaceRoot?: string;
   } = {},
@@ -2644,51 +2586,10 @@ function contextWith(
     readFileState: options.readFileState,
     runtimeScope: options.runtimeScope,
     setWorkingDirectory: options.setWorkingDirectory,
-    telemetry: options.telemetry,
     workingDirectory: options.workingDirectory ?? defaultCommandRoot,
     workspaceRoot: options.workspaceRoot ?? defaultCommandRoot,
     sessionId: "sess_test",
     turnId: "turn_test",
-  };
-}
-
-function recordingBashTelemetry(outcomes: string[]): ToolExecutionSpanWriter {
-  const command: CommandExecutionSpanWriter = {
-    captureCausation: () => undefined,
-    finishBackgrounded() {
-      outcomes.push("backgrounded");
-    },
-    finishCancelled() {
-      outcomes.push("cancelled");
-    },
-    finishCompleted() {
-      outcomes.push("completed");
-    },
-    finishFailed(stage) {
-      outcomes.push(`failed:${stage}`);
-    },
-    markFirstOutput() {},
-    markTerminationRequested() {},
-    run: (execute) => execute(),
-    setExitCode(exitCode) {
-      outcomes.push(`exit:${exitCode}`);
-    },
-    setOutputBytes() {},
-    setSignal() {},
-    setTimedOut() {},
-  };
-  return {
-    captureCausation: () => undefined,
-    finishCancelled() {},
-    finishCompleted() {},
-    finishDenied() {},
-    finishFailed() {},
-    markPermissionRequested() {},
-    run: (execute) => execute(),
-    setOutputBytes() {},
-    setOutputTruncated() {},
-    setPermissionDecision() {},
-    startCommand: () => command,
   };
 }
 

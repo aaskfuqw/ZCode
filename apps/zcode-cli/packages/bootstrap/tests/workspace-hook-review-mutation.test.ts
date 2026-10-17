@@ -151,7 +151,7 @@ describe("real workspace Hook review mutation port", () => {
       code: "workspace_hooks_bundle_changed",
     });
 
-    // 该 message 会经 controller 进入 telemetry.errorMessage（TR27），因此不得含
+    // 该 message 会经 controller 进入 diagnostics.errorMessage（TR27），因此不得含
     // 完整 digest 或绝对路径：spec §23.3「不上传完整 workspace path」、
     // §23.4「不记录 source path」。此前 message 内嵌完整 identity（即绝对路径）
     // 与全长 digest，构成明文泄漏。

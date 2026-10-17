@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { ModelNetworkStatusEvent } from "@zcode/contracts";
 import {
   ApiKeyAccessConfig,
@@ -99,22 +99,6 @@ describe("AiSdkModelAdapter Provider Config creation", () => {
       { apiFormat: "openai-responses" },
     ]);
     expect(model.options).toEqual({ maxOutputTokens: 128_000, reasoningLevel: "max" });
-    expect(
-      statusEvents
-        .filter((event) => event.type === "model_request_started")
-        .map((event) => event.modelCall.reasoning),
-    ).toEqual([
-      expect.objectContaining({
-        requestedControl: "provider_default",
-        requestedLevel: "max",
-        requestedState: "provider_default",
-      }),
-      expect.objectContaining({
-        requestedControl: "provider_default",
-        requestedLevel: "none",
-        requestedState: "provider_default",
-      }),
-    ]);
   });
 
   it("directly consumes complete Registry Config and freezes it for the created Model", async () => {

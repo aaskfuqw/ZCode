@@ -112,7 +112,6 @@ describe("createWebRemoteControlSharedHostAttachments", () => {
     const attachRemoteWorkspaceSessionHost = vi.fn(() => ({
       process: child as never,
       port: ports.port1 as never,
-      remoteKind: "ssh" as const,
     }));
     const manager = createWebRemoteControlSharedHostAttachments({
       windowHostProcessMap: new Map(),
@@ -142,7 +141,6 @@ describe("createWebRemoteControlSharedHostAttachments", () => {
       entryId: "remote-session-host:remote-session-1",
       process: child,
       port: ports.port1,
-      remoteKind: "ssh",
     });
     expect(JSON.stringify(attachRemoteWorkspaceSessionHost.mock.calls)).not.toContain(
       workspacePluginSecret,

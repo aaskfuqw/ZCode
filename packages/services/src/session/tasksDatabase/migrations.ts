@@ -86,7 +86,7 @@ export function runTasksDatabaseMigrations(
     db.exec(`CREATE TABLE IF NOT EXISTS tasks_schema_migration (
       id TEXT PRIMARY KEY, checksum TEXT NOT NULL, time_applied INTEGER NOT NULL
     )`);
-    // 锁内、版本 SQL 之前采集；空账本是 none，异常编号不作为遥测原文发送。
+    // 锁内、版本 SQL 之前采集；空账本是 none，异常编号不进入进度事件。
     const baseline = db
       .prepare("SELECT id FROM tasks_schema_migration ORDER BY id DESC LIMIT 1")
       .get();

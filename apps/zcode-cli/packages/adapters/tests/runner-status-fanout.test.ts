@@ -44,15 +44,15 @@ describe("publishModelStatus", () => {
     expect(context.streamRecovery).toEqual(streamRecovery);
   });
 
-  it("同时投递 request sink 与 adapter telemetry sink", async () => {
+  it("同时投递 request sink 与 adapter status observer", async () => {
     const requestPublish = vi.fn();
-    const telemetryPublish = vi.fn();
+    const observerPublish = vi.fn();
     await publishModelStatus(event, {
       requestStatusSink: { publish: requestPublish },
-      statusSink: { publish: telemetryPublish },
+      statusSink: { publish: observerPublish },
     });
     expect(requestPublish).toHaveBeenCalledWith(event);
-    expect(telemetryPublish).toHaveBeenCalledWith(event);
+    expect(observerPublish).toHaveBeenCalledWith(event);
   });
 
   it("同一个 sink 不重复投递", async () => {
@@ -75,22 +75,22 @@ describe("publishModelStatus", () => {
       code: "ECONNRESET",
     });
     const requestPublish = vi.fn();
-    const telemetryPublish = vi.fn();
-    const telemetryPublishFailure = vi.fn();
+    const observerPublish = vi.fn();
+    const observerFailure = vi.fn();
 
     await publishModelStatus(failureEvent, {
       failureError: rawError,
       requestStatusSink: { publish: requestPublish },
       statusSink: {
-        publish: telemetryPublish,
-        publishFailure: telemetryPublishFailure,
+        publish: observerPublish,
+        publishFailure: observerFailure,
       },
     });
 
     expect(requestPublish).toHaveBeenCalledWith(failureEvent);
     expect(requestPublish).not.toHaveBeenCalledWith(failureEvent, rawError);
-    expect(telemetryPublish).not.toHaveBeenCalled();
-    expect(telemetryPublishFailure).toHaveBeenCalledWith(failureEvent, rawError);
+    expect(observerPublish).not.toHaveBeenCalled();
+    expect(observerFailure).toHaveBeenCalledWith(failureEvent, rawError);
   });
 
   it("一个 sink 失败时仍投递另一个 sink，且不污染模型主链路", async () => {
@@ -100,7 +100,7 @@ describe("publishModelStatus", () => {
       info: vi.fn(),
       warn: vi.fn(),
     };
-    const telemetryPublish = vi.fn();
+    const observerPublish = vi.fn();
     await expect(
       publishModelStatus(event, {
         logger: logger as never,
@@ -109,10 +109,10 @@ describe("publishModelStatus", () => {
             throw new Error("usage sink unavailable");
           },
         },
-        statusSink: { publish: telemetryPublish },
+        statusSink: { publish: observerPublish },
       }),
     ).resolves.toBeUndefined();
-    expect(telemetryPublish).toHaveBeenCalledWith(event);
+    expect(observerPublish).toHaveBeenCalledWith(event);
     expect(logger.warn).toHaveBeenCalledOnce();
   });
 });

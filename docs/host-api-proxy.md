@@ -12,7 +12,7 @@ Electron 的 Renderer、WebView 和 `electron.net` 使用 Chromium Session 代�
 - Host 首次发起请求时懒加载并冻结策略；
 - No Proxy 按请求最终 URL 判断；
 - 没有显式代理时保持直连；显式代理配置失败时不回退直连；
-- 只覆盖 `NodeApiClient`，不改变 Renderer、Electron Session、Agent、Bot、telemetry 或其它裸 `fetch`。
+- 只覆盖 `NodeApiClient`，不改变 Renderer、Electron Session、Agent、Bot 或其它裸 `fetch`。
 
 ```text
 AppSettings

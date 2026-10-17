@@ -1,10 +1,4 @@
-import {
-  type BashInput,
-  type BashOutput,
-  type ToolCommandStatus,
-  type ExecutionResult,
-  type ToolExecutionTelemetry,
-} from "@zcode/contracts";
+import { type BashInput, type BashOutput, type ExecutionResult } from "@zcode/contracts";
 import type { ToolExecutionContext } from "../types.js";
 import { appendBashCwdStderrSuffix } from "./bash-cwd-policy.js";
 import { getGhRateLimitHint } from "./bash-gh-rate-limit.js";
@@ -15,24 +9,12 @@ import {
   isSilentBashCommand,
   stripClaudeCodeHintLines,
 } from "./bash-semantics.js";
-import {
-  attachToolExecutionTelemetry,
-  classifyCommand,
-  classifySafeCommandIdentity,
-  commandHash,
-  compactToolExecutionTelemetry,
-  roundNonNegativeMs,
-} from "./tool-perf.js";
-
-export interface BashProgressTiming {
-  firstOutputMs?: number;
-}
 
 export async function toBashOutput(
   result: ExecutionResult,
   input: BashInput,
   context: ToolExecutionContext,
-  options: { progressTiming?: BashProgressTiming; stderrSuffix?: string } = {},
+  options: { stderrSuffix?: string } = {},
 ): Promise<BashOutput> {
   const stdoutPersistedOutputPath = result.stdout.artifactPath;
   const stderrPersistedOutputPath = result.stderr.artifactPath;
@@ -73,103 +55,30 @@ export async function toBashOutput(
   const ghRateLimitHint = providerError
     ? undefined
     : getGhRateLimitHint(input.command, result.stdout.text);
-  return attachToolExecutionTelemetry(
-    {
-      stdout,
-      stderr,
-      interrupted: result.timedOut || result.cancelled,
-      isImage: imageOutput !== undefined,
-      noOutputExpected: isSilentBashCommand(input.command),
-      status: result.status,
-      exitCode: result.exitCode,
-      signal: result.signal,
-      timedOut: result.timedOut,
-      cancelled: result.cancelled,
-      stdoutTruncated: result.stdout.truncated,
-      stderrTruncated: result.stderr.truncated,
-      stdoutBytes: result.stdout.bytes,
-      stderrBytes: result.stderr.bytes,
-      rawOutputPath: persistedOutputPath,
-      dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
-      returnCodeInterpretation,
-      persistedOutputPath,
-      stdoutPersistedOutputPath,
-      stderrPersistedOutputPath,
-      persistedOutputSize,
-      stdoutPersistedOutputSize,
-      stderrPersistedOutputSize,
-      ...(ghRateLimitHint ? { ghRateLimitHint } : {}),
-    },
-    createBashPerformanceTelemetry(input, result, options.progressTiming),
-  );
-}
-
-function createBashPerformanceTelemetry(
-  input: BashInput,
-  result: ExecutionResult,
-  progressTiming: BashProgressTiming | undefined,
-): ToolExecutionTelemetry | undefined {
-  const outputBytes = result.stdout.bytes + result.stderr.bytes;
-  const firstOutputMs = progressTiming?.firstOutputMs;
-  return compactToolExecutionTelemetry({
-    detail: {
-      kind: "command",
-      command: {
-        runMs: roundNonNegativeMs(result.durationMs),
-        firstOutputMs,
-        noOutputMs: firstOutputMs ?? roundNonNegativeMs(result.durationMs),
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        outputBytes,
-        category: classifyCommand(input.command),
-        ...classifySafeCommandIdentity(input.command),
-        status: resolveBashCommandStatus(result),
-        hash: commandHash(input.command),
-      },
-    },
-  });
-}
-
-export function createBashBackgroundPerformanceTelemetry(
-  input: BashInput,
-): ToolExecutionTelemetry | undefined {
-  return compactToolExecutionTelemetry({
-    detail: {
-      kind: "command",
-      command: {
-        category: classifyCommand(input.command),
-        ...classifySafeCommandIdentity(input.command),
-        status: "backgrounded",
-        hash: commandHash(input.command),
-      },
-    },
-  });
-}
-
-export function createEmptyBashPerformanceTelemetry(
-  input: BashInput,
-): ToolExecutionTelemetry | undefined {
-  return compactToolExecutionTelemetry({
-    detail: {
-      kind: "command",
-      command: {
-        category: "empty",
-        count: 0,
-        name: "empty",
-        status: "completed",
-        hash: commandHash(input.command),
-      },
-    },
-  });
-}
-
-function resolveBashCommandStatus(
-  result: ExecutionResult,
-): ToolCommandStatus {
-  if (result.timedOut) return "timed_out";
-  if (result.cancelled) return "cancelled";
-  if (result.status === "completed" && result.exitCode !== undefined && result.exitCode !== 0) {
-    return "failed";
-  }
-  return result.status;
+  return {
+    stdout,
+    stderr,
+    interrupted: result.timedOut || result.cancelled,
+    isImage: imageOutput !== undefined,
+    noOutputExpected: isSilentBashCommand(input.command),
+    status: result.status,
+    exitCode: result.exitCode,
+    signal: result.signal,
+    timedOut: result.timedOut,
+    cancelled: result.cancelled,
+    stdoutTruncated: result.stdout.truncated,
+    stderrTruncated: result.stderr.truncated,
+    stdoutBytes: result.stdout.bytes,
+    stderrBytes: result.stderr.bytes,
+    rawOutputPath: persistedOutputPath,
+    dangerouslyDisableSandbox: input.dangerouslyDisableSandbox,
+    returnCodeInterpretation,
+    persistedOutputPath,
+    stdoutPersistedOutputPath,
+    stderrPersistedOutputPath,
+    persistedOutputSize,
+    stdoutPersistedOutputSize,
+    stderrPersistedOutputSize,
+    ...(ghRateLimitHint ? { ghRateLimitHint } : {}),
+  };
 }

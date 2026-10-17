@@ -168,7 +168,7 @@ export function toProgressPayload(input: {
                   : protocolEvent.payload,
     ...(protocolEvent.truncated ? { truncated: true } : {}),
     ...(actorRef === undefined ? {} : { actorSessionId: mintActorSessionId(runId, actorRef) }),
-    // 第三个派生字段（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Token telemetry for subagents」）：埋点事实层只在这两种事件上
+    // 第三个派生字段（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Workflow launch correlation and usage」）：run correlation 只在这两种事件上
     // 需要锚点——actor-created 登记子代理归属，run-settled 结算该 run 全部子代理。
     ...((event.type === "actor-created" || event.type === "run-settled") &&
     launchInputId !== undefined

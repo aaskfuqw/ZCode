@@ -36,7 +36,7 @@ export function isDeterministicContentFault(reasonCode: string | undefined): boo
  * 内容确定性失败走到底的客户端终态 code（`fault.subscription.*` 是 04-sync 的词表）。
  *
  * 与 `fault.subscription.recoveryFailed` 分开是有用的区分，不是命名洁癖：后者是「链路没恢复
- * 过来」，重连有意义；本 code 是「本端读不懂对端发来的内容」，重连必然得到同样结果。遥测按
- * code 聚合，两者混在一起会把一次版本失配读成一片网络抖动。
+ * 过来」，重连有意义；本 code 是「本端读不懂对端发来的内容」，重连必然得到同样结果。Local diagnostics group by
+ * code，两者混在一起会把一次版本失配读成一片网络抖动。
  */
 export const SUBSCRIPTION_CONTENT_REJECTED = "fault.subscription.contentRejected";

@@ -114,13 +114,13 @@ function fixture(
     snapshot: initial,
   });
   const events: WorkspaceHookReviewLifecycleEvent[] = [];
-  const telemetry: Array<{
+  const diagnostics: Array<{
     message: string;
     context?: Record<string, unknown>;
   }> = [];
   const logger: Logger = {
     debug: () => undefined,
-    info: (message, context) => telemetry.push({ message, context }),
+    info: (message, context) => diagnostics.push({ message, context }),
     warn: () => undefined,
     error: () => undefined,
     child: () => logger,
@@ -128,10 +128,7 @@ function fixture(
   let records: any[] = [];
   const store = {
     grant: vi.fn(async (next: any[]) => {
-      records = [
-        ...records.filter((record) => record.workspaceIdentity !== WORKSPACE),
-        ...next,
-      ];
+      records = [...records.filter((record) => record.workspaceIdentity !== WORKSPACE), ...next];
       return { schemaVersion: 1 as const, records };
     }),
     revoke: vi.fn(async () => {
@@ -143,10 +140,7 @@ function fixture(
     toggle: vi.fn(async (_input, onWriteCommitted) => {
       await onWriteCommitted();
       if (input.rebuildError) throw input.rebuildError;
-      return (
-        input.nextSnapshot ??
-        snapshot({ bundle: "c".repeat(64), enabled: false })
-      );
+      return input.nextSnapshot ?? snapshot({ bundle: "c".repeat(64), enabled: false });
     }),
   };
   controller = new WorkspaceHookReviewController({
@@ -171,7 +165,7 @@ function fixture(
     events,
     mutation,
     store,
-    telemetry,
+    diagnostics,
   };
 }
 
@@ -186,17 +180,13 @@ async function pendingRequest(value: ReturnType<typeof fixture>) {
   });
   await vi.waitFor(() => {
     expect(
-      value.events.some(
-        (event) => event.type === SessionEventType.WorkspaceHookReviewRequested,
-      ),
+      value.events.some((event) => event.type === SessionEventType.WorkspaceHookReviewRequested),
     ).toBe(true);
   });
   const event = value.events.find(
-    (candidate) =>
-      candidate.type === SessionEventType.WorkspaceHookReviewRequested,
+    (candidate) => candidate.type === SessionEventType.WorkspaceHookReviewRequested,
   );
-  if (!event || !("request" in event.payload))
-    throw new Error("expected review request");
+  if (!event || !("request" in event.payload)) throw new Error("expected review request");
   return { activation, request: event.payload.request };
 }
 
@@ -254,9 +244,7 @@ describe("WorkspaceHookReviewController", () => {
       reasonCode: "workspace_hooks_blocked_by_policy",
     });
     expect(
-      value.events.filter(
-        (event) => event.type === SessionEventType.WorkspaceHookReviewRequested,
-      ),
+      value.events.filter((event) => event.type === SessionEventType.WorkspaceHookReviewRequested),
     ).toHaveLength(0);
   });
 
@@ -398,7 +386,7 @@ describe("WorkspaceHookReviewController", () => {
     expect(value.store.grant).toHaveBeenCalledTimes(1);
   });
 
-  it("记录 review request 与精确持久信任的安全 telemetry，不包含命令原文", async () => {
+  it("记录 review request 与精确持久信任的安全 diagnostics，不包含命令原文", async () => {
     const value = fixture();
     const { activation, request } = await pendingRequest(value);
 
@@ -419,14 +407,14 @@ describe("WorkspaceHookReviewController", () => {
     ).resolves.toMatchObject({ accepted: true });
     await activation;
 
-    expect(value.telemetry.map((entry) => entry.context?.event)).toEqual(
+    expect(value.diagnostics.map((entry) => entry.context?.event)).toEqual(
       expect.arrayContaining([
         "workspace_hook.review_request_created",
         "workspace_hook.trust_selected",
       ]),
     );
-    expect(JSON.stringify(value.telemetry)).not.toContain("echo project");
-    expect(JSON.stringify(value.telemetry)).not.toContain("command");
+    expect(JSON.stringify(value.diagnostics)).not.toContain("echo project");
+    expect(JSON.stringify(value.diagnostics)).not.toContain("command");
   });
 
   it("Trust selected 原子写 store 后才提升 coordinator 并 resolve activation", async () => {
@@ -439,9 +427,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -459,9 +445,7 @@ describe("WorkspaceHookReviewController", () => {
         snapshot: snapshot(),
       }).items[0]?.trustState,
     ).toBe("trusted_persistent");
-    expect(value.events.at(-1)?.type).toBe(
-      SessionEventType.WorkspaceHookAdmissionUpdated,
-    );
+    expect(value.events.at(-1)?.type).toBe(SessionEventType.WorkspaceHookAdmissionUpdated);
     // 软门禁(D2):settle 后追加 AdmissionUpdated(pendingCount=0),但它必须在 ReviewSettled 之后
     expect(value.events.map((event) => event.type)).toEqual(
       expect.arrayContaining([SessionEventType.WorkspaceHookReviewSettled]),
@@ -528,9 +512,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -560,9 +542,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -584,9 +564,7 @@ describe("WorkspaceHookReviewController", () => {
     // bundle 已变、discovery 读败）一律吞成 workspace_hooks_config_write_failed。
     // 用户看到"配置写入失败"但写路径根本没走到；真实原因（mismatch）被掩盖，
     // 也断送了 fail-fast 语义（mismatch 应提示刷新而非重试写）。
-    const mismatchError = new Error(
-      "Workspace Hook bundle changed after review",
-    ) as Error & {
+    const mismatchError = new Error("Workspace Hook bundle changed after review") as Error & {
       name: string;
       code: string;
     };
@@ -603,9 +581,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -640,9 +616,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -690,9 +664,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -712,9 +684,7 @@ describe("WorkspaceHookReviewController", () => {
         sessionId: request.sessionId,
         taskId: request.taskId,
         runId: request.runId,
-        ...(request.remoteSessionId
-          ? { remoteSessionId: request.remoteSessionId }
-          : {}),
+        ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
         workspaceIdentity: request.workspaceIdentity,
         bundleDigest: request.bundleDigest,
         hookDeclarationDigests: [DIGEST],
@@ -753,9 +723,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -769,19 +737,14 @@ describe("WorkspaceHookReviewController", () => {
         sessionId: request.sessionId,
         taskId: request.taskId,
         runId: request.runId,
-        ...(request.remoteSessionId
-          ? { remoteSessionId: request.remoteSessionId }
-          : {}),
+        ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
         workspaceIdentity: request.workspaceIdentity,
         bundleDigest: request.bundleDigest,
         hookDeclarationDigests: [DIGEST],
       });
 
       const reopened = value.events
-        .filter(
-          (event) =>
-            event.type === SessionEventType.WorkspaceHookReviewRequested,
-        )
+        .filter((event) => event.type === SessionEventType.WorkspaceHookReviewRequested)
         .at(-1);
       expect(reopened).toBeDefined();
 
@@ -813,9 +776,7 @@ describe("WorkspaceHookReviewController", () => {
         sessionId: request.sessionId,
         taskId: request.taskId,
         runId: request.runId,
-        ...(request.remoteSessionId
-          ? { remoteSessionId: request.remoteSessionId }
-          : {}),
+        ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
         workspaceIdentity: request.workspaceIdentity,
         bundleDigest: request.bundleDigest,
         hookDeclarationDigests: [DIGEST],
@@ -842,9 +803,7 @@ describe("WorkspaceHookReviewController", () => {
           sessionId: request.sessionId,
           taskId: request.taskId,
           runId: request.runId,
-          ...(request.remoteSessionId
-            ? { remoteSessionId: request.remoteSessionId }
-            : {}),
+          ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
           workspaceIdentity: request.workspaceIdentity,
           bundleDigest: request.bundleDigest,
           reviewFlowId: request.reviewFlowId,
@@ -895,9 +854,7 @@ describe("WorkspaceHookReviewController", () => {
       sessionId: request.sessionId,
       taskId: request.taskId,
       runId: request.runId,
-      ...(request.remoteSessionId
-        ? { remoteSessionId: request.remoteSessionId }
-        : {}),
+      ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
       workspaceIdentity: request.workspaceIdentity,
       bundleDigest: request.bundleDigest,
       reviewFlowId: request.reviewFlowId,
@@ -918,9 +875,7 @@ describe("WorkspaceHookReviewController", () => {
       },
       expect.any(Function),
     );
-    expect(value.admission.getCurrentSnapshot().bundleDigest).toBe(
-      next.bundleDigest,
-    );
+    expect(value.admission.getCurrentSnapshot().bundleDigest).toBe(next.bundleDigest);
     expect(value.events.map((event) => event.type)).toContain(
       SessionEventType.WorkspaceHookReviewSuperseded,
     );
@@ -942,9 +897,7 @@ describe("WorkspaceHookReviewController", () => {
       sessionId: request.sessionId,
       taskId: request.taskId,
       runId: request.runId,
-      ...(request.remoteSessionId
-        ? { remoteSessionId: request.remoteSessionId }
-        : {}),
+      ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
       workspaceIdentity: request.workspaceIdentity,
       bundleDigest: request.bundleDigest,
       reviewFlowId: request.reviewFlowId,
@@ -952,9 +905,7 @@ describe("WorkspaceHookReviewController", () => {
       interactionId: request.interactionId,
     };
 
-    await expect(
-      value.controller.toggle(target, "item-0", false),
-    ).resolves.toEqual({
+    await expect(value.controller.toggle(target, "item-0", false)).resolves.toEqual({
       accepted: false,
       reasonCode: "workspace_hooks_config_rebuild_failed",
     });
@@ -975,27 +926,23 @@ describe("WorkspaceHookReviewController", () => {
     );
   });
 
-  it("applyDecision 失败时 telemetry 记录 errorMessage，不再静默丢弃 cause（错误归属）", async () => {
+  it("applyDecision 失败时 diagnostics 记录 errorMessage，不再静默丢弃 cause（错误归属）", async () => {
     // Bug 原因：respond 的裸 catch 把 applyDecision 的全部失败一律报成
     // trust_store_corrupt，且 trustStoreFailure 不接收 errorMessage，原始 cause
     // 被彻底丢弃。日志里只剩 reasonCode，无法区分是 store 损坏、coordinator 错误
     // 还是 resolveWorkspaceHookReviewDigests 对未知 reviewItemId 抛错。
-    // 修法：catch (error) 并把 error.message 透传进 telemetry。
+    // 修法：catch (error) 并把 error.message 透传进 diagnostics。
     const value = fixture();
     const { request } = await pendingRequest(value);
     value.store.grant.mockReset();
-    value.store.grant.mockRejectedValueOnce(
-      new Error("trust store disk write failed"),
-    );
+    value.store.grant.mockRejectedValueOnce(new Error("trust store disk write failed"));
 
     const result = await value.controller.respond(
       {
         sessionId: request.sessionId,
         taskId: request.taskId,
         runId: request.runId,
-        ...(request.remoteSessionId
-          ? { remoteSessionId: request.remoteSessionId }
-          : {}),
+        ...(request.remoteSessionId ? { remoteSessionId: request.remoteSessionId } : {}),
         workspaceIdentity: request.workspaceIdentity,
         bundleDigest: request.bundleDigest,
         reviewFlowId: request.reviewFlowId,
@@ -1009,13 +956,11 @@ describe("WorkspaceHookReviewController", () => {
       accepted: false,
       reasonCode: "workspace_hooks_trust_store_corrupt",
     });
-    // telemetry 必须携带 errorMessage，否则排查时无法区分非存储失败。
-    const failure = value.telemetry.find(
+    // diagnostics 必须携带 errorMessage，否则排查时无法区分非存储失败。
+    const failure = value.diagnostics.find(
       (entry) => entry.context?.event === "workspace_hook.trust_store_failure",
     );
     expect(failure).toBeDefined();
-    expect(failure?.context?.errorMessage).toBe(
-      "trust store disk write failed",
-    );
+    expect(failure?.context?.errorMessage).toBe("trust store disk write failed");
   });
 });

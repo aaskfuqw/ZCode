@@ -37,15 +37,12 @@ import type {
   SessionModePort,
   SessionStorePort,
   SkillPort,
-  SkillTelemetryMetadata,
   SubagentPort,
   SubagentRunOptions,
   ToolArtifactStorePort,
   ToolCancellationPolicy,
   ToolContractDeclaration,
   ToolExecutionMode,
-  ToolExecutionSpanWriter,
-  ToolExecutionTelemetry,
   ToolResultBudgetStrategy,
   ToolResultDisplayPayload,
   ToolTimeoutPolicy,
@@ -135,10 +132,6 @@ export interface BackgroundTaskControlPort {
 
 export interface ToolExecutionContext {
   toolCallId: string;
-  /**
-   * 当前 Tool 的实时观测写入器。Handler 只能通过窄接口写事实，不能接触原始 OTel Span。
-   */
-  telemetry?: ToolExecutionSpanWriter;
   /** 当前工具调用是否属于 automation 派发轮；写工具 handler 用它做最终权限校验。 */
   automationTurn?: boolean;
   /** 当前工具调用是否属于闲时任务派发轮；OffPeakCreate handler 用它做最终拒绝。 */
@@ -185,8 +178,6 @@ export interface ToolExecutionContext {
   runtimeTaskRegistry?: RuntimeTaskRegistry;
   readFileState?: ReadFileStateMap;
   recordReadFileStateMetadata?: (metadata: PersistedReadFileStateMetadata) => void;
-  /** 记录 Skill resolved metadata；仅用于 telemetry，不改变模型可见结果。 */
-  recordSkillTelemetryMetadata?: (metadata: SkillTelemetryMetadata) => void;
   bashShellSelection?: ExecutionShellSelection;
   embeddedSearch?: ToolEmbeddedSearchContext;
   setWorkingDirectory?: (cwd: string) => Promise<void> | void;
@@ -454,7 +445,7 @@ export interface ToolExecutionResult {
   readFileStateMetadata?: PersistedReadFileStateMetadata;
   serialization?: ToolResultSerialization;
   /** Executor 汇总后的内部性能事实；不进入模型可见 Tool Output。 */
-  performance?: ToolExecutionTelemetry;
+  exitCode?: number;
   error?: {
     code?: string;
     detail?: string;

@@ -255,8 +255,6 @@ export interface WorkbenchShellBinding {
   workspacePath: string;
   workspaceIdentity?: string;
   remoteSessionId?: string;
-  /** Prompt 模板埋点当前仅覆盖 Desktop。 */
-  isDesktop?: boolean;
   readOnly?: boolean;
   compactForRemoteControl?: boolean;
   sessionId: string | null;
@@ -551,7 +549,6 @@ export function WorkbenchLeafPane({
           paneId={paneId}
           readOnly={readOnly}
           sessionId={sessionId}
-          openTrigger={isPrimary ? "sidebar" : "split"}
           activeSelectionSideChatSessionId={resolvePaneActiveSelectionSideChatSessionId(
             sessionId,
             shell.activeSessionId ?? shell.sessionId,
@@ -560,7 +557,6 @@ export function WorkbenchLeafPane({
           workspacePath={scope.workspacePath}
           workspaceIdentity={scope.workspaceIdentity}
           remoteSessionId={scope.remoteSessionId}
-          isDesktop={shell.isDesktop}
           compactForRemoteControl={shell.compactForRemoteControl ?? false}
           provider={isPrimary && isShellWorkspace ? shell.provider : undefined}
           onSessionCreated={handleSessionCreated}

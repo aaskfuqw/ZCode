@@ -388,7 +388,6 @@ staging 的 BG45 历史 focused replay artifact 为 `desktop-e2e-20260903-111126
 | `RT`   | `apps/zcode-cli/packages/core/tests/runtime-compact.test.ts`                                                                                                                                                                                                                                                                       |
 | `PD`   | `apps/zcode-cli/packages/core/tests/prompt-admission.test.ts`                                                                                                                                                                                                                                                                      |
 | `ML`   | `apps/zcode-cli/packages/core/tests/runtime-model-selection.test.ts`                                                                                                                                                                                                                                                               |
-| `TM`   | `packages/desktop/test/e2e/conversation-session/manual-review/pending/conversation-session-agent-step-message-scope.test.ts`                                                                                                                                                                                                       |
 | `VS`   | `packages/desktop/test/e2e/conversation-session/conversation-session-v4-vertical-slice.test.ts`                                                                                                                                                                                                                                    |
 | `VQ`   | `packages/desktop/test/e2e/conversation-session/conversation-session-v4-stop-queue.test.ts`                                                                                                                                                                                                                                        |
 | `QE`   | `packages/desktop/test/e2e/conversation-session/conversation-session-v4-queue.test.ts`                                                                                                                                                                                                                                             |
@@ -557,7 +556,7 @@ PV4-01/02/06 专项覆盖。
 
 ## 闲时任务（Off-Peak）覆盖口径
 
-case 语义见 catalog `OP` 组（Telemetry V1 字段与投递边界见 `docs/monitoring/off-peak-task-telemetry-v1.md`）。E2E 全部由进程内 mock 网关驱动（`ZCODE_OFFPEAK_MOCK=1`），桌面 `desktop-continuous` 链路。自动化范围经用户 2026-07-15 剪枝确认为 5 条核心，2026-08-03 增补 execution-scoped foreground subagent 继承回归 OP10；Telemetry 不新增 WDIO spec，复用 OP01/OP02/OP05/OP06 主路径并由 focused tests 覆盖字段排列。
+case 语义见 catalog `OP` 组。E2E 全部由进程内 mock 网关驱动（`ZCODE_OFFPEAK_MOCK=1`），桌面 `desktop-continuous` 链路。自动化范围经用户 2026-07-15 剪枝确认为 5 条核心，2026-08-03 增补 execution-scoped foreground subagent 继承回归 OP10；
 
 服务层机制已由 `packages/services/test/offPeakE2eIntegration.test.ts` 端到端集成测试覆盖（mock 网关 + server client + 编排服务 + repo 全链路真跑：取号→轮询晋级 ready→准入固定响应→settle 核销 / 400/3001 续跑重取号 / Pause-ready 过期-Continue 重取号）——OP02/OP04/OP07 的服务层机制在此为 covered；WDIO GUI 层（OPF/OPA/OPP/OPR/OPB）仍 planned，依赖桌面构建与真实 renderer 交互。mock 网关 resolveUpstream 返回 null 时回固定 Anthropic 响应，E2E 无需真实模型 key。
 
@@ -585,9 +584,9 @@ case 语义见 catalog `OP` 组（Telemetry V1 字段与投递边界见 `docs/mo
 | failing probe                       |    0 |
 | partial                             |   18 |
 | missing accepted case               |   56 |
-| 自动化缩写                          |  121 |
+| 自动化缩写                          |  120 |
 | 被引用自动化缩写                    |   79 |
-| 有测试声明的 spec                   |  121 |
+| 有测试声明的 spec                   |  120 |
 | 含 skip/only 的 spec                |    0 |
 | 关键剪枝规则 K                      |   11 |
 | PV4 核心协议 accepted case          |   24 |
@@ -1072,8 +1071,6 @@ BDO07 补充实时刷新合同：同一工具、同一会话不重新发送 prom
 
 2026-09-09 BG14 展示修正：收起仅保留命令摘要和状态，展开显示最近 100 行，不显示行数/字节数；释放 barrier 后产生超过 30,000 bytes 的输出，终态清除预览，展开后显示部分输出提示和完整文件路径，验证完整文件尾部保留。TUI 不在本轮范围内。
 
-BG13/BG18 增量埋点断言：保留内部工具逐条上报及零 token 断言，新增独占累计 usage 的 background Agent step、原 launch message 归属和 child-local 顺序断言；普通主轮与独立 wake 主轮的最终 `message_id` 均为 UUID v7，彼此独立。复用既有 barrier/provider fixture，最终 HTTP 上报保存为 telemetry artifact；取消、失败、重复 usage/terminal、并行 child 的细分分支由 Supervisor 单测覆盖。
-
 这些 case 对应 [conversation-session-case-catalog.md](../conversation-session-case-catalog.md) 的 `BG` 分组。`BG` 不是工具叉乘的快速失败态；formal spec 使用真实 runtime background 任务与 case-local DeepSeek replay，覆盖 provider-visible `<task-notification>`、active-loop 合流或 idle wake fallback、goal verifier defer/wake、already-background task stop control、child tool 隔离、session 切换恢复、queue send-now，以及 UI 隐藏 synthetic user message。2026-07-24 已完成 25 条 strict/default 双跑转正；范围只证明桌面端 `desktop-continuous`，手机 `web-remote-replayable` 的 accepted command 恢复、foreground-to-background controls、Workflow 完整 output-file artifact 后续单独立项。
 
 更完整的枚举矩阵见 [conversation-session-background-e2e-coverage-matrix.md](./conversation-session-background-e2e-coverage-matrix.md)。
@@ -1122,7 +1119,7 @@ BG13/BG18 增量埋点断言：保留内部工具逐条上报及零 token 断言
 | BG40       | focused  | BG、RT      | background Bash wrapper 退出后 inherited pipe、同组/逃逸后代及 session-close teardown 由 execution adapter 真实进程测试覆盖；runtime focused test 锁定 closing 后 terminal event 不再触发 model wake；CLI focused test 锁定 adapter close 悬空时的有界退出。该变更不修改 UI/protocol/client delivery，按 BG-P14 剪枝 GUI 与手机 replayable 全排列                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | BG41       | partial  | BFD         | pending strict case-local replay artifact `desktop-e2e-20260728-105346-714` 已通过：本地桌面 `desktop-continuous` 中一个 background Agent 在父 launch turn 已稳定 idle 后完成，独立 model-only notification turn 执行 `Read -> Edit`；断言 synthetic user 不可见、摘要归属于 notification 产品轮次、单文件 `+/-` 与路径准确、Review 可打开真实 before/after diff 且磁盘内容更新。只保留该缺陷回归代表，不与 background Bash、active-loop/batch notification、多文件/多 Edit、rewind、cold start、交互阻塞、remote/mobile 做全排列；待人工 review 后晋级 formal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
-| BG45 | covered | BG、TU | `conversation-session-background.test.ts` 的 mixed composition case 使用 foreground child 文件 barrier，先确认 background child provider response 已完成，再释放 foreground child；严格断言同一 provider request 的 latest user message 同时含 foreground tool result 与 background `<task-notification>`，main completion 为 `main_plus_fg_bg` 且只生成一条 main completion，不生成 child 独立 completion。Todo103 Pro strict replay `desktop-e2e-20260909-142100-814` 通过；staging 历史 focused artifact `desktop-e2e-20260903-111126-452`；不改动既有 BG case |
+| BG45 | Same main turn starts foreground and background Agents | Consume both results in one continuation | mixedAgentResultComposition | The provider-visible continuation includes both the foreground result and background notification; main completion remains singular | accepted |
 
 ## ChatLoading Lifecycle 覆盖口径
 
@@ -1468,58 +1465,6 @@ focused adapter test 与本组 permission 来源 tag 断言共同锁住该边界
 | R01        | covered  | DR     | completed task 切出/切回时，未发送正文、普通文件附件、图片附件按 taskId 作用域恢复               |
 | R02        | covered  | DR     | running task 后台继续运行期间切出/切回，未发送正文和附件不被 inactive stream 或 runtime 更新清空 |
 | R03        | covered  | DR     | 尚未发送的新 task 草稿使用 `draft/null` 作用域，切到已有 task 再回到 New task 时仍恢复正文和附件 |
-
-## TEL. V4 对话埋点覆盖口径
-
-本组对应 catalog 的 `TEL01-TEL10`。网络上报只声明 desktop `desktop-continuous`；mobile
-`web-remote-replayable` 只做零上报和协议隔离测试。pending spec 不是 formal gate，必须按
-case-local fixture、explicit replay、default replay、isolated Docker 和 admission 流程晋升。
-
-| Catalog ID | 覆盖状态 | 自动化                                                                                    | 备注                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ---------- | -------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| TEL01      | partial  | TM + messageTelemetry/supervisor golden tests                                             | `/event/report` 两轮关联和完整旧字段已由 focused tests 锁定；TM 于 2026-07-17 case-local replay 通过，仍位于 pending，未晋升 formal gate                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| TEL02      | partial  | supervisor background focused test；planned controlled-stream E2E                         | pane-independent supervisor 已实现；仍缺等待超过 keep-warm、关闭/重开 pane 的 desktop 运行证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| TEL03      | partial  | supervisor direct/queued test + command sourceCommandId 接线                              | 两条 seed 不互相清理、promotion 不重发已锁定；仍缺 queue promotion desktop E2E                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| TEL04      | partial  | compact golden + supervisor foreground/exactly-once test                                  | 成功/失败/中断、custom model 旧编码、compactReason 不回填 reason 由 focused tests 覆盖；仍缺稳定 representative E2E                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| TEL05      | partial  | supervisor fake clock + UI perf golden tests                                              | text/tool/no-token first token、parented text 仅排除 generation 并保留旧 TTFT/stall、parented thought 旧行为、旧文件指标固定 0、3000/3001、tool clear/perf、foreground 已覆盖；仍缺 recorded-stream/split-pane desktop E2E                                                                                                                                                                                                                                                                                                                                               |
-| TEL06      | partial  | chat error/subscription/attribution focused tests + 4-case planned E2E                    | 输入框错误与正式 Session 订阅失败复用 `chat_error_banner`，并以 `surface` 区分；可见/抑制、订阅 reasonCode、exact provider、accepted/duplicate/失败可重试由 focused tests 覆盖；归因新增桌面 live 本地预检、桌面 cold legacy provider、桌面 cold session-stop、手机 replayable snapshot parity/零 ARMS 四个代表，focused tests 继续覆盖 stream/generate/connect phase、exceptionKind allowlist 和 live/cold 等价，已剪掉主题/语言/provider/model/terminal/queue 笛卡尔积；仍缺上述四类真实运行证据和原有订阅失败页运行证据；官方版本安全校验的恢复覆盖随官方版本规格维护 |
-| TEL07      | partial  | feedback schema/command/persistence/projection/UI tests                                   | reaction、toggle none、失败回滚、cold hydration 已覆盖；仍缺重开 desktop E2E                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| TEL08      | partial  | quota state/component/entry integration tests                                             | banner、dismiss、entitlement refresh、真实 upgrade dialog context 已接线；仍缺 conversation quota 入口 desktop E2E；购买模块内部 product/cycle/pay/result 不在本次范围                                                                                                                                                                                                                                                                                                                                                                                                   |
-| TEL09      | partial  | gateway/service/supervisor privacy + live-only tests；workspace attachment lifecycle test | hydration/initial 零回放、重复 live 去重、desktop-only connection、pane 卸载后保活、service generation 替换、workspaceIdentity/remoteSession supervisor 隔离与真实 detach 销毁已覆盖；仍缺 remote identity desktop E2E                                                                                                                                                                                                                                                                                                                                                   |
-| TEL10      | partial  | session-open existing-only focused tests + pending Desktop E2E                            | focused tests 锁定草稿预热与 fallback 新建首次绑定零 session-open 事件、离开后重开已有 session 恢复一组配对事件；pending Desktop E2E 验证真实 prewarm → promote → draft → sidebar reopen 链路，人工 review 前不晋升 formal gate                                                                                                                                                                                                                                                                                                                                          |
-
-ARMS E2E 只允许在测试构建中于 IPC 前使用有界 ring buffer 读取已校验 payload；生产构建不得暴露。
-`/event/report` 继续用 Electron `net.fetch` mock。性能 cadence 使用 recorded-stream，后台切换使用
-controlled-stream，其余字段组合由 golden/fake-clock tests 承担。
-
-### TDP. 新旧版本差分与原子回归计划
-
-`TDP01-TDP19` 是 `TEL01-TEL09` 的原子化执行 case，完整 setup/action/assert、剪枝、provider 等价类、
-2026-07-18 的 `20260718-tdp-all-final` 已为 TDP01-TDP19 每条生成旧版/current 双 Electron 最终
-payload capture 与独立 diff。`verified-dual` 表示 `/event/report` 与 main ARMS 已完成双版本认证，
-不表示 pending spec 已晋升 formal。
-
-| Case  | TEL         | 状态          | 计划证据                                                                                                        |
-| ----- | ----------- | ------------- | --------------------------------------------------------------------------------------------------------------- |
-| TDP01 | TEL01       | verified-dual | `20260718-tdp-all-final/TDP01/diff.json`，新 draft send                                                         |
-| TDP02 | TEL01       | verified-dual | `20260718-tdp-all-final/TDP02/diff.json`，连续两轮；另有真实 provider 基线 `20260718-tdp02-final`               |
-| TDP03 | TEL03       | verified-dual | `20260718-tdp-all-final/TDP03/diff.json`，direct/queued/promotion                                               |
-| TDP04 | TEL01       | verified-dual | `20260718-tdp-all-final/TDP04/diff.json`，success terminal                                                      |
-| TDP05 | TEL01       | verified-dual | `20260718-tdp-all-final/TDP05/diff.json`，failed terminal                                                       |
-| TDP06 | TEL01       | verified-dual | `20260718-tdp-all-final/TDP06/diff.json`，interrupted 与 stop-without-terminal                                  |
-| TDP07 | TEL05       | verified-dual | `20260718-tdp-all-final/TDP07/diff.json`，thought/text/no-token                                                 |
-| TDP08 | TEL05       | verified-dual | `20260718-tdp-all-final/TDP08/diff.json`，tool success/fail/permission/parented                                 |
-| TDP09 | TEL02       | verified-dual | `20260718-tdp-all-final/TDP09/diff.json`，后台/pane 生命周期                                                    |
-| TDP10 | TEL05       | verified-dual | `20260718-tdp-all-final/TDP10/diff.json`，3000/3001ms 与 tool clear                                             |
-| TDP11 | TEL04       | verified-dual | `20260718-tdp-all-final/TDP11/diff.json`，compact 成功/失败/中断/后台                                           |
-| TDP12 | TEL05/TEL09 | verified-dual | `20260718-tdp-all-final/TDP12/diff.json`，model request 五态                                                    |
-| TDP13 | TEL05       | verified-dual | `20260718-tdp-all-final/TDP13/diff.json`，plan TTFT 正/负边界                                                   |
-| TDP14 | TEL06       | verified-dual | `20260718-tdp-all-final/TDP14/diff.json`，error 可见/抑制/去重                                                  |
-| TDP15 | TEL07       | verified-dual | `20260718-tdp-all-final/TDP15/diff.json`，feedback 三态；持久化/回滚由 focused test 辅证                        |
-| TDP16 | TEL08       | verified-dual | `20260718-tdp-all-final/TDP16/diff.json`，quota 状态正断言且目标 telemetry 为 0；购买流程排除                   |
-| TDP17 | TEL06       | partial       | 旧 `20260718-tdp-all-final/TDP17/diff.json` 仅证明旧 UI 恢复合同；2026-09-08 模型调用内补发需要重新取得运行证据 |
-| TDP18 | TEL09       | verified-dual | `20260718-tdp-all-final/TDP18/diff.json`，duplicate/live-only 零回放                                            |
-| TDP19 | TEL09       | verified-dual | `20260718-tdp-all-final/TDP19/diff.json`，workspace/remote 隔离与 Web no-op 正断言                              |
 
 ## 覆盖口径纠偏
 
@@ -2714,7 +2659,6 @@ GLOBALDB-01～26 是全局启动方案的场景入口；GUI 场景仍未通过�
 | 场景            | 覆盖目标                                                          | 状态    |
 | --------------- | ----------------------------------------------------------------- | ------- |
 | GLOBALDB-01～18 | 新旧库、Host/会话准备顺序、事务恢复、路径、后台准入和跨端生命周期 | planned |
-| GLOBALDB-19～22 | ARMS 耗时/错误同源、空间下降峰值、降级、进程退出与未知终态        | planned |
 | GLOBALDB-23～26 | FULL/ENOSPC/EDQUOT、一般 IO 不误报、清理保留首因、临时盘与重试    | planned |
 
 Setup/action/assertions 见 TODO；E2E 使用隔离目录、真实进程和阶段屏障，进入 manual-review/pending 后取得证据再更新状态。
@@ -2728,35 +2672,6 @@ SILENTDB-01～08 场景已按用户确认语义接纳。启动 E2E 沿用 `packa
 ## 通用 / 编程界面模式 M1
 
 范围与 MODE-01～07 用例见 [模式验证矩阵](general-coding-mode-verification.md)。新增桌面用例位于 `packages/desktop/test/e2e/ui-shell/general-coding-mode.test.ts`，覆盖设置偏好、入口隐藏和已有面板保留；已人工验收并转为 ui-shell 正式用例，尚未加入 Docker preset。对话展示由组件单测补充，验证状态以该矩阵为准。
-
-## TTFT01 — 本地发送阶段遥测
-
-已确认的验收场景：真实 Composer 正文、思考、工具先到，空 start、晚到正文、输出早于 ACK、受控阶段延迟；最终 OTLP Trace/Metric 为断言出口。状态 accepted，自动化候选 `conversation-session/manual-review/pending/conversation-session-ttft-stages.test.ts`；平台 ARMS 验收独立待验证。
-
-## TTFT02 — 复杂发送归因
-
-Ticket 02 已确认排队/转正、二次确认、立即引导隔离、重试后输出、失败取消、准备延迟和后台返回；复用 TTFT01 receiver 和 case-local replay。状态 accepted / pending，候选 `conversation-session/manual-review/pending/conversation-session-ttft-diagnostics.test.ts`。时钟/乱序/进程中断与资源上限由受控接口测试补齐；真实平台和跨平台证据独立记录。
-
-TTFT02（2026-09-14）：pending候选已在macOS真实Electron通过6/6，最终OTLP验证6根/6总样本/36主阶段；TTFT01回归3/3。准备延迟、队列、确认、guide、retry、failure/cancel和后台恢复均有断言；跨平台/ARMS未验收，未promotion。受控SIGSTOP/SIGCONT/SIGKILL与时钟/并集/去重/截断见issue证据，不能算其他OS实机覆盖。
-
-## TEL11：Session 创建事件
-
-message_id 回归：三入口 session_create 与同轮 message_completion 按 talk_id/message_id
-关联；automation-run-title-stable 断言创建事件与自动化完成事件 message_id 相等。
-
-补充验证范围：闲时 init 与 bound/resume、定时新建与 targetTaskId 追加、首发拒绝/等待、
-跨 Core / HTTP 重试 event_id 稳定性；既有 automation-run-title-stable E2E 增加
-实际新建 session_create 最终请求体断言。手机/远端实机覆盖状态不变。
-补充结果：137 条相关单测通过；三入口创建与定时任务新建两条 macOS Electron
-回放用例分别通过，最终请求含 event_id；运行编号见 session-create-telemetry spec。
-
-依据 `docs/monitoring/session-create-telemetry.md`，新增 session_create 首发口径。
-单测覆盖 Group / Project / Session 来源与 desktop/mobile、local/remote 维度。
-Pending E2E `conversation-session-create-telemetry.test.ts` 验证真实预热零事件、首发一次、
-续发与历史重开不重复；2026-09-15 macOS Electron 回放 1/1 通过（含三种来源），
-173 条相关单测通过；手机/远端实机未验收，尚未人工 review 或晋升 formal。
-
-Memory MEM08 埋点补充（2026-09-17）：现有 Desktop Memory 用例同时断言默认关闭会话和新建开启会话的 `send_btn`、`message_completion`、`agent_step` 均携带同值 `memory_enabled`；开关中途变更、旧协议兼容及子 Agent 归属由 telemetry/gateway 单测补充。新增断言验证结果以本次执行记录为准。
 
 ## Todo156 Start 后续修复
 

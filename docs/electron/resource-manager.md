@@ -87,7 +87,7 @@ CLI observation 超时 → 本轮无映射；Agent 生命周期与业务 idle �
 ### 为什么这样分层
 
 - **main 进程禁止起外部进程采样**（历史 bug：同步 `ps` / PowerShell 曾把整个 App 卡死；异步 `execFile` 的 CreateProcess 阶段同样会阻塞 main）。所以外部进程的 CPU/内存一律在 **Window Host（utility 进程）** 内异步采样，且只在资源管理器窗口发起请求时才采样；窗口关闭后 Host 不再有任何周期性开销。
-- **插件归属只有 CLI 知道**：MCP 子进程由 Agent CLI 拉起，`ZCODE_PLUGIN_ID` / server name / `source.kind` 都在 CLI 内存里；现有 `process/mcpTelemetry` 通道为了遥测脱敏刻意不带 pid。因此新增一个纯内存、无 I/O 的协议请求 `process/childProcesses`，Host 用它把 pid 映射到插件。
+- **插件归属只有 CLI 知道**：MCP child processes are started by Agent CLI. Its in-memory process registry retains server name, source kind and pid. Host reads `process/childProcesses` to attribute those pids to plugins without starting a sampler.
 - **Host 做进程树归属**：Host 是 Agent 的父进程，一次 `ps -axo pid=,ppid=,rss=,cputime=,comm=`（darwin）/ 扫描 `/proc/*/stat` + `/proc/<pid>/status`（linux）/ `Get-CimInstance Win32_Process`（win32）就能覆盖 Host 全部后代。每个后代按“最近的已知祖先”归属：MCP 根 pid → 对应插件；Agent pid → 基础服务 `cli`；无归属 → 基础服务 `host` 子进程。
 - **main 只合并**：`app.getAppMetrics()`（Electron 进程）+ 系统总量 + Host 回报；Agent 注册表里已知但 Host 尚未回报的 Agent 仍会出现在列表中（`sampled=false`，指标为 0），保证拓扑始终可见，E2E 也依赖这一点。
 
@@ -120,7 +120,7 @@ interface ResourceUsageSnapshot {
 
 - `zcodeProtocolMethods.processChildProcesses = "process/childProcesses"`，params `{}`。
 - 结果 `zcodeProcessChildProcessesResultSchema`：`{ processes: Array<{ pid, serverName, mcpSource: "builtin"|"plugin"|"custom", pluginName?: string }> }`。
-- CLI 实现：`McpTelemetryTracker.listProcesses()` 直接读取已注册连接的 `process.pid`、`serverName`、`mcpSource`；`pluginName` 由 `plugin:<name>:<key>` 命名空间或官方插件 `hostMcpServerNames`（`node_repl` → `browser-use`）解析。不做任何 I/O。
+- CLI 实现：`McpProcessRegistry.listProcesses()` 直接读取已注册连接的 `process.pid`、`serverName`、`mcpSource`；`pluginName` is derived from the `plugin:<name>:<key>` namespace。不做任何 I/O。
 
 ### main ↔ host 消息
 
@@ -143,7 +143,7 @@ Host 入口 `packages/desktop/src/host/hostResourceUsage.ts` 把上述三者与 
 ```text
 owner:            main 进程 resourceManagerWindow（Host / Agent pid 注册表 + 快照合并）；
                   外部进程指标的瞬时事实由 Window Host 采样器持有（cputime 差分基线）；
-                  MCP 子进程 ↔ 插件映射只由 CLI McpTelemetryTracker 持有
+                  MCP process-to-plugin mapping is owned only by the CLI MCP process registry
 command path:     renderer invoke GetResourceUsageSnapshot → main buildResourceUsageSnapshot
                   → HostMessageTypes.ResourceUsageSnapshotRequest → host createHostResourceUsageResponder
                   → CLI process/childProcesses（纯内存）
@@ -155,8 +155,8 @@ ordering:         每个 Host 最多一轮在途采样；Main 超时返回缓存
 idempotency:      请求无副作用，可任意重放；Host 不维护定时器，窗口关闭后零开销
 delivery:         desktop-only（独立 BrowserWindow + 专用 preload）；不接 conversation continuous / replayable 链路
 reuse decision:   未复用 services/process/processTreeSnapshot.ts（同步 spawnSync，为 app quit 设计，列不同）
-                  与 CLI mcp/process-memory.ts（5 分钟内存遥测，Windows 只有 tasklist）——采样需要异步、cputime、
-                  在 Host 内执行，三者职责不同；PowerShell CIM 命令格式与 processTreeSnapshot 相近，属已知重复
+                  Sampling runs asynchronously in Host and includes cputime. PowerShell CIM command formatting
+                  overlaps with processTreeSnapshot; their lifecycle responsibilities remain separate
 contracts/spec:   packages/shared protocol.ts / channels.ts / validation.ts / zcode-protocol；本文；
                   desktop、services、ui、CLI 四组单测 + e2e resource-manager.test.ts
 ```
@@ -180,7 +180,7 @@ contracts/spec:   packages/shared protocol.ts / channels.ts / validation.ts / zc
 | `services/src/process/processResourceSampler.ts`                                                        | 跨平台进程表读取、CPU 差分、进程树归属                                                                     |
 | `services/src/zcode-agent/zcodeAgentService.ts`                                                         | `collectLocalRuntimeChildProcesses()`                                                                      |
 | `shared/src/protocol.ts` / `channels.ts` / `validation.ts` / `zcode-protocol/index.ts`                  | 类型、IPC 通道、host 消息 schema、CLI 协议                                                                 |
-| `apps/zcode-cli/.../mcp/telemetry.ts` / `zcode-protocol/server.ts`                                      | `listProcesses()` 与 `process/childProcesses` 处理                                                         |
+| `apps/zcode-cli/.../mcp/process-registry.ts` / `zcode-protocol/server.ts`                               | `listProcesses()` 与 `process/childProcesses` 处理                                                         |
 
 ## UI 细节
 
@@ -194,6 +194,6 @@ contracts/spec:   packages/shared protocol.ts / channels.ts / validation.ts / zc
 
 ## 测试
 
-- 单测：`desktop/test/resourceManagerWindow.test.ts`（快照合并、Agent 兜底、linux CPU 归一化、系统 CPU 差分）、`services/test/processResourceSampler.test.ts`（三平台解析、CPU 差分、树归属）、`ui/test/resourceUsageView.test.ts`（分组聚合/格式化）、CLI `mcp-telemetry.test.ts`（`listProcesses`）。
+- 单测：`desktop/test/resourceManagerWindow.test.ts`（快照合并、Agent 兜底、linux CPU 归一化、系统 CPU 差分）、`services/test/processResourceSampler.test.ts`（三平台解析、CPU 差分、树归属）、`ui/test/resourceUsageView.test.ts`（分组聚合/格式化）、CLI `mcp-process-registry.test.ts`（`listProcesses`）。
 - E2E：`desktop/test/e2e/resource-manager-storage.test.ts`——存储 tab 扫描 / 下钻 / safe 与 confirm 清理 / 日志保留当天（SM-01~05）。
 - E2E：`desktop/test/e2e/resource-manager.test.ts`——菜单打开窗口、默认 CPU tab 三组分区可见、切内存 tab 换指标卡、`zcode-main` 与 `zcode-agent-*` 行出现、Agent 行在 Host 采样后 `memoryBytes > 0`。既有依赖进程监视器的 E2E helper 改读 `window.resourceManager.getSnapshot().processes`。

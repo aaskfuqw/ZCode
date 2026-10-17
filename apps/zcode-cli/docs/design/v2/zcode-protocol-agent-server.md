@@ -79,7 +79,7 @@ stateDiagram-v2
   uncaughtException/unhandledRejection 只诊断一次，随后取消运行、清理并以非零码退出。
 - server 先拒绝新请求、取消反向请求和操作，再关闭所有已创建的 app，最后释放 gateway。
   迟到的 app 创建也必须关闭。此路径不调用产品 session/close，不发 session.removed，不删持久会话。
-  bootstrap 在同一剩余预算内关闭 sampler、MCP/broker、共享存储、Registry 和遥测；单项失败不能阻止其他项被尝试。
+  bootstrap 在同一剩余预算内关闭 runtime maintenance、MCP/broker、共享存储和 Registry；单项失败不能阻止其他项被尝试。
 - Host 立即使旧协议失效，但 stderr 保持收集至流关闭或有界 drain；exit 报告在 drain 后
   绑定原 runtime 身份与首次原因。正常 EOF 宽限 1800ms，进程树强杀仍受原总预算约束。
   CLI 的 E2E coverage 可额外预留 500ms 写盘，Host 沿用 coverage EOF 窗口。

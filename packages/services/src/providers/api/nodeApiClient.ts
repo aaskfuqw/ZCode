@@ -119,11 +119,11 @@ function isRequestForEndpoint(input: string | URL, endpointOrigin: string): bool
   }
 }
 
-function withZCodeEndpointHeaders(
+async function withZCodeEndpointHeaders(
   headers: RequestInit["headers"] | undefined,
   endpointOrigin: string,
-): RequestInit["headers"] {
-  const next = new Headers(buildZCodeSourceHeaders());
+): Promise<RequestInit["headers"]> {
+  const next = new Headers(await buildZCodeSourceHeaders());
   if (headers) {
     new Headers(headers).forEach((value, key) => {
       next.set(key, value);
@@ -134,20 +134,6 @@ function withZCodeEndpointHeaders(
     next.set("HTTP-Referer", endpointOrigin);
   }
   return next;
-}
-
-function resolveRequestHeaders(
-  requestInput: string | URL,
-  headers: RequestInit["headers"] | undefined,
-  endpointOrigin: string,
-): RequestInit["headers"] | undefined {
-  if (!isRequestForEndpoint(requestInput, endpointOrigin)) {
-    return headers;
-  }
-
-  // ZCode 后端请求以前只有部分业务路径手动补来源头。
-  // 统一在 ApiClient 出口按 endpoint origin 注入，避免 OAuth/config/billing/snapshot 等链路遗漏。
-  return withZCodeEndpointHeaders(headers, endpointOrigin);
 }
 
 export class NodeApiClient implements ApiClient {
@@ -199,7 +185,9 @@ export class NodeApiClient implements ApiClient {
       }
       const fetchImpl = this.fetchImpl ?? globalThis.fetch;
       const requestHeaders = withRequestIdHeader(
-        resolveRequestHeaders(requestInput, init?.headers, activeEndpointOrigin),
+        isRequestForEndpoint(requestInput, activeEndpointOrigin)
+          ? await withZCodeEndpointHeaders(init?.headers, activeEndpointOrigin)
+          : init?.headers,
       );
       if (isRequestForEndpoint(requestInput, activeEndpointOrigin)) {
         // 调试说明：这里只记录 header key，避免 Authorization / token 等敏感值落盘。
@@ -208,6 +196,10 @@ export class NodeApiClient implements ApiClient {
           method,
           url,
         });
+      }
+      // Identity initialization can yield; cancellation during it must still prevent the request.
+      if (signal?.aborted) {
+        throw new DOMException("The operation was aborted.", "AbortError");
       }
       const response = await fetchImpl(requestInput, {
         ...init,

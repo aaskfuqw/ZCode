@@ -1,12 +1,10 @@
 import {
-  type AgentTelemetryErrorCategory,
   CoreErrorType,
   createChildTraceContext,
   createCoreError,
   createRootTraceContext,
   getCurrentTraceContext,
   traceContextToLogContext,
-  type ToolExecutionSpanWriter,
   type SessionEvent,
 } from "@zcode/contracts";
 import {
@@ -18,7 +16,6 @@ import {
   prepareInitialToolExecutionInput,
 } from "../input-normalization.js";
 import { hasOfficialCuaFrameAuthority } from "../../mcp/image-normalization.js";
-import type { SkillTelemetryMetadata } from "@zcode/contracts";
 import type { ToolExecutionContext, ToolExecutionResult } from "../types.js";
 import type { ToolEntry } from "../types.js";
 import type { BackgroundTaskTracker } from "./background-tasks.js";
@@ -50,14 +47,12 @@ import {
   resolveTimeoutMs,
 } from "./timeout.js";
 import { createToolModelStatusSink, withDefaultToolModelStatusSink } from "./model-status-sink.js";
-import { runToolCallWithTelemetry } from "./telemetry.js";
 import {
   withAutomationCreateLimitTurnStop,
   withPlanExitDeniedTurnStop,
   withTerminalToolTurnStop,
   withWorkflowRefineDeniedFollowUp,
 } from "./turn-control.js";
-import { mergeToolExecutionTelemetry, readToolExecutionTelemetry } from "../handlers/tool-perf.js";
 import type { ToolExecuteOptions, ToolExecutorDeps } from "./types.js";
 import { validateInitialModelToolInput, validateInput, validateOutput } from "./validation.js";
 import type { ExecutableToolCall } from "../types.js";
@@ -69,28 +64,6 @@ export async function executeToolCall(
   backgroundTasks: BackgroundTaskTracker,
   toolCall: ExecutableToolCall,
   options?: ToolExecuteOptions,
-): Promise<ToolExecutionResult> {
-  const totalStartedAt = Date.now();
-  const entry = isEmptyToolName(toolCall.name) ? undefined : deps.registry.get(toolCall.name);
-  const canonicalToolCall =
-    entry && toolCall.name !== entry.metadata.name
-      ? { ...toolCall, name: entry.metadata.name }
-      : toolCall;
-  // 隐私与基数边界：未注册工具名来自模型输出，不能假定是受控枚举。
-  // 业务错误仍保留真实名称供模型自修复，远端 Trace 统一落入固定 unknown 桶。
-  const telemetryToolCall = entry ? canonicalToolCall : { ...toolCall, name: "unknown" };
-  return runToolCallWithTelemetry(deps, telemetryToolCall, options, (telemetry) =>
-    executeToolCallImpl(deps, backgroundTasks, toolCall, totalStartedAt, options, telemetry),
-  );
-}
-
-async function executeToolCallImpl(
-  deps: ToolExecutorDeps,
-  backgroundTasks: BackgroundTaskTracker,
-  toolCall: ExecutableToolCall,
-  totalStartedAt: number,
-  options?: ToolExecuteOptions,
-  telemetry?: ToolExecutionSpanWriter,
 ): Promise<ToolExecutionResult> {
   const parentTraceContext =
     options?.traceContext ??
@@ -150,7 +123,6 @@ async function executeToolCallImpl(
       toolCallId: toolCall.id,
       toolName: toolCall.name,
     });
-    telemetry?.finishFailed("lookup", "configuration", result.error);
     return result;
   }
 
@@ -183,7 +155,6 @@ async function executeToolCallImpl(
         canonicalToolCall,
         createCoreError(CoreErrorType.ToolCancelled, "Tool execution cancelled"),
       );
-      telemetry?.finishCancelled("abort_signal");
       return result;
     }
 
@@ -204,7 +175,6 @@ async function executeToolCallImpl(
       // 只把失败回灌模型，没有发布 ToolCallError，V4 tool row 因而在整个 turn 里停在
       // inputStreaming（CreateWorkflow 卡持续显示「正在编写工作流」），模型重试后又叠一张。
       await emitToolCallError(deps, canonicalToolCall.id, traceContext, turnId, result.error);
-      telemetry?.finishFailed("validation", "parse", result.error);
       return result;
     }
 
@@ -219,9 +189,6 @@ async function executeToolCallImpl(
         createToolHandlerFailureError(canonicalToolCall, toolInputValidation),
       );
       await emitToolCallError(deps, canonicalToolCall.id, traceContext, turnId, result.error);
-      // 工具专属校验以普通失败结果返回，不走 handler 执行的 try/catch 失败收口。
-      // 先发出 ToolCallError 更新工具行，再显式标记遥测失败，避免被记录为 abandoned。
-      telemetry?.finishFailed("validation", "parse", result.error);
       return result;
     }
 
@@ -241,7 +208,6 @@ async function executeToolCallImpl(
           createToolHandlerFailureError(canonicalToolCall, resolution),
         );
         await emitToolCallError(deps, canonicalToolCall.id, traceContext, turnId, result.error);
-        telemetry?.finishFailed("validation", "parse", result.error);
         return result;
       }
       executionInput = resolution.input;
@@ -280,8 +246,6 @@ async function executeToolCallImpl(
         ),
         preToolHookResult.additionalContexts,
       );
-      telemetry?.setPermissionDecision("denied");
-      telemetry?.finishDenied("policy_denied");
       return result;
     }
     if (preToolHookResult.updatedInput !== undefined) {
@@ -300,7 +264,6 @@ async function executeToolCallImpl(
           createErrorResult(canonicalToolCall, hookInputValidation),
           preToolHookResult.additionalContexts,
         );
-        telemetry?.finishFailed("validation", "parse", result.error);
         return result;
       }
     }
@@ -318,7 +281,6 @@ async function executeToolCallImpl(
       mode,
       traceContext,
       options?.signal,
-      telemetry,
       {
         mode,
         bashShellSelection,
@@ -339,19 +301,9 @@ async function executeToolCallImpl(
         ),
         preToolHookResult.additionalContexts,
       );
-      if (result.error?.type === CoreErrorType.PermissionDenied) {
-        telemetry?.finishDenied("user_denied");
-      } else {
-        telemetry?.finishFailed(
-          "permission",
-          errorCategoryForToolError(result.error?.type),
-          result.error,
-        );
-      }
       return result;
     }
     executionInput = permissionResult.executionInput;
-    const permissionWaitMs = permissionResult.permissionWaitMs;
     const inputAdjustments = permissionResult.inputAdjustments;
 
     const startTime = Date.now();
@@ -392,8 +344,6 @@ async function executeToolCallImpl(
             await deps.emitEvent(event);
           };
     let readFileStateMetadata: ToolExecutionResult["readFileStateMetadata"];
-    let skillTelemetryMetadata: SkillTelemetryMetadata | undefined;
-    let failureStage: "handler" | "serialize" | "post_hook" = "handler";
 
     try {
       const model = options?.model ?? deps.model;
@@ -402,7 +352,6 @@ async function executeToolCallImpl(
       });
       const context: ToolExecutionContext = {
         toolCallId: canonicalToolCall.id,
-        telemetry,
         automationTurn: options?.automationTurn,
         offPeakTurn: options?.offPeakTurn,
         traceContext,
@@ -450,9 +399,6 @@ async function executeToolCallImpl(
         recordReadFileStateMetadata: (metadata) => {
           readFileStateMetadata = metadata;
         },
-        recordSkillTelemetryMetadata: (metadata) => {
-          skillTelemetryMetadata = metadata;
-        },
         bashShellSelection,
         setWorkingDirectory: deps.setWorkingDirectory,
         workingDirectory: guardedWorkingDirectory ?? deps.getWorkingDirectory(),
@@ -490,7 +436,6 @@ async function executeToolCallImpl(
       // CUA SDK 结果带 producer integrity metadata 时，才为本次序列化临时打开原子帧保护；
       // 否则通用 resultBudget 会截断/重排 image_ref，或非 authority 路径会把引用剥掉。
       const modelOutputEntry = resolveModelOutputEntry(entry, output);
-      failureStage = "serialize";
       let serialization = await serializeOutput(
         deps,
         output,
@@ -499,7 +444,6 @@ async function executeToolCallImpl(
         canonicalToolCall.id,
         executionAbortController.signal,
       );
-      failureStage = "post_hook";
       const postToolHookResult = await runPostToolUseHooks(
         deps,
         canonicalToolCall,
@@ -517,12 +461,6 @@ async function executeToolCallImpl(
       const display = createToolResultDisplay(canonicalToolCall.name, output, {
         mcp: entry.metadata.mcpPresentation,
         officialCua: entry.modelContentProtection === OFFICIAL_CUA_FRAME_MODEL_CONTENT_PROTECTION,
-      });
-      const perf = mergeToolExecutionTelemetry(readToolExecutionTelemetry(output), {
-        permissionWaitMs,
-        // totalMs 是用户感知的工具生命周期：registry lookup、校验、Hook、权限等待、
-        // handler、序列化与 PostToolUse。durationMs 继续只表示 handler 主执行段。
-        totalMs: Date.now() - totalStartedAt,
       });
 
       const finalModelContent = serialization.modelContent ?? serialization.content;
@@ -542,16 +480,23 @@ async function executeToolCallImpl(
         );
       }
 
+      const exitCode =
+        typeof output === "object" &&
+        output !== null &&
+        "exitCode" in output &&
+        typeof output.exitCode === "number"
+          ? output.exitCode
+          : undefined;
       const result: ToolExecutionResult = withTerminalToolTurnStop(
         {
           toolCallId: canonicalToolCall.id,
           toolName: canonicalToolCall.name,
           success: true,
           output,
+          exitCode,
           display,
           modelContent: finalModelContent,
           ...(readFileStateMetadata ? { readFileStateMetadata } : {}),
-          performance: perf,
           serialization,
           durationMs,
           startedAt: new Date(startTime),
@@ -568,8 +513,7 @@ async function executeToolCallImpl(
         serialization,
         durationMs,
         display,
-        perf,
-        skillTelemetryMetadata,
+        exitCode,
       );
 
       await backgroundTasks.trackBackgroundTask(canonicalToolCall, output, traceContext, turnId);
@@ -583,10 +527,6 @@ async function executeToolCallImpl(
         toolCallId: canonicalToolCall.id,
         toolName: canonicalToolCall.name,
       });
-
-      telemetry?.setOutputBytes(serialization.returnedBytes);
-      telemetry?.setOutputTruncated(serialization.truncated);
-      telemetry?.finishCompleted();
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTime;
@@ -629,14 +569,7 @@ async function executeToolCallImpl(
 
       // Skill 已解析成功后，serialize/post_hook 仍可能失败；错误事件也要保留
       // resolved metadata，否则失败的 Skill agent_step 无法归因到具体 skill。
-      await emitToolCallError(
-        deps,
-        canonicalToolCall.id,
-        traceContext,
-        turnId,
-        result.error,
-        skillTelemetryMetadata,
-      );
+      await emitToolCallError(deps, canonicalToolCall.id, traceContext, turnId, result.error);
 
       deps.logger?.error(
         "Tool call failed",
@@ -651,18 +584,6 @@ async function executeToolCallImpl(
           toolName: canonicalToolCall.name,
         },
       );
-
-      if (options?.signal?.aborted || result.error?.type === CoreErrorType.ToolCancelled) {
-        telemetry?.finishCancelled("abort_signal");
-      } else {
-        telemetry?.finishFailed(
-          failureStage,
-          errorCategoryForToolError(result.error?.type),
-          // 原始异常只交给 Telemetry 做受控脱敏；result.error 是面向业务协议重新包装后的错误，
-          // 不能覆盖 Trace 中用于定位根因的 source message/type/code。
-          error,
-        );
-      }
       return result;
     } finally {
       unlinkParentAbort();
@@ -698,26 +619,6 @@ function resolveModelOutputEntry(entry: ToolEntry, output: unknown): ToolEntry {
 
 function isEmptyToolName(toolName: string): boolean {
   return toolName.trim().length === 0;
-}
-
-function errorCategoryForToolError(type: string | undefined): AgentTelemetryErrorCategory {
-  switch (type) {
-    case CoreErrorType.ConfigurationError:
-    case CoreErrorType.ToolNotFound:
-      return "configuration";
-    case CoreErrorType.PermissionDenied:
-    case CoreErrorType.PermissionEscalation:
-    case CoreErrorType.PermissionTimeout:
-      return "permission";
-    case CoreErrorType.InvalidInput:
-      return "parse";
-    case CoreErrorType.ToolCancelled:
-      return "cancelled";
-    case CoreErrorType.ToolTimeout:
-      return "timeout";
-    default:
-      return "internal";
-  }
 }
 
 function appendPreToolAdditionalContextsToErrorResult(

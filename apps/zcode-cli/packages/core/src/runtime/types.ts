@@ -5,8 +5,6 @@ import type { RuntimeInputPresentation, TurnExecutionModelFallbackReason } from 
 import { PermissionService, ToolScheduler } from "./deps.js";
 import type {
   JsonSchema,
-  AgentExecutionTelemetryPort,
-  AgentTelemetryCausation,
   BackgroundResultOriginMeta,
   ContextUsageBreakdownItem,
   CoordinatorResponsePort,
@@ -324,9 +322,6 @@ export interface AgentRuntimeDeps {
   getAgentDefinitions?: GetAgentDefinitions;
   /** 新父上下文读取一次；子执行不得继承此加载器。 */
   loadAgentDefinitions?: LoadAgentDefinitions;
-  agentTelemetry?: AgentExecutionTelemetryPort;
-  agentTelemetryCausation?: AgentTelemetryCausation;
-  agentTelemetryCausationMode?: "child" | "linked_root";
   appVersion?: string;
   eventStore: SessionEventStorePort;
   sessionStore?: SessionStorePort;
@@ -492,10 +487,6 @@ export interface ExecuteTurnOptionsBase {
   originMeta?: BackgroundResultOriginMeta;
   /** 仅用于冻结 background notification batch 的整批因果来源，不用于展示。 */
   backgroundSource?: BackgroundResultOriginMeta["backgroundSource"];
-  /** 由 runtime command drain 计算，表示本轮消费过 subagent 后台结果。 */
-  backgroundSubagentResultConsumed?: boolean;
-  /** 由 runtime command drain 计算，表示本轮消费过 dynamic-workflow run 的通知（完成 / 提问）。 */
-  workflowResultConsumed?: boolean;
   recordedInputMessageId?: MessageId;
   skipInputRecord?: boolean;
   skipUserPromptSubmitHooks?: boolean;

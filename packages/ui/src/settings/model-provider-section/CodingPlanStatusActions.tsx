@@ -1,4 +1,3 @@
-import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
 import type { CodingPlanBillingDiscountConfig } from "@zcode/shared";
 import { ArrowLeftIcon, Loader2Icon, RocketIcon } from "lucide-react";
 import { cn } from "@/components/lib/utils.js";
@@ -82,8 +81,7 @@ export function CodingPlanUpgradeAction({
   const billingDiscountButtonActive = billingDiscountActive === true && !upgradePlansVisible;
 
   const upgradeButton = (
-    <CodingPlanEntryButton
-      bypassGate={upgradePlansVisible}
+    <Button
       type="button"
       size="lg"
       className={cn(
@@ -107,9 +105,7 @@ export function CodingPlanUpgradeAction({
         <RocketIcon className="size-3.5" />
       )}
       {intl.formatMessage({
-        id: upgradePlansVisible
-          ? "settings.modelProvider.codingPlan.cancelUpgrade"
-          : actionLabelId,
+        id: upgradePlansVisible ? "settings.modelProvider.codingPlan.cancelUpgrade" : actionLabelId,
       })}
       {billingDiscountButtonActive ? (
         <CodingPlanBillingDiscountBadgePill
@@ -118,7 +114,7 @@ export function CodingPlanUpgradeAction({
           variant="surface"
         />
       ) : null}
-    </CodingPlanEntryButton>
+    </Button>
   );
 
   if (!billingDiscountButtonActive) {

@@ -61,7 +61,7 @@ docker/plugin-eval/bin/build-image.sh --ref feat-cli-plugins-parity \
 1. `source` 阶段 `git clone --depth 1 --branch <ref>`。PAT 通过 BuildKit secret 传入，以 `git config http.<host>/.extraheader`
    的 Basic 头（`oauth2:<token>`）只在该条 RUN 内存在，不进镜像层；克隆后删除 `.git` 与 `.gitconfig`。
 2. `builder` 阶段 `pnpm install --frozen-lockfile --filter "@zcode/cli..." --filter zcode`，然后按仓库脚本
-   `scripts/build-desktop-agent-cli.mjs` 的顺序构建 shared-types → contracts → core → adapters → i18n → telemetry → bootstrap → cli。
+   `scripts/build-desktop-agent-cli.mjs` 的顺序构建 shared-types → contracts → core → adapters → i18n → bootstrap → cli。
 3. `runtime` 阶段只带 `node + zcode.cjs + jq/python3/git/ripgrep`，以 uid 10001 的 `zcode` 用户运行；
    `HOME=/data`、`ZCODE_DATA_BASE_DIR=/data`、`ZCODE_STORAGE_DIR=/data/.zcode`、`ZCODE_BASE_URL=https://zcode.z.ai`。
    内置插件不在 `zcode.cjs` 里，CLI 在入口文件同级的 `packages/<name>-plugin` 找根目录，所以 builder 阶段把

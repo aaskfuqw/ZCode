@@ -25,7 +25,7 @@ CLI CommandInbox
 ```
 
 - `commandId` 由客户端生成，重试时保持不变；
-- `issuedAt` 只用于遥测，不能参与定序或冲突裁决；
+- `issuedAt` records client submission time for recovery ordering; it does not decide server-side conflicts;
 - CAS 命令必须带 `baseRevision`；row-targeting 命令还必须带 `baseLogEpoch`；
 - `createSession` 的 `sessionId` 为 `null`，成功 ACK 返回真实 session id；
 - 客户端是意图提议者，CLI 是唯一写者。不同客户端的命令按 CLI 实际 admission 顺序串行。

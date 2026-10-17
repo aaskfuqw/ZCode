@@ -47,7 +47,8 @@ describe("Skill integration", () => {
     });
 
     const result = builder.build();
-    const system = result.systemMessages.find((message) => message.role === "system")?.content ?? "";
+    const system =
+      result.systemMessages.find((message) => message.role === "system")?.content ?? "";
     const skillReminder =
       result.metaUserAttachments.find((attachment) => attachment.source === "skills_listing")
         ?.content ?? "";
@@ -109,47 +110,6 @@ describe("Skill integration", () => {
     expect(loaded).toContain("/workspace/.zcode/skills/demo-skill/notes.md");
   });
 
-  it("reports resolved skill metadata through the telemetry callback without changing content", async () => {
-    const metadata = {
-      ...skillOutcome.skills[0]!,
-      pluginName: "document-skills",
-      pluginId: "document-skills@zcode-plugins-official",
-      qualifiedName: "document-skills:pptx",
-      source: "plugin" as const,
-    };
-    const reported: unknown[] = [];
-    const loaded = await skillHandler(
-      { skill: "document-skills:pptx" },
-      contextWithSkillPort(
-        {
-          async discoverSkills(): Promise<SkillLoadOutcome> {
-            return { ...skillOutcome, skills: [metadata] };
-          },
-          async loadSkill(): Promise<SkillContent> {
-            return {
-              metadata,
-              content: "# PPTX Skill\n\nDescription stays in the skill body.",
-              baseDirectory: "/plugins/document-skills/skills/pptx",
-              bytesRead: 50,
-              sizeBytes: 50,
-              truncated: false,
-            };
-          },
-        },
-        (value) => reported.push(value),
-      ),
-    );
-
-    expect(reported).toEqual([
-      {
-        qualifiedName: "document-skills:pptx",
-        pluginId: "document-skills@zcode-plugins-official",
-        source: "plugin",
-      },
-    ]);
-    expect(loaded).toContain("Description stays in the skill body.");
-  });
-
   // docs/dynamic-workflow/authoring.md「The skill」：只有工作流技能拿 200 000 字节的上限，其余技能仍是 100 000。
   // 判据是请求里的名字，与技能门认的同一个。
   it("loads dynamic-workflows with its own byte cap and every other skill with the default", async () => {
@@ -200,16 +160,12 @@ describe("Skill integration", () => {
   });
 });
 
-function contextWithSkillPort(
-  skillPort: SkillPort,
-  recordSkillTelemetryMetadata?: ToolExecutionContext["recordSkillTelemetryMetadata"],
-): ToolExecutionContext {
+function contextWithSkillPort(skillPort: SkillPort): ToolExecutionContext {
   return {
     toolCallId: "tool-skill",
     traceId: createTraceId(),
     abortSignal: new AbortController().signal,
     skillPort,
-    ...(recordSkillTelemetryMetadata ? { recordSkillTelemetryMetadata } : {}),
     workingDirectory: "/workspace",
     workspaceRoot: "/workspace",
     sessionId: createSessionId("skill-test"),

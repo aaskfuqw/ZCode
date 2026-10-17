@@ -433,7 +433,7 @@ export function resolveCodingPlanQuotaResetAutomaticPhase(
  * （被跨窗口抑制置空 observedAt，或被更新的 used_at 取代）时必须清 arm，
  * 否则其他窗口 hover 面板时仍会从「已重置」位置撒花，违背“多窗口只播一次”。
  */
-export function pruneCodingPlanQuotaResetConfettiArms(
+export function pruneCodingPlanQuotaResetConfettiState(
   arms: Record<CodingPlanResetType, number | null>,
   automaticCompletedAtByType: Record<CodingPlanResetType, number | null>,
 ): Record<CodingPlanResetType, number | null> {

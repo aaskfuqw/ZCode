@@ -6,7 +6,6 @@
 import { z } from "zod";
 import type { ToolCallId, TraceId } from "../interfaces/shared.js";
 import { toToolJsonSchema } from "./json-schema.js";
-import { ToolExecutionTelemetrySchema } from "./performance.js";
 
 // -----------------------------------------------
 // Input Schema
@@ -116,7 +115,6 @@ export const WriteOutputSchema = z
     originalFile: z.string().nullable(),
     gitDiff: WriteGitDiffSchema.optional(),
     userModified: z.boolean().optional(),
-    perf: ToolExecutionTelemetrySchema.optional(),
   })
   .strict();
 

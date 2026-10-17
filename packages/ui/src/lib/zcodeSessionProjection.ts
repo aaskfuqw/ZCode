@@ -1043,7 +1043,7 @@ export function zcodeSessionEventToZCodeStreamEvents(params: {
           ),
         ];
       }
-      // 修复原因：旧 turn.failed → task_error 投影只保留文案/code/detail，live telemetry
+      // 修复原因：旧 turn.failed → task_error 投影只保留文案/code/detail，live diagnostics
       // 无法看到 adapter 已确认的 provider/network 事实；校验后透传安全归因字段。
       const attribution = errorAttributionSchema.safeParse(errorPayload.attribution);
       return [

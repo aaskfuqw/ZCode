@@ -2132,13 +2132,20 @@ describe("workflowRuns reducer · run-launched（声明阶段表）", () => {
       step(undefined, progress("run-started", started())),
       progress("run-launched", { inputId: "in-1", phaseNames: ["plan", "verify"] }),
     );
-    const settled = step(launched, progress("run-settled", { status: "stopped", stopReason: "user" }));
+    const settled = step(
+      launched,
+      progress("run-settled", { status: "stopped", stopReason: "user" }),
+    );
     const resumed = step(settled, progress("run-started", started()));
     expect(resumed.runs[0]?.phaseNames).toEqual(["plan", "verify"]);
     expect(
       reduceWorkflowRunsState(
         resumed,
-        progress("run-launched", { inputId: "in-1", phaseNames: ["plan", "verify"] }, { sequence: 3 }),
+        progress(
+          "run-launched",
+          { inputId: "in-1", phaseNames: ["plan", "verify"] },
+          { sequence: 3 },
+        ),
       ),
     ).toBeNull();
   });
@@ -2358,7 +2365,7 @@ describe("workflowRuns reducer · phaseName（实例的出生阶段）", () => {
   });
 });
 
-describe("run-launched：发起锚点事件只抬水位（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Token telemetry for subagents」）", () => {
+describe("run-launched：发起锚点事件只抬水位（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Workflow launch correlation and usage」）", () => {
   it("run-started 之后的 run-launched 不改状态，只推进 lastEventSequence", () => {
     const progress = progressLog();
     const started = step(

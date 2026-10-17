@@ -3,7 +3,7 @@
 ## 状态
 
 - 本文是 zcode-cli Anthropic 模型请求 `metadata.user_id` 的事实规范。
-- 设备身份沿用 `{dataBaseDir}/.zcode/v2/telemetry-state.json` 的 `deviceMid`。
+- 设备身份沿用 `{dataBaseDir}/.zcode/v2/device-identity.json` 的 `deviceMid`。
 - metadata 的拼装与注入只发生在 zcode-cli，不修改 Desktop、Host、Web 或 app-agent 协议。
 
 ## 请求契约
@@ -35,7 +35,7 @@ Desktop、远端 zcode-server 和 zcode-cli 拥有彼此独立的“确保 devic
 
 ```text
 Desktop ensure（同步） ─────────┐
-远端 server ensure（启动时异步）├─> {dataBaseDir}/.zcode/v2/telemetry-state.json.deviceMid
+远端 server ensure（启动时异步）├─> {dataBaseDir}/.zcode/v2/device-identity.json.deviceMid
 CLI ensure（异步） ─────────────┘                          │
                                                   v
                                   zcode-cli Anthropic metadata.device_id
@@ -43,8 +43,8 @@ CLI ensure（异步） ─────────────┘               
 
 - 本地 Desktop 通常会在 Agent 启动前生成 `deviceMid`，zcode-cli 读取并消费同一个值。
 - 独立 CLI 或 SSH/WSL/Docker Agent 无需依赖 Desktop，由 CLI 自己生成并持久化；SSH/WSL/Docker 远端的 `zcode-server` 启动时也会确保同一文件里有 `deviceMid`，Agent 随后读到同一个值。
-- CLI 使用与 Desktop/telemetry 相同的 `createUuid()` 格式，并保留 state 文件中的其他字段。
-- CLI 使用 `telemetry-state.lock` 协调并发读写，进程内按 state 文件缓存同一个 ensure promise。
+- CLI 使用与 Desktop 相同的 `createUuid()` 格式，仅写入业务身份字段。
+- CLI 使用 `device-identity.json.lock` 协调并发读写，进程内按 state 文件缓存同一个 ensure promise。
 - 文件读写或锁异常不能阻断模型请求；此时返回并缓存当前进程生成的 UUID，下次进程启动再尝试持久化。
 - `ZCODE_DATA_BASE_DIR` 决定实际数据根目录；没有配置时回退到当前 Agent 环境的 home 目录。
 - model I/O debug 记录保留 metadata 结构，但将 `user_id` 整体替换为 `[REDACTED]`，不落盘设备身份。
@@ -77,24 +77,24 @@ account_uuid ─────────────────固定空字符�
 
 | Field            | Value                                                                                                                |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Developer intent | Anthropic 请求携带与 Desktop/telemetry 共享的设备身份及当前 session                                                  |
+| Developer intent | Anthropic 请求携带与 Desktop 共享的设备身份及当前 session                                                            |
 | Capability       | Anthropic request attribution metadata                                                                               |
 | Change layer     | `commit-effect`、`persistence`                                                                                       |
 | Operating mode   | `planning`                                                                                                           |
-| Primary seeds    | `ensureDesktopDeviceMidSync`、`createTelemetryCore`、`runGenerateText`、`runStreamText`、`createGenerateTextOptions` |
+| Primary seeds    | `ensureBusinessDeviceMid`、`ensureDesktopDeviceMid`、`runGenerateText`、`runStreamText`、`createGenerateTextOptions` |
 | Out of scope     | UI、app services 请求头、协议、conversation/replay 状态、非 Anthropic provider                                       |
 
 UI Surface Matrix：无 UI 入口。权威持久化是 Agent 所在主机的
-`telemetry-state.json.deviceMid`；zcode-cli model adapter 是 metadata commit sink。
+`device-identity.json.deviceMid`；zcode-cli model adapter 是 metadata commit sink。
 
-| Rank           | Relationship                                  | Reason                                    |
-| -------------- | --------------------------------------------- | ----------------------------------------- |
-| must-inspect   | CLI deviceMid ensure → telemetry state        | 必须复用同一字段并保留其他 telemetry 状态 |
-| must-inspect   | model runner → Anthropic provider options     | generate/stream 和 retry 必须共用注入行为 |
-| should-inspect | session attribution header → metadata session | header 与 body 不得出现两套前缀规则       |
-| conditional    | local Agent → remote Agent data root          | 设备身份跟随实际 Agent 运行环境           |
-| invariant-only | non-Anthropic providers                       | 不得新增 metadata 或改变 provider options |
-| invariant-only | desktop continuous / mobile replayable        | 不改变消息流、snapshot 或恢复边界         |
+| Rank           | Relationship                                   | Reason                                           |
+| -------------- | ---------------------------------------------- | ------------------------------------------------ |
+| must-inspect   | CLI deviceMid ensure → business identity store | 必须复用独立的身份 owner；旧状态只迁移 deviceMid |
+| must-inspect   | model runner → Anthropic provider options      | generate/stream 和 retry 必须共用注入行为        |
+| should-inspect | session attribution header → metadata session  | header 与 body 不得出现两套前缀规则              |
+| conditional    | local Agent → remote Agent data root           | 设备身份跟随实际 Agent 运行环境                  |
+| invariant-only | non-Anthropic providers                        | 不得新增 metadata 或改变 provider options        |
+| invariant-only | desktop continuous / mobile replayable         | 不改变消息流、snapshot 或恢复边界                |
 
 图谱漂移：现有 feature graph 未声明 Anthropic request metadata 和共享 deviceMid persistence；
 本功能确认后补充相应 capability、service、persistence 与语义边。

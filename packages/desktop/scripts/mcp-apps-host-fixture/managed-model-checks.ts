@@ -24,7 +24,7 @@ export async function checkModel(
   const terminal = (after: number) =>
     env.agent.notifications.wait(
       (e) =>
-        e.method === "v4/telemetry/event" &&
+        e.method === "v4/session/activity" &&
         e.params.kind === "turn.terminal" &&
         e.params.sessionId === scope.sessionId,
       after,

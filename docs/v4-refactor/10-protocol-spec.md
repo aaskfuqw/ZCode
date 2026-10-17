@@ -20,7 +20,7 @@
 | ------------------------------------------ | --------------------------------------------- | ------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------- |
 | `sessionId`                                | `string`                                      | CLI（createSession 时）        | 永久                                                         | 会话身份                                                            |
 | `workspaceId`                              | `string`                                      | host                           | 永久                                                         | workspace identity 键（R-16：**不是裸 path**，含 SSH/WSL/容器身份） |
-| `clientId`                                 | `string`                                      | 客户端首装生成，localStorage   | 跨连接持久                                                   | command 归属展示、遥测。**不参与路由**                              |
+| `clientId`                                 | `string`                                      | 客户端首装生成，localStorage   | 跨连接持久                                                   | command 归属展示。**不参与路由**                                    |
 | `connectionId`                             | `string`                                      | host（attachment 建立时分配）  | 单连接                                                       | 信封路由、订阅归属（R-08：与 clientId 分离）                        |
 | `clientMode`                               | `desktop-continuous \| web-remote-replayable` | host（按 attachment 类型注入） | 单连接                                                       | 可信 desktop/mobile 边界；客户端不可覆盖                            |
 | `subscriptionId`                           | `string`                                      | host（subscribe 受理时分配）   | 单订阅                                                       | 帧代际，防旧流交错（R-01）                                          |
@@ -72,7 +72,7 @@ interface ClientHello {
   kind: "clientHello";
   protocolVersion: 3;
   clientId: string;
-  clientKind?: "desktop" | "web" | "mobileRemote" | "mobileApp"; // 仅遥测/展示，不能覆盖可信 clientMode
+  clientKind?: "desktop" | "web" | "mobileRemote" | "mobileApp"; // 仅展示，不能覆盖可信 clientMode
   appVersion: string;
   capabilities?: { workflowRunDeltas?: boolean }; // strict 对象：只有 host 在 hello 里宣告过的能力才允许声明
 }
@@ -1323,7 +1323,7 @@ interface CommandEnvelope<T extends CommandType = CommandType> {
   baseRevision?: number; // 表格标「CAS ✓」的命令必带
   type: T;
   payload: CommandPayloadMap[T];
-  issuedAt: Timestamp; // 客户端时钟，仅遥测；服务端不用于任何裁决
+  issuedAt: Timestamp; // 客户端提交时间，支持恢复命令排序；不参与服务端冲突裁决
 }
 ```
 
@@ -1558,53 +1558,6 @@ commands/query { commands: CommandKey[] }      // 1..64 个
 
 无聚合中间层（05）：连接建立后客户端**并行**发起 `subscribe(sessions-index/<ws>)` + `subscribe(conversation/<活跃 sessionId>)` + settings 类 query，ws 多路复用一个 RTT 内完成。无专门 bootstrap 方法。
 
-### 7.5 Live conversation telemetry feed
-
-对话埋点使用独立的 ephemeral live feed，不属于 conversation topic，也不参与 snapshot、fragment、
-recovery 或 `rows/range`。事实只从当前 CLI 进程的 runtime live ingest 分流：
-
-```ts
-interface ConversationTelemetryFactBase {
-  version: 1;
-  eventId: string;
-  eventSeq: number;
-  occurredAt: Timestamp;
-  sessionId: string;
-  sourceCommandId?: string;
-  turnId?: string;
-}
-
-type ConversationTelemetryFact = ConversationTelemetryFactBase &
-  (
-    | { kind: "turn.started" /* metadata only */ }
-    | { kind: "model.request.status" /* allowlisted request fields + hostname */ }
-    | { kind: "stream.chunk"; streamKind: "thought" | "text"; chunkLength: number }
-    | { kind: "tool.lifecycle" /* ids/status/allowlisted perf; no input/output */ }
-    | { kind: "permission.lifecycle" /* request/response timing */ }
-    | { kind: "usage.delta" /* token counters only */ }
-    | { kind: "turn.terminal" /* success/fail/interrupted */ }
-    | { kind: "compaction.terminal" /* old /report compaction fields */ }
-  );
-```
-
-强制边界：
-
-- persisted hydration、subscribe initial、cold snapshot 和 gap recovery 不产生 fact；hydration 期间新到达
-  的 live runtime event 仍产生一次。
-- fact 不进入 transcript、ConversationRow、事件日志、relay 或 main 业务状态。
-- prompt/text chunk 不携正文；tool 不携 input/output；模型 URL 只保留解析后的 hostname。
-- Host 根据 attachment 的可信 `clientMode` 开放订阅，只有 `desktop-continuous` renderer 安装实际
-  reporter；`web-remote-replayable` 不得通过伪造字段扩大旧桌面采集口径。
-- workspace supervisor key 使用
-  `endpoint + remoteSessionId + (workspaceIdentity?.trim() || workspacePath) + serviceGeneration`；
-  pane/SessionDataLayer 生命周期不得拥有该状态。
-- eventId 使用约 2000 条有界 LRU；terminal 与 compact 另按业务 key exactly-once。
-
-完整事件名、字段兼容和前后台矩阵见
-[`docs/monitoring/conversation-telemetry-v4.md`](../monitoring/conversation-telemetry-v4.md)。
-
----
-
 ## 8. 常量与限额（初始值，实测调参）
 
 | 参数                                      | 值                                                                        | 出处                  |
@@ -1678,7 +1631,7 @@ type ConversationTelemetryFact = ConversationTelemetryFactBase &
 | P5  | **`forkOf` 从 createSession 删除**，fork 只走 forkAssistant                                                                                                             | 一件事一条路；09§10 两处入口冗余                                                                                                      |
 | P6  | **rowId/`revision` 用 number，Timestamp 用 Unix ms**；rowId 不做字符串前缀                                                                                              | 排序/比较零成本。若要预留复合 id 空间可改 string，需同步改游标比较规则                                                                |
 | P7  | **usage 放 conversation A 区**而非独立 topic                                                                                                                            | 它是 per-session、低频（conflation 后）、UI 与会话同生命周期。备选：usage 域独立 topic——跨 session 汇总页再考虑                       |
-| P8  | **command 信封删除 clientMode**；可信 clientMode 由 host attachment 注入，ClientHello 只上报 telemetry `clientKind`                                                     | 客户端声明不可作为 desktop/mobile 投递边界；每条命令重复携带也无意义                                                                  |
+| P8  | **command 信封删除 clientMode**；可信 clientMode 由 host attachment 注入，ClientHello retains application capability metadata                                           | 客户端声明不可作为 desktop/mobile 投递边界；每条命令重复携带也无意义                                                                  |
 | P9  | **深链行为**：subagent 下钻 = 订阅 child session 的 conversation topic，不在父投影内嵌 child rows；父会话 UI 可把已配对 `subagent` 下钻挂回触发它的 Agent/Task 工具块内 | row 自包含原则；child 是普通 session                                                                                                  |
 | P10 | **deleteSession 的多端联动**只定义「订阅终止信号 + 客户端本地态 GC」，不定义回收站/恢复                                                                                 | G-07 最小闭环；软删除属产品决策                                                                                                       |
 | P11 | pendingCommands 上限 32、幂等表 512 LRU、附件 20MiB 等具体数值                                                                                                          | 全部标在 §8，按实测调                                                                                                                 |

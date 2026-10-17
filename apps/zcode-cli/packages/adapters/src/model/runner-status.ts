@@ -1,8 +1,7 @@
+import { UNBOUNDED_RETRY_MAX_ATTEMPTS } from "./retry-budget.js";
 import type {
   Logger,
-  ModelRequestObservationStatusEvent,
   ModelNetworkStatusEvent,
-  ModelReasoningCallHint,
   ModelStatusSink,
   ModelTransportKind,
   ModelRequestSessionType as ModelRequestSessionTypeValue,
@@ -15,12 +14,10 @@ import {
   createTraceId,
   resolveModelApiCallObservation,
 } from "@zcode/contracts";
-import { UNBOUNDED_RETRY_MAX_ATTEMPTS } from "./retry-budget.js";
 // 请求归因 header 一族住在 runner-attribution.ts（max-lines 拆分）；公开面仍从本文件导出，
 // 既有 importer 不必改路径。
 import { resolveModelRequestSessionType } from "./runner-attribution.js";
 import type { AiSdkModelTextRequest, ResolvedAiSdkModel } from "./runner-runtime.js";
-import type { ModelRequestObservationSource } from "./request-security.js";
 import { stringMetadata } from "./runner-record.js";
 
 export {
@@ -93,22 +90,7 @@ export function createStatusContext(input: {
       | ModelStatusContext["parentSessionId"]
       | undefined,
     toolCallId: stringMetadata(metadata.toolCallId),
-    modelCall: {
-      ...resolvedModelCall,
-      agentName: resolvedModelCall.agentName ?? stringMetadata(metadata.agentName),
-      operationId:
-        resolvedModelCall.operationId ??
-        input.request.traceContext?.spanId ??
-        stringMetadata(metadata.spanId),
-      stepIndex:
-        resolvedModelCall.stepIndex ??
-        (typeof metadata.stepIndex === "number"
-          ? metadata.stepIndex
-          : typeof metadata.iteration === "number"
-            ? metadata.iteration
-            : undefined),
-      reasoning: initialReasoningObservation(resolvedModelCall.reasoning, undefined),
-    },
+    modelCall: resolvedModelCall,
   };
 }
 
@@ -128,30 +110,6 @@ export function createAttemptStatusContext(
   };
 }
 
-function initialReasoningObservation(
-  hint: ModelReasoningCallHint | undefined,
-  modelVariant: string | undefined,
-): ResolvedModelApiCallObservation["reasoning"] {
-  const explicit = hint?.explicit;
-  return {
-    capability: "unknown",
-    requestedControl: explicit?.controlType ?? "provider_default",
-    requestedState: explicit?.state ?? "provider_default",
-    requestedLevel: hint?.requestedLevel ?? modelVariant,
-    effectiveControl: explicit?.controlType ?? "unknown",
-    effectiveState: explicit?.state ?? "unknown",
-    effectiveLevel:
-      explicit?.effectiveLevel ?? (explicit?.state === "disabled" ? "disabled" : "unknown"),
-    ...(explicit?.effectiveBudgetTokens !== undefined
-      ? { effectiveBudgetTokens: explicit.effectiveBudgetTokens }
-      : {}),
-  };
-}
-
-/**
- * 准入等待两端的状态事件：`admitAttempt` 的 `tryAcquire` 未命中即 `queued`，拿到票即
- * `admitted`（带排队时长）。此时还没有票据，所以不经 ticket 投递——治理器不需要这两条。
- */
 export function admissionWaitPublishers(
   statusContext: ModelStatusContext,
   attempt: number,
@@ -190,10 +148,9 @@ export async function publishModelStatus(
   options: {
     /**
      * 本次尝试的准入票据：它是该尝试专属的
-     * 状态事件汇，治理器从这里读结果。与 request/telemetry sink 同一条投递纪律（失败只告警）。
+     * 状态事件汇，治理器从这里读结果。与 request/status observers 同一条投递纪律（失败只告警）。
      */
     admissionTicket?: ModelStatusSink;
-    requestObservations?: ModelRequestObservationSource;
     failureError?: unknown;
     logger?: Logger;
     requestStatusSink?: ModelStatusSink;
@@ -201,7 +158,6 @@ export async function publishModelStatus(
   },
 ): Promise<void> {
   logStatusEvent(event, options.logger);
-  await publishRequestObservations(event, options);
 
   const deliveries: Array<() => void | Promise<void>> = [];
   if (options.admissionTicket) {
@@ -238,73 +194,6 @@ export async function publishModelStatus(
         status: "failed",
       });
     }
-  }
-}
-
-/**
- * attempt 终态前，把 signer 暂存的签名观测按 requestId 取出并只发给进程级 Telemetry Sink。
- * 必须先于终态事件投递：recorder 收到终态后会释放该 attempt 的 span writer。
- * 本地日志已在 fetch 层即时写入，这里不重复记录。
- */
-async function publishRequestObservations(
-  event: ModelNetworkStatusEvent,
-  options: {
-    requestObservations?: ModelRequestObservationSource;
-    logger?: Logger;
-    statusSink?: ModelStatusSink;
-  },
-): Promise<void> {
-  if (event.type !== "model_request_completed" && event.type !== "model_request_failed") return;
-  const store = options.requestObservations;
-  if (!store) return;
-  const observations = store.take(event.requestId);
-  if (observations.length === 0 || !options.statusSink) return;
-  for (const observation of observations) {
-    const observationEvent: ModelRequestObservationStatusEvent = {
-      ...event,
-      observation,
-      type: "model_request_observation",
-    };
-    try {
-      await options.statusSink.publish(observationEvent);
-    } catch (error) {
-      options.logger?.warn("Model request observation sink failed", {
-        ...modelStatusLogContext(event),
-        errorMessage: error instanceof Error ? error.message : String(error),
-        event: "model.request_observation.sink_failed",
-        status: "failed",
-      });
-    }
-  }
-}
-
-/**
- * Provider 流式里程碑只发给进程级 Telemetry Sink，不写 SessionEvent。
- * requestStatusSink 属于对话产品状态，不能被纯观测事件污染。
- */
-export async function publishModelTelemetryMilestone(
-  event: Extract<
-    ModelNetworkStatusEvent,
-    {
-      type: "model_first_provider_event" | "model_first_content" | "model_first_text";
-    }
-  >,
-  options: {
-    logger?: Logger;
-    statusSink?: ModelStatusSink;
-  },
-): Promise<void> {
-  logStatusEvent(event, options.logger);
-  if (!options.statusSink) return;
-  try {
-    await options.statusSink.publish(event);
-  } catch (error) {
-    options.logger?.warn("Model telemetry milestone sink failed", {
-      ...modelStatusLogContext(event),
-      errorMessage: error instanceof Error ? error.message : String(error),
-      event: "model.telemetry_milestone.failed",
-      status: "failed",
-    });
   }
 }
 
@@ -412,21 +301,6 @@ function logStatusEvent(event: ModelNetworkStatusEvent, logger?: Logger): void {
         statusMessage: event.message,
         timeoutMs: event.timeoutMs,
       });
-      return;
-
-    case "model_first_provider_event":
-    case "model_first_content":
-    case "model_first_text":
-      logger?.debug("Model telemetry milestone observed", {
-        ...modelStatusLogContext(event),
-        elapsedMs: event.elapsedMs,
-        event: event.type,
-        status: "completed",
-      });
-      return;
-
-    case "model_request_observation":
-      // fetch 层已即时写入本地日志，这里只负责 telemetry 投递。
       return;
   }
 }

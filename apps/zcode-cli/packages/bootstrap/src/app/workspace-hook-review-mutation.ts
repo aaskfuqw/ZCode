@@ -40,7 +40,7 @@ export function createWorkspaceHookReviewMutationPort(
         if (current.workspaceIdentity !== input.snapshot.workspaceIdentity) {
           throw new WorkspaceHookMutationError(
             "workspace_hooks_snapshot_mismatch",
-            // 消息会经 controller 进入 telemetry.errorMessage，故此处即脱敏：
+            // 消息会经 controller 进入 diagnostics.errorMessage，故此处即脱敏：
             // identity 本身是绝对路径，禁止上报完整 workspace path。
             `Workspace Hook identity changed after review (expected ${workspaceIdentitySummary(
               input.snapshot.workspaceIdentity,
@@ -78,7 +78,7 @@ async function rebuildSnapshot(
   });
   if (discovery.errors.length > 0) {
     // 只报文件名，不报绝对路径（「不记录 source path」）；
-    // 完整路径与原始错误保留在 cause 里，走 logger 的 debug 通道而不进 telemetry。
+    // 完整路径与原始错误保留在 cause 里，走 logger 的 debug 通道而不进 diagnostics。
     const failed = discovery.errors[0]?.path;
     throw new WorkspaceHookMutationError(
       "workspace_hooks_config_unreadable",

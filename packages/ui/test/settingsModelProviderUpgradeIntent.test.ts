@@ -40,9 +40,6 @@ describe("settings model provider upgrade intent", () => {
     expect(statusCardsSource).toContain("由弹窗 hook 承载购买面板");
     expect(statusCardsSource).not.toContain('openUpgradePlans(\n            "personal"');
     expect(detailSource).toContain("initialTeamPlanKey:");
-    expect(statusCardsSource).toContain(
-      'isStartPlanProvider ? "setting_start_plan_card" : "setting_plan_card"',
-    );
     expect(statusCardsSource).toContain("disabled={effectiveViewState.loginLoading}");
   });
 
@@ -91,9 +88,7 @@ describe("settings model provider upgrade intent", () => {
     const automationsSectionSource = readSource("packages/ui/src/settings/AutomationsSection.tsx");
 
     for (const source of [offPeakNewTaskEntrySource, automationsSectionSource]) {
-      expect(source).toContain("createIdleTimeCodingPlanFunnelContext({");
       expect(source).toContain('initialAudience: "personal"');
-      expect(source).toContain("funnelContext:");
     }
   });
 

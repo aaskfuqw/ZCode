@@ -47,6 +47,5 @@ describe("model request security boundary", () => {
       }),
     );
     expect(wrapped).toHaveBeenCalledOnce();
-    expect(resolved.requestObservations).toBe(createExecution.mock.results[0]?.value);
   });
 });

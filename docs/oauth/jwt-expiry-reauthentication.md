@@ -68,7 +68,7 @@ JWT 无法解析或缺少 `exp` 时，客户端不能证明它已经过期，继
 
 - 认证过期不是用户主动退出，不显示“确认断开连接”或运行中会话二次确认。
 - 清理认证事实发生在提示框显示前；提示框不能成为继续使用旧 JWT 的阻塞点。
-- 用户点击“重新登录”后直接打开现有 Welcome 登录入口，不触发主动退出 telemetry 或 App relaunch。
+- 用户点击“重新登录”后直接打开现有 Welcome 登录入口，不触发主动退出或 App relaunch。
 - provider 启动门禁只能关闭自己打开的 `startup-provider-required`；不得以 `open=false` 覆盖 JWT 过期流程写入的 `session-expired`。
 - 同一次启动恢复最多显示一次过期提示。
 - 桌面 Root 使用支持中英文和亮暗主题的统一 AlertDialog；Web 登录入口清理过期 localStorage 后直接回到登录页，不恢复伪登录态。

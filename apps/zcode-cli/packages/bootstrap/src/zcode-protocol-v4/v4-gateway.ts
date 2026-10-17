@@ -1,5 +1,3 @@
-import { LocalTtftRecorder } from "./local-ttft.js";
-import { localTtftNow, localTtftFactsSchema } from "@zcode/shared/zcode-protocol-v4";
 import {
   backgroundBashOutputResultSchema,
   v4BackgroundBashOutputParamsSchema,
@@ -68,9 +66,8 @@ import type {
   V4ConversationRowsRangeResult,
   WorkspaceConfigState,
   WorkspaceConfigTopicFrame,
-  ConversationTelemetryFact,
+  SessionActivityEvent,
   CuaPermissionObservation,
-  ConversationOpenTiming,
 } from "@zcode/shared/zcode-protocol-v4";
 import {
   DELIVERY_PROFILES,
@@ -144,7 +141,6 @@ import { SessionsIndexPublisher } from "./sessions-index-publisher.js";
 import { SessionsIndexPublisherRegistry } from "./sessions-index-publisher-registry.js";
 import { WorkspaceConfigPublisher } from "./workspace-config-publisher.js";
 import type { TopicFrameReservation } from "./topic-frame-reservation.js";
-import { ConversationTelemetryFactNormalizer } from "./conversation-telemetry-facts.js";
 import { CuaPermissionObservationNormalizer } from "./cua-permission-observation.js";
 import { V4CapabilityUnsupportedError } from "./commands/handlers/interaction-background.js";
 
@@ -228,8 +224,7 @@ export interface V4GatewayHost {
    */
   emitWireFrame(frame: RoutedTopicWireFrame): void;
   /** 当前进程 live ingest 的无正文事实；不缓存、不进入 topic replay。 */
-  emitConversationTelemetryFact?(fact: ConversationTelemetryFact): void;
-  emitLocalTtftFacts?(facts: import("@zcode/shared").LocalTtftFacts): void;
+  emitSessionActivity?(fact: SessionActivityEvent): void;
   /** 当前进程 live request_access 权限事实；不缓存、不进入 topic replay。 */
   emitCuaPermissionObservation?(observation: CuaPermissionObservation): void;
   /**
@@ -492,7 +487,7 @@ interface ProjectionEventCommitWaiter {
 }
 
 const PROJECTION_EVENT_COMMIT_TIMEOUT_MS = 25_000;
-const MAX_TELEMETRY_EVENT_IDS = 2_000;
+const MAX_LIVE_EVENT_IDS = 2_000;
 /** detached subagent child 终态后无订阅者时，publisher 由低频 tick 释放前的保留时长。 */
 export const DETACHED_CHILD_PUBLISHER_GRACE_MS = 120_000;
 
@@ -518,7 +513,7 @@ class ProjectionEventCommitWaitError extends Error {
  * 消费，公共 JSON-RPC result schema 始终严格为 `{ ack }`。
  */
 export interface V4SubscribeDispatchResult<TFrame> {
-  ack: SubscribeAck & { openTiming?: ConversationOpenTiming };
+  ack: SubscribeAck & {};
   initialFrame: TFrame | null;
   initialWires: RoutedTopicWireFrame[];
   commit(): boolean;
@@ -625,19 +620,6 @@ export class ConversationV4Gateway {
   private readonly attachmentUploads: AttachmentUploadRegistry;
   private readonly binaryReadCache = new Map<string, BinaryReadCacheEntry>();
   private binaryReadCacheBytes = 0;
-  private readonly localTtft = new LocalTtftRecorder(
-    localTtftNow,
-    () => {
-      this.host.onError?.(
-        "v4.localTtft.completedCapacity",
-        new Error("TTFT completed record capacity exceeded"),
-      );
-    },
-    (facts) => {
-      const parsed = localTtftFactsSchema.safeParse(facts);
-      if (parsed.success) this.host.emitLocalTtftFacts?.(parsed.data);
-    },
-  );
   /** 高频进度事件的 index fan-out 节流（14-sessions-index「事件 fan-out 节奏」）。 */
   private readonly indexFanoutThrottle = new SessionsIndexFanoutThrottle({
     publish: (sessionId) => this.publishCurrentSummaryToIndex(sessionId),
@@ -645,9 +627,8 @@ export class ConversationV4Gateway {
   private readonly attachmentPruneTimer: ReturnType<typeof setInterval>;
   private readonly now: () => number;
   private readonly createLogEpoch: (sessionId: string) => string;
-  private readonly telemetryNormalizer = new ConversationTelemetryFactNormalizer();
   private readonly cuaPermissionNormalizer = new CuaPermissionObservationNormalizer();
-  private readonly telemetryEventIds = new Set<string>();
+  private readonly liveEventIds = new Set<string>();
   private disposed = false;
 
   /** session entry 状态变更后的轻量 metadata 更新，不重放 conversation event。 */
@@ -778,49 +759,41 @@ export class ConversationV4Gateway {
       hydrationBuffer.eventIds.add(eventId);
       hydrationBuffer.rawEvents.push(event);
     }
-    this.emitLiveTelemetryFact(sessionId, event);
+    this.emitLiveBusinessEvents(sessionId, event);
     for (const normalizedEvent of this.normalizeRuntimeEventSequence(sessionId, event)) {
-      try {
-        this.localTtft.event(sessionId, normalizedEvent);
-      } catch (error) {
-        try {
-          this.host.onError?.("v4.localTtft.observe", error);
-        } catch {
-          /* 诊断回调也不能阻断实际内容。 */
-        }
-      }
       this.ingestNormalizedEvent(sessionId, normalizedEvent);
     }
   }
 
-  private emitLiveTelemetryFact(sessionId: string, event: SessionEvent): void {
+  private emitLiveBusinessEvents(sessionId: string, event: SessionEvent): void {
     const eventId = String(event.id);
     // 主 session 与 detached child 各自维护事件序列，eventId 不能假设跨
     // session 全局唯一。旧去重只用 eventId，会把 child 的同号事件误判成主会话重放，
     // 导致前台 Subagent 的真实轮次事实被静默丢弃。
-    const telemetryEventKey = `${sessionId}\0${eventId}`;
-    if (this.telemetryEventIds.has(telemetryEventKey)) return;
-    this.telemetryEventIds.add(telemetryEventKey);
-    if (this.telemetryEventIds.size > MAX_TELEMETRY_EVENT_IDS) {
-      const oldest = this.telemetryEventIds.values().next().value;
-      if (typeof oldest === "string") this.telemetryEventIds.delete(oldest);
+    const liveEventKey = `${sessionId}\0${eventId}`;
+    if (this.liveEventIds.has(liveEventKey)) return;
+    this.liveEventIds.add(liveEventKey);
+    if (this.liveEventIds.size > MAX_LIVE_EVENT_IDS) {
+      const oldest = this.liveEventIds.values().next().value;
+      if (typeof oldest === "string") this.liveEventIds.delete(oldest);
     }
+    // Activity delivery cannot block conversation projection or permission observation.
     try {
-      const config =
-        this.publishers.get(sessionId)?.getSnapshot().config ??
-        this.host.getSessionConfigSeed?.(sessionId) ??
-        undefined;
-      const fact = this.telemetryNormalizer.normalize(sessionId, event, {
-        memoryEnabled: this.host.getSessionMemoryEnabled?.(sessionId),
-        modelName: config?.model,
-        modelProvider: config?.provider,
-      });
-      if (fact) {
-        this.host.emitConversationTelemetryFact?.(fact);
+      if (
+        event.type === SessionEventType.TurnStarted ||
+        event.type === SessionEventType.TurnComplete ||
+        event.type === SessionEventType.TurnError
+      ) {
+        this.host.emitSessionActivity?.({
+          sessionId,
+          eventId,
+          eventSeq: Math.max(0, Math.floor(event.sequenceNumber)),
+          ...(event.turnId ? { turnId: String(event.turnId) } : {}),
+          kind: event.type === SessionEventType.TurnStarted ? "turn.started" : "turn.terminal",
+        });
       }
     } catch (error) {
-      // 轮次事实绝不能反向阻断 conversation 投影；严格 schema 失败只记录诊断。
-      this.host.onError?.("v4.telemetry.normalize", error);
+      this.host.onError?.("v4.sessionActivity.emit", error);
     }
     try {
       const observation = this.cuaPermissionNormalizer.normalize(sessionId, event);
@@ -1421,12 +1394,6 @@ export class ConversationV4Gateway {
     this.host.onDebug?.(
       `subscribe conversation session=${sessionId} coldResume=${String(!isLiveConversation)}`,
     );
-    // Hydration：首次订阅时从权威来源重建投影。
-    // - 无 publisher（cold）→ 建 + 重放。
-    // - 有 publisher 但事件日志覆盖不了 transcript（fork child：resume 的 ingest 抢先
-    //   建了个只含 fork 事件的 cold publisher）→ 用 transcript 合成**重建**。
-    // - 有 publisher 且事件日志完整（流式 live）→ 保留，重放会双计且打断流。
-    const restoreStartedAt = performance.now();
     const existingReady = this.readyFlights.get(sessionId);
     const publisher = existingReady
       ? await existingReady
@@ -1437,15 +1404,9 @@ export class ConversationV4Gateway {
             params.workspace,
           )
         : await this.hydratePublisher(sessionId);
-    const cliSessionRestoreMs = !isLiveConversation
-      ? Math.max(0, Math.round(performance.now() - restoreStartedAt))
-      : undefined;
     // 旧入口允许 UI 自选 deliveryProfile，桌面调用遗漏时还会默认成
     // replayable。现在只认 host attachment 注入的可信 clientMode。
     const profileName = params.clientMode === "desktop-continuous" ? "continuous" : "replayable";
-    // subscribeReserved 已构建 wire projection；若在它之后才开始计时，大会话的
-    // 行过滤/窗口截断会落在 restore 与 encode 两段之外。起点必须覆盖构建与 physical encode。
-    const initialFrameEncodeStartedAt = performance.now();
     const result = publisher.subscribeReserved({
       connectionId: params.connectionId,
       base: params.base,
@@ -1467,16 +1428,6 @@ export class ConversationV4Gateway {
       });
       dispatch.ack = {
         ...dispatch.ack,
-        openTiming: {
-          version: 1,
-          ...(cliSessionRestoreMs !== undefined ? { cliSessionRestoreMs } : {}),
-          initialFrameEncodeMs: Math.max(
-            0,
-            Math.round(performance.now() - initialFrameEncodeStartedAt),
-          ),
-          sessionRuntimeState: isLiveConversation ? "warm" : "cold",
-          snapshotRowCount: publisher.getSnapshot().rows.window.length,
-        },
       };
     } catch (error) {
       // 重订 initial encode 失败时客户端仍持有旧 subId；replacement 必须
@@ -2414,19 +2365,6 @@ export class ConversationV4Gateway {
    * settle 仍然固化结果供 duplicate 重放。
    */
   async handleCommand(rawParams: unknown): Promise<CommandAck> {
-    let ttftCapacityRejected = false;
-    const ttftCommand =
-      typeof rawParams === "object" && rawParams !== null && "ttft" in rawParams
-        ? parseCommandEnvelope(rawParams)
-        : undefined;
-    if (ttftCommand?.ok && ttftCommand.envelope.ttft) {
-      const sessionId = ttftCommand.envelope.sessionId;
-      const control = sessionId ? this.publishers.get(sessionId)?.getSnapshot().control : undefined;
-      ttftCapacityRejected = !this.localTtft.receive(
-        ttftCommand.envelope,
-        control?.canStop === true,
-      );
-    }
     // READY 只存在于冷恢复窗口；正常命令直接进入 inbox，避免重复解析信封。
     if (this.readyFlights.size > 0) {
       const parsed = parseCommandEnvelope(rawParams);
@@ -2439,9 +2377,7 @@ export class ConversationV4Gateway {
     if (outcome.kind === "ack")
       return {
         ...outcome.ack,
-        ...(ttftCapacityRejected ? { ttftExcluded: "capacity" as const } : {}),
       };
-    this.localTtft.admitted(outcome.envelope.commandId);
     let durableInputIntent: ConversationInputIntent | null = null;
     let settledAck: CommandAck | null = null;
     type CommandFinal = Parameters<typeof outcome.settle>[0];
@@ -2457,7 +2393,6 @@ export class ConversationV4Gateway {
       const ack = {
         ...outcome.ack,
         ...final,
-        ...(ttftCapacityRejected ? { ttftExcluded: "capacity" as const } : {}),
       };
       outcome.settle(final);
       settledAck = ack;
@@ -2524,12 +2459,12 @@ export class ConversationV4Gateway {
       }
       const result = await this.host.executeCommand(outcome.envelope, admission);
       // 新建/侧聊命令采用结果会话的开关，避免把父会话或当前 App 设置误记到新会话。
-      const telemetrySessionId =
+      const sourceSessionId =
         result?.type === "createSession" || result?.type === "createSelectionSideSession"
           ? result.sessionId
           : outcome.envelope.sessionId;
-      const memoryEnabled = telemetrySessionId
-        ? this.host.getSessionMemoryEnabled?.(telemetrySessionId)
+      const memoryEnabled = sourceSessionId
+        ? this.host.getSessionMemoryEnabled?.(sourceSessionId)
         : undefined;
       const final = {
         status: "accepted" as const,
@@ -2583,14 +2518,7 @@ export class ConversationV4Gateway {
 
   /** v4/commands/query：同 key 与 handleCommand 共用 CommandInbox gate。 */
   async queryCommands(rawParams: unknown): Promise<CommandsQueryResult> {
-    const receivedAt = localTtftNow();
     const params = commandsQueryParamsSchema.parse(rawParams);
-    // 校准是纯时钟探测，不能触发命令账本查询、恢复或 admission gate。
-    if (params.clock)
-      return {
-        results: params.commands.map((key) => ({ key, result: "unknown" as const })),
-        clock: { instanceId: this.localTtft.instanceId, receivedAt, sentAt: localTtftNow() },
-      };
     await Promise.all(
       params.commands.map((key) => {
         const ready = key.sessionId === null ? undefined : this.readyFlights.get(key.sessionId);
@@ -2820,7 +2748,6 @@ export class ConversationV4Gateway {
     this.readyFlights.delete(sessionId);
     this.rawSequenceStates.delete(sessionId);
     if (options.clearCommandInbox) this.inbox.clearSession(sessionId);
-    this.telemetryNormalizer.clearSession(sessionId);
     this.detachedLiveSessions.delete(sessionId);
     this.projectionFaultedSessions.delete(sessionId);
     // detached child 归属清理：自己作为 child 从父表摘除；作为父则连带释放没有 record 的 child。
@@ -2845,7 +2772,6 @@ export class ConversationV4Gateway {
 
   dispose(): void {
     this.disposed = true;
-    this.localTtft.clear();
     for (const sessionId of this.projectionEventCommitWaiters.keys()) {
       this.rejectProjectionEventWaiters(
         sessionId,
@@ -2871,7 +2797,7 @@ export class ConversationV4Gateway {
     this.hydrationInFlight.clear();
     this.readyFlights.clear();
     this.rawSequenceStates.clear();
-    this.telemetryEventIds.clear();
+    this.liveEventIds.clear();
     this.detachedLiveSessions.clear();
     this.detachedChildParent.clear();
     this.detachedChildrenByParent.clear();
@@ -3375,64 +3301,6 @@ export class ConversationV4Gateway {
     // resync/subscribe recovery 已进入 request-scoped outbox 时，online
     // flush 若复用同一 inFlight 会让 physical wire 抢在 ACK response 前出站。
     if (this.controlReservations.has(reservation)) return false;
-    const sessionId = parseConversationTopic(reservation.frame.topic);
-    const route = this.flushStates.get(
-      subscriptionRouteKey(
-        reservation.frame.topic,
-        reservation.frame.subscriptionId,
-        sessionId
-          ? (this.publishers
-              .get(sessionId)
-              ?.connectionIdForSubscription(reservation.frame.subscriptionId) ?? "")
-          : "",
-      ),
-    );
-    if (
-      sessionId &&
-      route?.deliveryProfile === "continuous" &&
-      reservation.deliveryKind === "online" &&
-      reservation.frame.payload.kind === "deltas" &&
-      this.localTtft.forSession(sessionId)
-    ) {
-      const rows = this.publishers.get(sessionId)?.getSnapshot().rows.window ?? [];
-      const turns = new Set<string>();
-      for (const delta of reservation.frame.payload.deltas) {
-        if (delta.op === "row.appended" || delta.op === "row.upserted") turns.add(delta.row.turnId);
-        else if (delta.op === "row.delta") {
-          const row = rows.find((item) => item.rowId === delta.rowId);
-          if (row) turns.add(row.turnId);
-        }
-      }
-      const related = rows
-        .filter((row) => row.kind === "turnHeader" && turns.has(row.turnId))
-        .flatMap((header) =>
-          header.kind === "turnHeader" && header.sourceCommandId
-            ? [this.localTtft.forSession(sessionId, header.sourceCommandId)]
-            : [],
-        )
-        .filter((facts) => facts !== undefined);
-      const candidates = related.length ? related : [this.localTtft.forSession(sessionId)];
-      const observations: import("@zcode/shared").LocalTtftFacts[] = [];
-      for (const facts of candidates) {
-        if (!facts || observations.some((item) => item.observationId === facts.observationId))
-          continue;
-        const header = rows.find(
-          (row) => row.kind === "turnHeader" && row.sourceCommandId === facts.commandId,
-        );
-        const observation = localTtftFactsSchema.safeParse({
-          ...facts,
-          ...(this.host.cliVersion ? { cliVersion: this.host.cliVersion } : {}),
-          ...(header ? { productTurnId: header.turnId } : {}),
-        });
-        // 转正前后的内容可能被同批发送；按实际 row 所属原输入携带事实，不能取最新队列项。
-        if (observation.success) observations.push(observation.data);
-      }
-      if (observations.length) {
-        (reservation.frame as ConversationTopicFrame).ttft = observations[0];
-        if (observations.length > 1)
-          (reservation.frame as ConversationTopicFrame).ttftRelated = observations.slice(1, 17);
-      }
-    }
     const wires = encodeReservedTopicFrame(reservation as TopicFrameReservation<RoutedTopicFrame>);
     for (const wire of wires) this.host.emitWireFrame(wire);
     return reservation.commit();

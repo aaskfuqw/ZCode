@@ -854,21 +854,10 @@ export function createZCodeAgentConnectionScope(
         base.onDynamicConversationFrame(params),
       );
     },
-    onDynamicLocalTtftFacts(params) {
-      assertOpen();
-      if (
-        role !== "terminal-client" ||
-        context.clientMode !== "desktop-continuous" ||
-        params.workspaceIdentity?.trim() ||
-        params.remoteSessionId
-      )
-        return RpcEvent.None;
-      return base.onDynamicLocalTtftFacts(workspaceTarget(params));
-    },
-    onDynamicConversationTelemetryFact(params) {
+    onDynamicSessionActivity(params) {
       assertOpen();
       // 可信 clientMode 来自 host attachment；Web/mobile/relay 即使能读权威对话态，
-      // 也不能借共享 workspace emitter 安装生产 telemetry reporter。
+      // 只能由可信 Desktop attachment 读取进程内的任务活动。
       const downstream = readTrustedZCodeAgentV4Connection(params);
       const relayDesktopDownstream =
         role === "trusted-host-relay" && downstream?.clientMode === "desktop-continuous";
@@ -879,11 +868,11 @@ export function createZCodeAgentConnectionScope(
         return RpcEvent.None;
       }
       // renderer 的 workspace supervisor 会先于 V4 hello/initialize 挂载。
-      // telemetry emitter 本身不发起协议请求，允许可信 desktop 提前监听，避免动态
+      // activity emitter 本身不发起协议请求，允许可信 desktop 提前监听，避免动态
       // Event 在 handshake 前抛错并让 host channel 退出；live fact 仍只会在 ingest 后产生。
       // 远程 workspace 还会经过 trusted host relay；这里沿用已有 trusted carrier 传递
       // 下游 clientMode/namespace connectionId，relay 自身没有可信下游时仍保持拒绝。
-      return base.onDynamicConversationTelemetryFact(
+      return base.onDynamicSessionActivity(
         withTrustedConnection(workspaceTarget(params), forwardedConnection(params)),
       );
     },
@@ -894,33 +883,6 @@ export function createZCodeAgentConnectionScope(
         return RpcEvent.None;
       }
       return base.onDynamicCuaPermissionObservation();
-    },
-    onDynamicProcessResourceSample() {
-      assertOpen();
-      // CLI 资源样本只供远端 Desktop Host relay 回传 main；renderer/mobile attachment
-      // 不消费该事件，也不能把它引入 continuous/replayable 消息面。
-      if (role !== "trusted-host-relay") {
-        return RpcEvent.None;
-      }
-      return base.onDynamicProcessResourceSample();
-    },
-    onDynamicToolExecResource() {
-      // 完成事实与会话交付无关，禁止进入 continuous/replayable attachment。
-      if (disposed || role !== "trusted-host-relay") return RpcEvent.None;
-      return base.onDynamicToolExecResource();
-    },
-    onDynamicMcpResourceSamples() {
-      // 资源事实不属于会话流，桌面 continuous 与手机 replayable attachment 均不能订阅。
-      if (disposed || role !== "trusted-host-relay") return RpcEvent.None;
-      return base.onDynamicMcpResourceSamples();
-    },
-    onDynamicMcpTelemetry() {
-      assertOpen();
-      // MCP 遥测与 CLI 资源样本共用可信 Host relay 边界，不进入 renderer/mobile 会话链路。
-      if (role !== "trusted-host-relay") {
-        return RpcEvent.None;
-      }
-      return base.onDynamicMcpTelemetry();
     },
     async subscribeSessionsIndexV4(params) {
       assertReady();

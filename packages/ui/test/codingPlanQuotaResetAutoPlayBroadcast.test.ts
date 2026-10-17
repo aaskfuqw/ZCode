@@ -30,7 +30,7 @@ vi.mock("@/components/ui/toast.js", () => ({
 
 import { useCodingPlanQuotaResetUi } from "@/hooks/useCodingPlanQuotaResetUi.js";
 import { coordinateCodingPlanQuotaResetAutoPlay } from "@/chat-input-toolbar/codingPlanQuotaResetAutoPlay.js";
-import { pruneCodingPlanQuotaResetConfettiArms } from "@/lib/codingPlanQuotaResetUi.js";
+import { pruneCodingPlanQuotaResetConfettiState } from "@/lib/codingPlanQuotaResetUi.js";
 import { CODING_PLAN_QUOTA_RESET_AUTO_PLAYED_CHANNEL } from "@/store/codingPlanQuotaResetState.js";
 import { createZCodeStore } from "@/store/index.js";
 import type { ZCodeStore } from "@/store/index.js";
@@ -646,17 +646,17 @@ describe("coding plan quota reset autoplay broadcast (hook)", () => {
   });
 });
 
-describe("pruneCodingPlanQuotaResetConfettiArms", () => {
+describe("pruneCodingPlanQuotaResetConfettiState", () => {
   it("清除已被抑制或被新 used_at 取代的补播撒花 arm", () => {
     expect(
-      pruneCodingPlanQuotaResetConfettiArms(
+      pruneCodingPlanQuotaResetConfettiState(
         { FIVE_HOUR: 100, WEEK: 200 },
         { FIVE_HOUR: null, WEEK: null },
       ),
     ).toEqual({ FIVE_HOUR: null, WEEK: null });
 
     expect(
-      pruneCodingPlanQuotaResetConfettiArms(
+      pruneCodingPlanQuotaResetConfettiState(
         { FIVE_HOUR: 100, WEEK: 200 },
         { FIVE_HOUR: 300, WEEK: 200 },
       ),
@@ -664,7 +664,7 @@ describe("pruneCodingPlanQuotaResetConfettiArms", () => {
 
     const unchanged = { FIVE_HOUR: 100 as number | null, WEEK: null };
     expect(
-      pruneCodingPlanQuotaResetConfettiArms(unchanged, {
+      pruneCodingPlanQuotaResetConfettiState(unchanged, {
         FIVE_HOUR: 100,
         WEEK: null,
       }),

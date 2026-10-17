@@ -270,7 +270,7 @@ app
             }
             await env.agent.notifications.wait(
               (event) =>
-                event.method === "v4/telemetry/event" &&
+                event.method === "v4/session/activity" &&
                 event.params.kind === "turn.terminal" &&
                 event.params.sessionId === scope.sessionId,
               after,

@@ -70,14 +70,13 @@ export async function checkSamplingExtras(
         issuedAt: Date.now(),
       });
       assert.equal(ack.status, "accepted");
-      const terminal = await env.agent.notifications.wait(
+      await env.agent.notifications.wait(
         (e) =>
-          e.method === "v4/telemetry/event" &&
+          e.method === "v4/session/activity" &&
           e.params.kind === "turn.terminal" &&
           e.params.sessionId === scope.sessionId,
         offset,
       );
-      assert.equal(terminal.params.status, "success");
       assert.equal((await ui("window.managedState()")).busy, true);
       const before = await env.agent.call("session/read", { sessionId: scope.sessionId });
       assert.ok(before.messages.length > 0);

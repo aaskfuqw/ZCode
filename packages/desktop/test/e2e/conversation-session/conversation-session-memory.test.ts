@@ -134,9 +134,6 @@ describe("Desktop Memory continuous 链路 WDIO", () => {
   it("从真实窗口覆盖默认分支、Extraction、custom agent 和 disabled gate", async function () {
     this.timeout(E2E_TIMEOUT_MS);
 
-    const telemetryFetch = await browser.electron.mock("net", "fetch");
-    await telemetryFetch.mockResolvedValue({ ok: true, status: 204 });
-
     await openMemorySettings();
     expect(await readMemorySwitch()).toBe(false);
     expect((await readSettings()).memoryEnabled).toBe(false);
@@ -146,8 +143,6 @@ describe("Desktop Memory continuous 链路 WDIO", () => {
     await sendV4Prompt(DISABLED_PROMPT);
     await waitForV4TimelineContaining(DISABLED_DONE, 90_000);
     const initiallyDisabledSessionId = requireSessionId((await getV4PaneSnapshot()).sessionId);
-
-    await expectMemoryTelemetry(telemetryFetch, initiallyDisabledSessionId, "0");
     await setMemoryEnabled(true, initiallyDisabledSessionId);
     await verifyMemorySettingsViewer(initiallyDisabledSessionId);
     // 修复原因：Settings 初始化会异步刷新内置 provider，并可能覆盖 case-local replay
@@ -166,7 +161,6 @@ describe("Desktop Memory continuous 链路 WDIO", () => {
       90_000,
     );
     const projectSessionId = requireSessionId(projectPane.sessionId);
-    await expectMemoryTelemetry(telemetryFetch, projectSessionId, "1");
 
     await waitForUpstreamRequest(
       { includes: [DEFAULT_BRANCH_PROMPT, "memory_default_branch_boundary"] },
@@ -274,9 +268,7 @@ describe("Desktop Memory continuous 链路 WDIO", () => {
       expect(countCaptureOccurrences(request.requestJson, MAIN_MEMORY_INDEX_POINTER)).toBe(1);
     }
     expect(
-      currentRunRecords.some((record) =>
-        captureContains(record.requestJson, SELECTOR_MARKER),
-      ),
+      currentRunRecords.some((record) => captureContains(record.requestJson, SELECTOR_MARKER)),
     ).toBe(false);
     expect(
       currentRunRecords.some((record) =>
@@ -299,9 +291,7 @@ describe("Desktop Memory continuous 链路 WDIO", () => {
       expect(captureContains(request.requestJson, EXTRACTION_MARKER)).toBe(false);
     }
     expect(
-      currentRunRecords
-        .filter((record) => !record.replay?.fixtureId)
-        .map((record) => record.id),
+      currentRunRecords.filter((record) => !record.replay?.fixtureId).map((record) => record.id),
     ).toEqual([]);
 
     const finalPane = await getV4PaneSnapshot();
@@ -333,9 +323,7 @@ async function openMemorySettings(): Promise<void> {
   });
 }
 
-async function verifyMemorySettingsViewer(
-  expectedSessionId: string,
-): Promise<void> {
+async function verifyMemorySettingsViewer(expectedSessionId: string): Promise<void> {
   // Bug 根因：首个 disabled turn 回到 idle 后，标题生成仍可能在后台排队；若此时
   // 记录 provider 数量，异步 title request 会被错误归因到 Settings 页面。先等该
   // case 自己的 title fixture 完成，再保留“打开 Settings 不发请求”的原断言。
@@ -343,19 +331,11 @@ async function verifyMemorySettingsViewer(
   const requestCountBefore = (await readProviderCapture()).records.length;
   await openMemorySettings();
 
-  await waitForMemoryFile(
-    "MEMORY.md",
-    "默认 Workspace Scope 没有显示 MEMORY.md",
+  await waitForMemoryFile("MEMORY.md", "默认 Workspace Scope 没有显示 MEMORY.md");
+  await waitForMemoryFile("database-test-policy.md", "默认 Workspace Scope 没有显示事实文件");
+  expect(await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, "incident-review-policy.md"))).toBe(
+    false,
   );
-  await waitForMemoryFile(
-    "database-test-policy.md",
-    "默认 Workspace Scope 没有显示事实文件",
-  );
-  expect(
-    await hasTestId(
-      testId(TID_SETTINGS_MEMORY_FILE, "incident-review-policy.md"),
-    ),
-  ).toBe(false);
 
   const initialScope = await readMemoryScopePresentation();
   expect(initialScope.hasFolderIcon).toBe(true);
@@ -372,19 +352,9 @@ async function verifyMemorySettingsViewer(
   await openMemoryScopeMenu();
   expect(await countOpenMemoryScopeOptions()).toBe(2);
   await clickMemoryWorkspaceOption(SECOND_PROJECT_MEMORY_WORKSPACE_ID);
-  await waitForMemoryFile(
-    "MEMORY.md",
-    "第二个 Workspace Scope 没有显示 MEMORY.md",
-  );
-  await waitForMemoryFile(
-    "incident-review-policy.md",
-    "第二个 Workspace Scope 没有显示事实文件",
-  );
-  expect(
-    await hasTestId(
-      testId(TID_SETTINGS_MEMORY_FILE, "database-test-policy.md"),
-    ),
-  ).toBe(false);
+  await waitForMemoryFile("MEMORY.md", "第二个 Workspace Scope 没有显示 MEMORY.md");
+  await waitForMemoryFile("incident-review-policy.md", "第二个 Workspace Scope 没有显示事实文件");
+  expect(await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, "database-test-policy.md"))).toBe(false);
   const secondScope = await readMemoryScopePresentation();
   expect(secondScope.hasFolderIcon).toBe(true);
   expect(secondScope.label).toContain(SECOND_PROJECT_MEMORY_WORKSPACE_LABEL);
@@ -395,44 +365,27 @@ async function verifyMemorySettingsViewer(
     "incident-review-policy.md",
     "Memory 文件名搜索没有忽略大小写命中当前 Scope",
   );
-  await waitForMemoryFileHidden(
-    "MEMORY.md",
-    "Memory 文件名搜索没有过滤不匹配文件",
-  );
+  await waitForMemoryFileHidden("MEMORY.md", "Memory 文件名搜索没有过滤不匹配文件");
   await clearMemorySearch();
-  await waitForMemoryFile(
-    "MEMORY.md",
-    "清空 Memory 搜索后没有恢复完整文件列表",
-  );
+  await waitForMemoryFile("MEMORY.md", "清空 Memory 搜索后没有恢复完整文件列表");
 
   await writeFile(
     REFRESHED_FILE,
     `---\nname: manual-refresh\ndescription: Added while Settings is open.\nmetadata:\n  type: reference\n---\n\n${REFRESHED_MEMORY_FACT_MARKER}\n`,
     "utf8",
   );
-  expect(
-    await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, "manual-refresh.md")),
-  ).toBe(false);
+  expect(await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, "manual-refresh.md"))).toBe(false);
   await clickTestIdByDom(TID_SETTINGS_MEMORY_REFRESH, {
     timeout: 15_000,
     timeoutMsg: "Project Memory viewer 没有刷新按钮",
   });
-  await waitForMemoryFile(
-    "manual-refresh.md",
-    "手动刷新后没有出现新增事实文件",
-  );
-  expect(
-    await hasTestId(
-      testId(TID_SETTINGS_MEMORY_FILE, "database-test-policy.md"),
-    ),
-  ).toBe(false);
+  await waitForMemoryFile("manual-refresh.md", "手动刷新后没有出现新增事实文件");
+  expect(await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, "database-test-policy.md"))).toBe(false);
   const refreshedScope = await readMemoryScopePresentation();
   expect(refreshedScope.label).toContain(SECOND_PROJECT_MEMORY_WORKSPACE_LABEL);
   expect(refreshedScope.countText).toMatch(/3/u);
 
-  expect((await readProviderCapture()).records).toHaveLength(
-    requestCountBefore,
-  );
+  expect((await readProviderCapture()).records).toHaveLength(requestCountBefore);
   await closeSettings(expectedSessionId);
 }
 
@@ -441,9 +394,7 @@ async function openMemoryScopeMenu(): Promise<void> {
     async () => {
       if ((await countOpenMemoryScopeOptions()) > 0) return true;
       await browser.execute((triggerTestId) => {
-        const trigger = document.querySelector<HTMLElement>(
-          `[data-testid="${triggerTestId}"]`,
-        );
+        const trigger = document.querySelector<HTMLElement>(`[data-testid="${triggerTestId}"]`);
         if (
           !(trigger instanceof HTMLButtonElement) ||
           trigger.disabled ||
@@ -486,8 +437,7 @@ async function clickMemoryWorkspaceOption(workspaceId: string): Promise<void> {
 function countOpenMemoryScopeOptions(): Promise<number> {
   return browser.execute(
     (workspaceTestIdPrefix) =>
-      document.querySelectorAll(`[data-testid^="${workspaceTestIdPrefix}"]`)
-        .length,
+      document.querySelectorAll(`[data-testid^="${workspaceTestIdPrefix}"]`).length,
     TID_SETTINGS_MEMORY_WORKSPACE,
   );
 }
@@ -497,27 +447,28 @@ function readMemoryScopePresentation(): Promise<{
   label: string;
   countText: string;
 }> {
-  return browser.execute((scopeTriggerTestId) => {
-    const trigger = document.querySelector<HTMLElement>(
-      `[data-testid="${scopeTriggerTestId.trigger}"]`,
-    );
-    const count = document.querySelector<HTMLElement>(
-      `[data-testid="${scopeTriggerTestId.count}"]`,
-    );
-    return {
-      hasFolderIcon: Boolean(
-        trigger?.querySelector(
-          `[data-testid="${scopeTriggerTestId.icon}"]`,
+  return browser.execute(
+    (scopeTriggerTestId) => {
+      const trigger = document.querySelector<HTMLElement>(
+        `[data-testid="${scopeTriggerTestId.trigger}"]`,
+      );
+      const count = document.querySelector<HTMLElement>(
+        `[data-testid="${scopeTriggerTestId.count}"]`,
+      );
+      return {
+        hasFolderIcon: Boolean(
+          trigger?.querySelector(`[data-testid="${scopeTriggerTestId.icon}"]`),
         ),
-      ),
-      label: trigger?.textContent?.trim() ?? "",
-      countText: count?.textContent?.trim() ?? "",
-    };
-  }, {
-    count: TID_SETTINGS_MEMORY_COUNT,
-    icon: TID_SETTINGS_MEMORY_SCOPE_ICON,
-    trigger: TID_SETTINGS_MEMORY_SCOPE_TRIGGER,
-  });
+        label: trigger?.textContent?.trim() ?? "",
+        countText: count?.textContent?.trim() ?? "",
+      };
+    },
+    {
+      count: TID_SETTINGS_MEMORY_COUNT,
+      icon: TID_SETTINGS_MEMORY_SCOPE_ICON,
+      trigger: TID_SETTINGS_MEMORY_SCOPE_TRIGGER,
+    },
+  );
 }
 
 function readMemoryFilePresentation(fileName: string): Promise<{
@@ -530,9 +481,7 @@ function readMemoryFilePresentation(fileName: string): Promise<{
 }> {
   return browser.execute(
     (fileTestId) => {
-      const file = document.querySelector<HTMLElement>(
-        `[data-testid="${fileTestId.row}"]`,
-      );
+      const file = document.querySelector<HTMLElement>(`[data-testid="${fileTestId.row}"]`);
       const queryChild = (childTestId: string) =>
         document.querySelector<HTMLElement>(`[data-testid="${childTestId}"]`);
       return {
@@ -555,19 +504,20 @@ function readMemoryFilePresentation(fileName: string): Promise<{
 }
 
 async function setMemorySearch(value: string): Promise<void> {
-  const applied = await browser.execute(({ searchTestId, nextValue }) => {
-    const search = document.querySelector<HTMLInputElement>(
-      `[data-testid="${searchTestId}"]`,
-    );
-    if (!search) return false;
+  const applied = await browser.execute(
+    ({ searchTestId, nextValue }) => {
+      const search = document.querySelector<HTMLInputElement>(`[data-testid="${searchTestId}"]`);
+      if (!search) return false;
 
-    // 修复原因：WebDriver setValue 在 React 受控 search input 重渲染时偶发丢键；
-    // 使用原生 value setter 并派发 input 事件，仍由产品 onChange 驱动筛选状态。
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    setter?.call(search, nextValue);
-    search.dispatchEvent(new InputEvent("input", { bubbles: true, data: nextValue }));
-    return search.value === nextValue;
-  }, { nextValue: value, searchTestId: TID_SETTINGS_MEMORY_SEARCH_INPUT });
+      // 修复原因：WebDriver setValue 在 React 受控 search input 重渲染时偶发丢键；
+      // 使用原生 value setter 并派发 input 事件，仍由产品 onChange 驱动筛选状态。
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(search, nextValue);
+      search.dispatchEvent(new InputEvent("input", { bubbles: true, data: nextValue }));
+      return search.value === nextValue;
+    },
+    { nextValue: value, searchTestId: TID_SETTINGS_MEMORY_SEARCH_INPUT },
+  );
   expect(applied).toBe(true);
 }
 
@@ -578,23 +528,14 @@ async function clearMemorySearch(): Promise<void> {
   });
 }
 
-async function waitForMemoryFile(
-  fileName: string,
-  timeoutMsg: string,
-): Promise<void> {
-  await browser.waitUntil(
-    () => hasTestId(testId(TID_SETTINGS_MEMORY_FILE, fileName)),
-    {
-      timeout: 15_000,
-      timeoutMsg,
-    },
-  );
+async function waitForMemoryFile(fileName: string, timeoutMsg: string): Promise<void> {
+  await browser.waitUntil(() => hasTestId(testId(TID_SETTINGS_MEMORY_FILE, fileName)), {
+    timeout: 15_000,
+    timeoutMsg,
+  });
 }
 
-async function waitForMemoryFileHidden(
-  fileName: string,
-  timeoutMsg: string,
-): Promise<void> {
+async function waitForMemoryFileHidden(fileName: string, timeoutMsg: string): Promise<void> {
   await browser.waitUntil(
     async () => !(await hasTestId(testId(TID_SETTINGS_MEMORY_FILE, fileName))),
     {
@@ -878,29 +819,4 @@ function countCaptureOccurrences(value: unknown, marker: string): number {
     (total, item) => total + countCaptureOccurrences(item, marker),
     0,
   );
-}
-
-/** 真实网络上报验证开关维度；后台 Extraction 的结果不影响该值。 */
-async function expectMemoryTelemetry(
-  telemetryFetch: Awaited<ReturnType<typeof browser.electron.mock>>,
-  sessionId: string,
-  expected: "0" | "1",
-): Promise<void> {
-  let reports: Array<{ element_name: string; event_extra_detail: Record<string, unknown> }> = [];
-  const events = ["send_btn", "message_completion", "agent_step"];
-  await browser.waitUntil(
-    async () => {
-      await telemetryFetch.update();
-      reports = telemetryFetch.mock.calls.flatMap(([input, init]) => {
-        if (!String(input).includes("/api/v1/event/report")) return [];
-        const body = (init as { body?: string } | undefined)?.body;
-        if (!body) return [];
-        const report = JSON.parse(body);
-        return report.talk_id === sessionId && events.includes(report.element_name) ? [report] : [];
-      });
-      return events.every((name) => reports.some((report) => report.element_name === name));
-    },
-    { timeout: 15_000, timeoutMsg: "Memory 三类埋点未完整上报" },
-  );
-  for (const report of reports) expect(report.event_extra_detail.memory_enabled).toBe(expected);
 }

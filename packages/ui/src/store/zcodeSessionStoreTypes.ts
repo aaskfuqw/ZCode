@@ -23,7 +23,6 @@ import {
   type ZCodeSessionActiveTurnKind,
   type ZCodeContextUsageBreakdownItem,
   type InputId,
-  type SessionCreateSource,
 } from "@zcode/shared";
 import type { ZCodeUiError } from "@/lib/zcodeUiError.js";
 import type {
@@ -189,8 +188,6 @@ export interface WorkspaceZCodeUIState {
   optimisticTaskListByTaskId: Record<string, ZCodeTaskMeta>;
   /** grouped mode 下点击 New task 后的 UI-only 草稿锚点，不进入真实 task index。 */
   groupedDraftTask: GroupedDraftTaskState | null;
-  /** 用户发起当前草稿的入口；预热不改变来源。 */
-  draftCreateSource: SessionCreateSource;
   /** 首发创建后、grouped sqlite order 落地前，真实 task 继承草稿锚点的本地定位。 */
   promotedGroupedDraftTaskByTaskId: Record<string, GroupedDraftTaskState>;
   /** 当前 workspace 选中的 ZCode Agent provider */
@@ -266,7 +263,6 @@ export interface ZCodeSessionStoreState {
     workspaceIdentity?: string,
     options?: {
       groupedDraftPlacement?: GroupedDraftTaskPlacement;
-      createSource?: SessionCreateSource;
     },
   ) => void;
   clearGroupedDraftTask: (workspacePath: string, workspaceIdentity?: string) => void;
@@ -534,7 +530,6 @@ export function createDefaultWorkspaceState(
     taskUnreadByTaskId: {},
     optimisticTaskListByTaskId: {},
     groupedDraftTask: null,
-    draftCreateSource: "session",
     promotedGroupedDraftTaskByTaskId: {},
     selectedProvider,
     selectedSupplierKey: buildNativeSupplierKey(selectedProvider),

@@ -1,4 +1,3 @@
-import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
 /**
  * ChatErrorBanner — 错误提示组件
  *
@@ -245,7 +244,7 @@ export function ChatErrorBanner({
 
         {modelConfigMissing ? (
           <>
-            <CodingPlanEntryButton
+            <Button
               type="button"
               variant="default"
               size="sm"
@@ -260,7 +259,7 @@ export function ChatErrorBanner({
             >
               <RocketIcon className="size-3.5" />
               {intl.formatMessage({ id: "chat.quota.action.upgrade" })}
-            </CodingPlanEntryButton>
+            </Button>
             <Button
               type="button"
               variant="outline"

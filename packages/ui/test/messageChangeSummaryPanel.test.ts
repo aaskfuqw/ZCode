@@ -79,7 +79,6 @@ const mockPlatform = {
   onOAuthCallback: () => () => {},
   notifyRendererReady: () => {},
   showTaskNotification: () => {},
-  reportTelemetryEvent: async () => {},
   syncWindowTabs: () => {},
   syncWindowUnreadCount: () => {},
   onFocusTab: () => () => {},

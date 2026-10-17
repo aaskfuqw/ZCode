@@ -1334,7 +1334,7 @@ Background runtime task 是 agent runtime 内部的异步系统事件，不是�
 | BG43 | 本地桌面 `desktop-continuous`，queue `autoDrain=true` 且队首为普通 text；独立 model-only notification 正占用 Core foreground execution，但 Bootstrap session record 没有 `activeAbortController`                                                                                                                                                                                      | notification in-flight 期间，任一 ready/state-mutation 边界触发 queue auto-drain 重评                                                                                                                        | backgroundNotificationAutoDrainNonPreemptive                               | auto-drain 是“空闲后自动消费”而不是用户显式抢占：必须使用 Core foreground authority 判 busy；notification 活跃时不得调用 `sendQueuedNow`、不得 stop 当前 foreground、不得 reserve/promote/remove 队首。notification 与 runtime command drain 真正 idle 后再按 FIFO 消费一次                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | accepted |
 | BG44 | 本地桌面 `desktop-continuous`，notification A 正占用 Core foreground；text queue item 已被用户 `sendQueuedNow` reserve；notification B 已进入同 session runtime command queue，等待 A 结束                                                                                                                                                                                            | `sendQueuedNow` stop A，并在“观测 idle”之后、promoted prompt 取得 Core foreground authority 之前，runtime command drain 尝试启动 B                                                                           | queuePromotionForegroundLease + runtimeCommandOrdering                     | `reserve -> stop -> promoted prompt admission` 必须形成同一调度所有权边界；A 释放后 promoted prompt 先取得 foreground authority，B 仍留在 runtime command queue，不能插入空窗导致 prompt 被拒、排到 B 后或等待 5s 超时。promoted prompt 提交 `TurnStarted` 后，B 才按既有 runtime command FIFO 在后续合法边界执行                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | accepted |
 
-| BG45 | 本地桌面 `desktop-continuous`，同一 main turn 同时启动一个 foreground Agent 和一个 background Agent；background child 先完成并进入 notification 队列，foreground child 被文件 barrier 保持运行 | background child provider response 完成后释放 foreground child，main active-loop 在同一 continuation request 消费 foreground tool result 与 background notification | backgroundAgentCompositionMixedTelemetry | `message_completion.agent_composition` 必须为 `main_plus_fg_bg`；provider-visible latest user message 同时包含 foreground tool result 与 background `<task-notification>`；只产生一条 main completion，不产生 background child 独立 completion；既有 foreground/background case 行为不变 | accepted |
+| BG45 | Same main turn starts foreground and background Agents | Consume both results in one continuation | mixedAgentResultComposition | The provider-visible continuation includes both the foreground result and background notification; main completion remains singular | accepted |
 
 BG25/BG36 来源提示补充（2026-09-12）：新轮 task notification 在 MCS/非 MCS 下均保持 user，完整前缀与整批正文只包一对 `<system-reminder>`；peer 新轮继续使用裸 user。批处理轮数与隐藏合成 user 气泡的合同不变。
 BG36 用量补充：两种能力下，CLI 实际统计的 Messages 字符数增量必须包含两次通知请求的完整正文且各计一次；静态上下文分类不随通知重复增长，V4 面板 Messages 占比与该分类结果一致；provider 实际 usage 仍使用原有结果。
@@ -1942,7 +1942,7 @@ Composer、历史与编辑态的媒体卡片、起始位置、循环导航、失
 | V03 | 桌面本地工作区，用户在已有会话内调用 CronCreate，工具生成的 cron 无法由 UI 调度控件可靠回显                             | 工具创建 automation，整轮完成后在回复末尾渲染成功卡片；用户点击跳转，在详情中删除“自定义”调度并用 UI 重新设置 | conversationCronCreateCardNavigatesToAutomation   | 发给 provider 的 CronCreate 工具 contract 要求 `prompt` 直接描述最终工作，并禁止再次创建、配置 automation 或调用 CronCreate；CronCreate 使用当前 session 的 model/mode/thought 并绑定 targetTaskId。工具行仍按普通工具调用展示，成功卡片等待本轮结束后跟随最终 assistant 回复展示任务标题；点击后携带 `automationId` 直接打开同一任务详情。原会话 cron 以无图标、无下次运行时间的“自定义”只读行回显；删除后进入标准 UI 添加调度流程，重新选择并保存的新 cron / scheduleRule 替换旧会话调度                                                          | accepted |
 | V04 | 桌面本地工作区，automation 派发创建或恢复带 `automationId` 的执行 task；目标 session 可为 idle 或 active/routing busy   | 执行会话内模型尝试调用 CronCreate/CronUpdate/CronDelete 管理 automation                                       | automationRunBlocksMutationTools                  | 新建/冷恢复执行 task 通过 `toolDenylist: ["CronCreate", "CronUpdate", "CronDelete"]` 隐藏写工具；active 绑定会话与 busy deferred queue 必须在 queue item、replay/reorder 和 drain 全程保留相同 `toolDisallowlist`，最终 provider tools 只保留 CronList；即使可见性过滤被绕过，三个 mutation handler 也按本轮 automation 事实拒绝且不调用 `AutomationPort`；普通会话内管理 automation 不受影响，UI 立即执行仍可派发                                                                                                                                  | accepted |
 | V05 | 桌面本地工作区，普通会话可通过 CronList 找到当前 workspace 的既有 automation；任务可能已绑定历史 session 并已有运行记录 | 用户要求修改标题、cron、prompt、recurring 或 maxRuns，模型调用 CronUpdate                                     | conversationCronUpdatePreservesAutomationIdentity | CronUpdate 只接受 `id` 与至少一个定义字段，按 patch 语义更新当前 workspace 的同一条记录；`maxRuns: null` 可清除上限，省略字段保持不变。成功后 automationId、targetTaskId、workspace、模型配置、runCount 与运行历史不变，不调用 automation/delete 或 automation/create；本轮完成后展示更新后标题/调度的同款任务卡片并按原 automationId 进入详情，最终答复只做简短确认且不生成 `text` fenced code block；失败或运行中不展示卡片；空 patch、跨 workspace / 不存在 ID 明确失败。automation 执行轮隐藏 CronCreate/CronUpdate/CronDelete，只保留 CronList | accepted |
-| V06 | 桌面本地工作区，UI 手动创建且未绑定已有会话的 automation；该任务尚无历史执行 session                                    | 用户点击立即运行，当前 host 新建执行会话并完成回复                                                            | newAutomationManualRunReportsSessionTelemetry     | 新建会话的建会话 trace 不得替代执行 `runId`；首条 prompt 的 `traceId=inputId=sourceCommandId=message_id=runId`，`turn.started` 建立 `scheduled_task + manual + automation_id` seed；同一 `talk_id + message_id` 至少上报一条 `agent_step` 和恰好一条 `message_completion`，且不伪造 `send_btn`                                                                                                                                                                                                                                                      | accepted |
+| V06 | UI-created automation without an existing execution session                                                             | Run now                                                                                                       | newAutomationManualRun                            | The Host creates an execution session, preserves runId input correlation, and completes the scheduled prompt                                                                                                                                                                                                                                                                                                                                                                                                                                        | accepted |
 | V07 | 桌面本地工作区，UI 手动创建带有效日程且 `runCount=0` 的 automation                                                      | 用户点击立即运行并等待执行会话完成，随后返回定时任务列表查看原 Card                                           | manualRunUpdatesCardWithoutConsumingSchedule      | manual run 首次派发成功后原 Card 展示“已运行 1 次”且不展示 maxRuns 分母；任务仍保持 active，并继续展示原计划的“下次运行”，不得因为累计展示次数增长而推进或耗尽定时调度生命周期。真实时钟 scheduler tick 不在本 Electron case 中等待，有限次数耗尽边界由 services 调度状态机集成测试覆盖                                                                                                                                                                                                                                                             | accepted |
 
 本轮定时任务 E2E 完善以桌面本地 `desktop-continuous` 为代表：手机
@@ -1953,7 +1953,7 @@ deferred queue 继续由 focused adapter/core case 代表；Electron 只取新�
 异步故障，保留 focused component/integration test，不扩成高成本 Electron E2E。
 V06 只取“新建、未绑定会话、manual Run now”这一条曾失败的身份链路；历史任务/绑定会话路径已经能产生
 session 埋点，不与 schedule tick、provider、模型、执行结果、远端和手机恢复做排列组合，卡片展示也不在
-该 telemetry case 中重复验证。
+该场景中重复验证。
 
 ## W. Markdown 表格布局
 
@@ -2534,47 +2534,6 @@ theme/locale 由共享组件与 i18n 单测覆盖；local/SSH/WSL/Docker 复用 
 远程 workspace 隔离证据；mobile 只验证 replayable 恢复和点击，不复制 Desktop hover。Hook 配置、
 Trust、matcher、process/command 与执行效果继续由 HL/HT 覆盖。
 
-## TEL. Conversation Telemetry / 对话埋点
-
-`message_completion` 与逐条 `agent_step` 必须以同一个 `talk_id + message_id` 表达一轮用户输入。计数只覆盖当前 message，不能把同一 session 的历史 assistant 消息累计进当前 completion，否则数仓会把历史 step 误判为当前 message 丢失。
-
-本组只接受桌面 `desktop-continuous` 实际网络上报；手机 `web-remote-replayable` 只验证不会越界上报。
-terminal × queue × clientMode × tool family 不做全笛卡尔积，按下表 pairwise 代表。不同主题、语言、
-provider/model 不复制状态机 E2E；字段差异由 golden tests 覆盖。
-
-| ID    | 前置状态                                                                          | 用户/系统事件                                                                                                                  | 规则命中                                                                                          | 期望结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Review   |
-| ----- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| TEL01 | 同一 session 连续两轮纯文本，每轮一个 generation step                             | 用户完成第二轮                                                                                                                 | agentTraceMessageScopedCounting                                                                   | 两轮 talkId 相同、messageId 不同；每轮 completion/step 恰一次，第二轮 `agent_step_cnt="1"`                                                                                                                                                                                                                                                                                                                                                                                                        | accepted |
-| TEL02 | A 正在 controlled stream，B 可切换                                                | 切到 B 并等待超过 pane keep-warm，A 后台 terminal，再重开 A                                                                    | backgroundTelemetryOutlivesPane                                                                   | A 的 completion/step 各一次；重开 initial snapshot 不增加事件                                                                                                                                                                                                                                                                                                                                                                                                                                     | accepted |
-| TEL03 | 第一轮 direct，第二轮 queued                                                      | 第二轮 promotion 后执行                                                                                                        | queuedSourceCommandOwnership                                                                      | send/step/completion 始终使用同一 sourceCommandId；promotion 不重发 send，promotion 前不发 completion                                                                                                                                                                                                                                                                                                                                                                                             | accepted |
-| TEL04 | foreground session 可执行 compact                                                 | success/failed/interrupted terminal，覆盖 custom model 与仅 compactReason                                                      | compactionTerminalParity                                                                          | terminal 可见时按旧 payload 各一次；custom model 使用旧 UI 编码且 compactReason 不回填 reason；切到后台后不报；duplicate eventId 不重报                                                                                                                                                                                                                                                                                                                                                           | accepted |
-| TEL05 | session foreground 且存在 thought/text/tool/parented child 流                     | fake/recorded cadence 覆盖 tool-first、no-token、3000/3001ms 和 split pane                                                     | uiPerfForegroundOnly                                                                              | 主工具可成为首 token；无 token 保留旧 UI value=0；parented text 不算主 generation 但保留旧 TTFT/stall，parented thought 保留旧 reasoning/TTFT/stall；complete、breakdown、tool detail 遵循旧边界且文件变更指标固定 0；同 session 多 pane一次                                                                                                                                                                                                                                                      | accepted |
-| TEL06 | 可见错误 banner，包含普通错误、Session 订阅失败和结构化归因                       | 输入框错误显示、正式 Session 订阅失败页显示、抑制；本地预检 live、旧 provider cold hydration、历史 session-stop cold hydration | visibleErrorBannerExposure + subscriptionErrorUsesChatErrorBanner + visibleErrorAttributionParity | 输入框与订阅失败都复用 `chat_error_banner`，分别以 `surface=chat_input_error_banner/session_subscription_error` 区分；前台可见曝光一次，后台/抑制零次；本地 capability/option 预检上报 `runtime/invalid_request`；unknown 仍保留 reason，但必须贯穿低基数 `errorPhase/exceptionKind`；旧 provider error 只按 allowlist 证据兼容归因；历史 session-stop 恢复为 cancelled 且零错误曝光；订阅 fault 保留结构化 `error_code`；使用确切 provider；官方版本安全校验（3007）的恢复断言随官方版本规格维护 | accepted |
-| TEL07 | assistant row 可反馈                                                              | like/dislike/toggle none、command failure、重开                                                                                | feedbackPersistenceParity                                                                         | 使用 sessionId/entityId 和 reaction；乐观失败回滚；成功重开仍保留 feedback                                                                                                                                                                                                                                                                                                                                                                                                                        | accepted |
-| TEL08 | Start Plan quota banner 可见                                                      | dismiss、提交、entitlement refresh、Upgrade                                                                                    | sessionQuotaEntryContinuity                                                                       | 阻断和刷新符合旧逻辑；已有 Upgrade 面板真实打开并收到 `upgradeSource=session_quota_alert`；不重复验证购买模块内部 product/cycle/pay/result                                                                                                                                                                                                                                                                                                                                                        | accepted |
-| TEL09 | live ingest 与 hydration/recovery 并存；两个远程 identity path 相同               | duplicate、detach、service generation 替换                                                                                     | telemetryDeliveryAndIsolation                                                                     | live 一次；initial/hydration/recovery 零次；workspaceIdentity/remoteSessionId 完全隔离                                                                                                                                                                                                                                                                                                                                                                                                            | accepted |
-| TEL10 | Desktop 本地空草稿已创建预热 session；同一 pane 后续可离开并重新打开创建出的 Task | 草稿首发提升为正式 session；随后切到新草稿，再从任务列表显式打开该 session                                                     | sessionOpenExistingOnly                                                                           | 草稿预热、fallback `createSession` 与 pending create 恢复的首次绑定均不发送 `perf_ui_session_open_start/result`；离开后再次显式打开同一已有 session 时只发送一组配对事件，且不得继承草稿预热期的 `startedAt`、空 snapshot timing 或 `snapshot_row_count=0` 长尾                                                                                                                                                                                                                                   | accepted |
-
-明确忽略并保持旧口径：Web/手机网络上报、background UI ARMS、background compaction、历史补报、
-accepted/queued 推断 `plan_request`、stop-without-terminal 合成 completion、
-固定零值修正和 paint/resource attribution 扩展。
-
-`TEL01-TEL09` 的原子化运行时差分与回归 case 使用 `TDP01-TDP19` 稳定编号。
-2026-07-18 已完成 `20260718-tdp-all-final`：TDP01-TDP19 每条都由旧版/current 两个真实 Electron
-实例构造同一受控状态，比较最终 `/event/report` HTTP body 与 main ARMS payload；19 份独立 diff 均为
-0。预期零上报的 TDP16/TDP17/TDP19 另外执行 quota/安全校验/Web production 状态正断言，避免空对空假
-通过。真实 provider/replay 的 TDP02 与 TDP-CORE 代表样本也保持 diff=0。差分 spec 继续保留在
-manual-review pending；这里记录已执行的双版本认证，不提前宣称 formal promotion。购买模块内部事件不在
-TEL 范围，TEL08 只验证 conversation quota 与既有 Upgrade 入口交接。
-
-2026-08-19 归因修复剪枝已确认：只保留桌面 live 本地预检、桌面 cold legacy provider、桌面 cold
-session-stop 和手机 replayable snapshot parity/零 ARMS 四个代表；不再与主题、语言、provider/model、
-terminal 或 queue 状态做笛卡尔积。自定义 provider code 冲突、EACCES 文件系统负例和隐私白名单由
-focused golden tests 覆盖。
-
-`errorPhase/exceptionKind` 继续复用上述四个代表，不增加主题、语言或 provider 笛卡尔积；focused tests
-覆盖 stream prepare/stream、generate prepare/response、connect 和非法 exception name 降级。
-
 ## CWP. Conversation Workspace Purpose / 非项目对话工作区
 
 本组只改变 app-owned workspace 分类、启动 fallback、侧栏组织和草稿 target，不改变 ZCode Protocol 的 session/stream/queue 命令。conversation backing workspace 是本地真实 cwd，但不是项目；桌面仍是 `desktop-continuous`，手机 `/remote` 仍通过 shared-host attachment 使用 `web-remote-replayable`。
@@ -3128,7 +3087,7 @@ grep；`rg` 只选一个代表命令证明两种开关状态一致。
 | OP09 | 各非终态                                                                                                                                                                                                                                                                                           | 取消 / Delete                                                                                                                                     | cancelAbortsAndSettles                          | 取消 abort 等待定时器与在途请求 → cancelled（文件保留）；终态卡可 Delete 不自动清理；核销幂等补报                                                                                                                                                                                                                                                                                                              | accepted |
 | OP10 | idle plan turn 已通过隐藏 Built-in Provider、标准 Selection 与 `modelExecution.requestAuth` 创建 Active Model；内建 Explore/general-purpose 均配置 alternate model；自定义 Code Search 显式配置 alternate provider/model，另一自定义 profile 不配置 model；另有参数型与 profile 型 background 入口 | 父模型同轮派发四个 foreground Agent，并分别尝试 `run_in_background=true` 与 `profile.background=true`；闲时轮完成后在同一 session 发送普通 prompt | executionScopedModelOverridesForegroundProfiles | 四个 foreground child 的真实请求必须统一使用本轮 `offpeak-idle-plan` endpoint/model/临时 headers，不得使用 profile override、自定义 provider 或用户 Session Selection；两种 background 在发 child 请求前统一 fail-closed；闲时轮结束后普通 prompt 回到用户 provider。child runtime 不注册 Agent，因此 nested subagent 不属于合法排列；desktop/web 复用 shared-host 上同一 CLI runtime，不与 delivery kind 展开 | accepted |
 
-自动化剪枝（用户 2026-07-15 确认 5 条核心，2026-08-03 增补 OP10）：OP02（含 OP01 断言）、OP03、OP04、OP05、OP06、OP10 → E2E 自动化；OP07（resume 机制由 OP05 证明 + 3001 分类单测）、OP08（组件级/单测）、OP09（abort/核销单测；取消主路径并入 OP02/OP04 断言）不做独立 E2E。OP10 只展开内建/自定义与 foreground/background 两个会改变模型权威或凭据生命周期的维度；nested child 因 child runtime 不注册 Agent 而剪枝，provider family、workspace kind、delivery kind、主题、语言、协作模式、失败/取消清理不做笛卡尔积，后者继续由 core/bootstrap focused tests 覆盖。Telemetry V1 不新增 WDIO spec：OP01/OP02/OP05/OP06 复用上述交互主路径，创建字段/失败枚举/隐私、实际模型、usage 与 terminal 去重、1:N talk 归因由 focused protocol/service/supervisor tests 覆盖。3102 resume 与 app restart 共用 OP05 归因分支，不复制 Electron permutation。多设备同账号、settle 补报时序、3006 白名单兜底、not_found 边缘一律单测层证明。
+自动化剪枝（用户 2026-07-15 确认 5 条核心，2026-08-03 增补 OP10）：OP02（含 OP01 断言）、OP03、OP04、OP05、OP06、OP10 → E2E 自动化；OP07（resume 机制由 OP05 证明 + 3001 分类单测）、OP08（组件级/单测）、OP09（abort/核销单测；取消主路径并入 OP02/OP04 断言）不做独立 E2E。OP10 只展开内建/自定义与 foreground/background 两个会改变模型权威或凭据生命周期的维度；nested child 因 child runtime 不注册 Agent 而剪枝，provider family、workspace kind、delivery kind、主题、语言、协作模式、失败/取消清理不做笛卡尔积，后者继续由 core/bootstrap focused tests 覆盖。3102 resume 与 app restart 共用 OP05 归因分支，不复制 Electron permutation。多设备同账号、settle 补报时序、3006 白名单兜底、not_found 边缘一律单测层证明。
 
 ## CDD. Configurable Data Directory / 可配置数据存储路径
 
@@ -3200,17 +3159,17 @@ send click -> prepareTurn -> (card <= 1s => accelerated) / (timeout => normal se
 accelerated commandId -> userInput + assistant/output rows share one Highspeed marker
 ```
 
-| ID   | 前置状态                           | 事件                                             | 期望结果                                                                                              | Review   |
-| ---- | ---------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | -------- |
-| HS01 | 无卡、允许抽卡                     | draw 1 秒内命中当前 Task                         | 本 Turn 注入固定 runtimeModel；模型锁定；input/output 显示 Highspeed                                  | accepted |
-| HS02 | 无卡、允许抽卡                     | draw 超过 1 秒后命中                             | 当前 Turn 普通发送；迟到卡仅用于下一次当前 Task 发送                                                  | accepted |
-| HS03 | `now < next_draw_at`               | 连续发送                                         | 不重复 draw；普通发送                                                                                 | accepted |
-| HS04 | 有效卡绑定 Task A                  | Task B 发送                                      | 普通发送且无提示；不得消费 Task A 卡                                                                  | accepted |
-| HS05 | 当前 Task 卡过期                   | 计时到期后切模型/发送                            | 模型解锁；后续按冷却规则重新抽卡                                                                      | accepted |
-| HS06 | accelerated Turn 完成              | telemetry 回流 output token/duration             | 只累计 output token；duration 合计后向上取整秒                                                        | accepted |
-| HS07 | 分享卡已展示                       | 点击历史 Turn 分享                               | 再次调用 share；左下卡不切换                                                                          | accepted |
-| HS08 | 用户关闭分享卡                     | 24 小时内其他 Task 加速完成                      | 后台可更新分享，但 UI 不展示；24 小时后下一次完成才展示                                               | accepted |
-| HS09 | 当前 Task 持有 draw 命中后的有效卡 | 切到其他 Task 再切回、快照恢复或 composer 重挂载 | 输入框直接呈现 Highspeed 稳定态；扩散、模型翻页、扫光、倒计时入场与描边渐变只在 draw 新命中时播放一次 | accepted |
+| ID   | 前置状态                           | 事件                                               | 期望结果                                                                                              | Review   |
+| ---- | ---------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------- |
+| HS01 | 无卡、允许抽卡                     | draw 1 秒内命中当前 Task                           | 本 Turn 注入固定 runtimeModel；模型锁定；input/output 显示 Highspeed                                  | accepted |
+| HS02 | 无卡、允许抽卡                     | draw 超过 1 秒后命中                               | 当前 Turn 普通发送；迟到卡仅用于下一次当前 Task 发送                                                  | accepted |
+| HS03 | `now < next_draw_at`               | 连续发送                                           | 不重复 draw；普通发送                                                                                 | accepted |
+| HS04 | 有效卡绑定 Task A                  | Task B 发送                                        | 普通发送且无提示；不得消费 Task A 卡                                                                  | accepted |
+| HS05 | 当前 Task 卡过期                   | 计时到期后切模型/发送                              | 模型解锁；后续按冷却规则重新抽卡                                                                      | accepted |
+| HS06 | accelerated Turn 完成              | authoritative usage supplies output token/duration | 只累计 output token；duration 合计后向上取整秒                                                        | accepted |
+| HS07 | 分享卡已展示                       | 点击历史 Turn 分享                                 | 再次调用 share；左下卡不切换                                                                          | accepted |
+| HS08 | 用户关闭分享卡                     | 24 小时内其他 Task 加速完成                        | 后台可更新分享，但 UI 不展示；24 小时后下一次完成才展示                                               | accepted |
+| HS09 | 当前 Task 持有 draw 命中后的有效卡 | 切到其他 Task 再切回、快照恢复或 composer 重挂载   | 输入框直接呈现 Highspeed 稳定态；扩散、模型翻页、扫光、倒计时入场与描边渐变只在 draw 新命中时播放一次 | accepted |
 
 | HS-E2E-01 | Coding Plan 用户、无有效卡 | draw 在 1 秒内命中并发送一轮 | 输入框进入加速态，完成消息展示 Highspeed 标识且正常收口 | accepted |
 
@@ -3397,7 +3356,6 @@ GLOBALDB-01～26 是全局启动方案的场景入口；GUI 场景仍未通过�
 | 场景            | 覆盖目标                                                          | 状态    |
 | --------------- | ----------------------------------------------------------------- | ------- |
 | GLOBALDB-01～18 | 新旧库、Host/会话准备顺序、事务恢复、路径、后台准入和跨端生命周期 | planned |
-| GLOBALDB-19～22 | ARMS 耗时/错误同源、空间下降峰值、降级、进程退出与未知终态        | planned |
 | GLOBALDB-23～26 | FULL/ENOSPC/EDQUOT、一般 IO 不误报、清理保留首因、临时盘与重试    | planned |
 
 这些场景的 setup/action/assertions 尚待细化；E2E 使用隔离目录、真实进程和阶段屏障，进入 manual-review/pending 后取得证据再更新状态。
@@ -3470,31 +3428,6 @@ SendMessage 工具的 summary schema 是必填且至少一字符；无 summary �
 ## 通用 / 编程界面模式 M1
 
 范围与 MODE-01～07 用例见 [模式验证矩阵](testing/general-coding-mode-verification.md)。新增桌面用例位于 `packages/desktop/test/e2e/ui-shell/general-coding-mode.test.ts`，覆盖设置偏好、入口隐藏和已有面板保留；已人工验收并转为 ui-shell 正式用例，尚未加入 Docker preset。对话展示由组件单测补充，验证状态以该矩阵为准。
-
-## TTFT01 — 本地发送阶段遥测
-
-已确认的验收场景：真实 Composer 正文、思考、工具先到，空 start、晚到正文、输出早于 ACK、受控阶段延迟；最终 OTLP Trace/Metric 为断言出口。状态 accepted，自动化候选 `conversation-session/manual-review/pending/conversation-session-ttft-stages.test.ts`；平台 ARMS 验收独立待验证。
-
-## TTFT02 — 复杂发送遥测
-
-依据 Ticket 02 的已确认验收：排队及转正保留原输入；确认等待沿首次点击；引导隔离；retry attempt 同发送；失败/取消无成功耗时；准备子阶段；后台返回。全部以最终 OTLP 为出口，桌面本地 continuous，pending E2E 不自动晋升。远程/手机不采本地 TTFT，保留现有业务语义。
-
-## TEL11：Session 创建事件
-
-message_id 必填并与首轮 completion 的输入 commandId 对齐；覆盖普通/预热/Goal、
-空创建后首发、确认恢复重发与自动化，新建 event_id 不随 message_id 变化。
-
-补充 accepted 口径：自动化只统计实际新建并首发接纳，闲时 bound/resume、定时
-targetTaskId 追加原会话不计数。event_id 同用户/session 稳定；覆盖自动化派发函数、
-最终 TelemetryCore HTTP 重试与定时任务创建 E2E，详见同一 spec。
-
-依据 `docs/monitoring/session-create-telemetry.md`，新增 session_create 首发口径。
-单测覆盖 Group / Project / Session 来源与 desktop/mobile、local/remote 维度。
-Pending E2E `conversation-session-create-telemetry.test.ts` 验证真实预热零事件、首发一次、
-续发与历史重开不重复；2026-09-15 macOS Electron 回放 1/1 通过（含三种来源），
-173 条相关单测通过；手机/远端实机未验收，尚未人工 review 或晋升 formal。
-
-Memory MEM08 埋点补充（2026-09-17）：现有 Desktop Memory 用例同时断言默认关闭会话和新建开启会话的 `send_btn`、`message_completion`、`agent_step` 均携带同值 `memory_enabled`；开关中途变更、旧协议兼容及子 Agent 归属由 telemetry/gateway 单测补充。新增断言验证结果以本次执行记录为准。
 
 ## Todo156 Start 后续修复
 

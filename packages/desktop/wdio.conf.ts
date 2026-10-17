@@ -322,7 +322,6 @@ const GROUPED_ARCHIVE_RESURRECTION_SPEC =
 const GROUPED_HEADER_PIN_VISIBILITY_SPEC =
   "conversation-session-grouped-header-pin-visibility.test.ts";
 const GIT_REVIEW_ENTRY_SPEC = "conversation-session-git-review-entry.test.ts";
-const WINDOWS_AGENT_METRIC_PROBE_ABSENCE_SPEC = "windows-agent-metric-probe-absence.test.ts";
 const HOOKS_LIFECYCLE_SPEC = "conversation-session-hooks-lifecycle.test.ts";
 const HOOK_TRUST_SPEC = "conversation-session-hook-trust.test.ts";
 const E2E_PROVIDER_ID = "e2e-upstream";
@@ -3378,10 +3377,7 @@ function isSubagentCodingPlanLoginCatalogStaleSpec(specs: string[] = []) {
 }
 
 function usesProviderReadinessColdStartFixture(specs: string[] = []) {
-  return (
-    workerSpecsContain(specs, PROVIDER_READINESS_AGENT_STARTUP_SPEC) ||
-    workerSpecsContain(specs, WINDOWS_AGENT_METRIC_PROBE_ABSENCE_SPEC)
-  );
+  return workerSpecsContain(specs, PROVIDER_READINESS_AGENT_STARTUP_SPEC);
 }
 
 function usesContextWindowColdResumeFixture(specs: string[] = []) {
@@ -4472,16 +4468,6 @@ export const config: WebdriverIO.Config = {
     ZCODE_E2E_RUN_ID: E2E_RUN_ID,
     ZCODE_ENV: "test",
     ...requestSecurityEndpointEnv(e2eProviderPresetName, upstreamE2EHttpMode),
-    ...(process.env.ZCODE_TELEMETRY_PARITY_CAPTURE_PATH?.trim()
-      ? {
-          ZCODE_TELEMETRY_PARITY_CAPTURE_PATH: process.env.ZCODE_TELEMETRY_PARITY_CAPTURE_PATH,
-        }
-      : {}),
-    ...(process.env.ZCODE_TELEMETRY_PARITY_VARIANT?.trim()
-      ? {
-          ZCODE_TELEMETRY_PARITY_VARIANT: process.env.ZCODE_TELEMETRY_PARITY_VARIANT,
-        }
-      : {}),
   },
   framework: "mocha",
   reporters: ["spec"],

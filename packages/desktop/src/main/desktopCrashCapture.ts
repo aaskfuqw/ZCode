@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, join } from "node:path";
-import { app, crashReporter, type BrowserWindow, type WebContents } from "electron";
+import { app, crashReporter } from "electron";
 import { getAppConfigDir } from "@zcode/services/node";
 import {
   type CrashDumpV8OomSummary,
@@ -124,8 +124,7 @@ function pruneCrashDumpArchive(
   archiveDir: string,
   policy: CrashArchiveRetentionPolicy,
 ): CrashArchiveCleanupResult {
-  // 启动时必须先完成本地留档与清理，再让 ARMS 扫描并删除 live；这里保持与既有归档一致的
-  // 同步临界区，避免异步 IO 改变 appCrashCaptureBootstrap -> appARMSBootstrap 的先后顺序。
+  // Keep startup archive retention ordered before the next Crashpad capture cycle.
   const deletedFiles: string[] = [];
   const failedFiles: string[] = [];
   const dumps: Array<{ entry: string; path: string; mtimeMs: number; size: number }> = [];
@@ -349,10 +348,7 @@ function scheduleCrashArchive(
   }
 }
 
-export function initializeCrashCapture(
-  logger: CrashCaptureLogger,
-  remoteCrashReporterEnabled: boolean,
-): CrashCapturePaths {
+export function initializeCrashCapture(logger: CrashCaptureLogger): CrashCapturePaths {
   const paths = resolveCrashCapturePaths();
   mkdirSync(paths.rootDir, { recursive: true });
   mkdirSync(paths.stagingDir, { recursive: true });
@@ -368,7 +364,7 @@ export function initializeCrashCapture(
   }
   logArchivedCrashDumpSummaries(logger, startupArchiveResult, "startup");
 
-  if (!remoteCrashReporterEnabled && !hasStartedLocalCrashReporter) {
+  if (!hasStartedLocalCrashReporter) {
     hasStartedLocalCrashReporter = true;
     crashReporter.start({
       companyName: "",
@@ -381,37 +377,20 @@ export function initializeCrashCapture(
   }
 
   logger.info(
-    `[crash-capture] configured remoteCrashReporterEnabled=${String(remoteCrashReporterEnabled)} stagingDir=${paths.stagingDir} archiveDir=${paths.archiveDir}`,
+    `[crash-capture] configured local capture stagingDir=${paths.stagingDir} archiveDir=${paths.archiveDir}`,
   );
   return paths;
 }
 
-export interface CrashEventMonitorHooks {
-  onRenderProcessGone?: (
-    webContents: WebContents,
-    details: { reason: string; exitCode: number },
-  ) => void;
-  onChildProcessGone?: (details: {
-    type: string;
-    reason: string;
-    exitCode: number;
-    serviceName?: string;
-    name?: string;
-  }) => void;
-  onBrowserWindowCreated?: (win: BrowserWindow) => void;
-}
-
 export function resolveProcessGoneLogLevel(reason: string): "info" | "warn" {
   // Bug 原因：Electron 也会为 clean-exit / killed 这类受控终止发送 gone 事件。
-  // 原始 gone 回调只记录生命周期事实，最终是否为 crash 交给稳定性分类；旧实现无条件打
-  // error，随后被 ARMS console collector 当作异常，污染错误统计。
+  // Expected lifecycle events stay at info; crashes and OOM retain local warnings.
   return reason === "clean-exit" || reason === "killed" ? "info" : "warn";
 }
 
 export function registerCrashEventMonitor(
   logger: CrashCaptureLogger,
   paths: CrashCapturePaths,
-  hooks?: CrashEventMonitorHooks,
 ): void {
   if (registeredCrashEventMonitor) {
     return;
@@ -426,10 +405,7 @@ export function registerCrashEventMonitor(
       name: webContents.getType(),
       url: webContents.getURL(),
     });
-    hooks?.onRenderProcessGone?.(webContents, details);
-    // 远端 crash SDK 可能会在处理后清理 live 目录里的原始 dmp。
-    // 这里在事件后补两次延迟归档，把原始 dump 复制到 ~/.zcode/v2/crash/archive，
-    // 这样既保留线上上报，又能在本地留下一份可供排查的副本。
+    // Crashpad finishes writing asynchronously. Retry the local archive after the dump settles.
     scheduleCrashArchive(logger, paths, "render-process-gone");
   });
 
@@ -438,20 +414,16 @@ export function registerCrashEventMonitor(
       "[crash-capture] child-process-gone:",
       details,
     );
-    hooks?.onChildProcessGone?.(details);
     scheduleCrashArchive(logger, paths, "child-process-gone");
   });
 
   app.on("browser-window-created", (_, win) => {
-    hooks?.onBrowserWindowCreated?.(win);
-    if (!hooks?.onBrowserWindowCreated) {
-      win.webContents.on("unresponsive", () => {
-        logger.warn("[crash-capture] window became unresponsive:", {
-          windowId: win.id,
-          webContentsId: win.webContents.id,
-          url: win.webContents.getURL(),
-        });
+    win.webContents.on("unresponsive", () => {
+      logger.warn("[crash-capture] window became unresponsive:", {
+        windowId: win.id,
+        webContentsId: win.webContents.id,
+        url: win.webContents.getURL(),
       });
-    }
+    });
   });
 }

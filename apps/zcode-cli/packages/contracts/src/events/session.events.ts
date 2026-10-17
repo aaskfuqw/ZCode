@@ -47,8 +47,7 @@ import type {
 } from "../model/index.js";
 import { createModelUsageSummary } from "../model/index.js";
 import type { CheckpointCreatedPayload, RewindTriggeredPayload } from "../rewind/index.js";
-import type { SkillTelemetryMetadata } from "../skills/index.js";
-import type { ModelApiErrorPhase, ModelFailureExceptionKind } from "../telemetry/index.js";
+import type { ModelApiErrorPhase, ModelFailureExceptionKind } from "../model/call-context.js";
 import type { ToolSideEffectScope } from "../tools/contract.js";
 import type { SavedWorkflowScope } from "../tools/saved-workflow.js";
 import type { GoalCompletionVerificationOutput, SessionGoal } from "../tools/target.js";
@@ -475,7 +474,6 @@ export interface TurnStartedPayloadBase {
    */
   messageId?: MessageId;
   inputId?: string;
-  /** 仅 admission 透传给无正文 telemetry fact；不能从 session 归属反推。 */
   /** 同一 runtime command 内覆盖 primary turn → goal verify/continue 的稳定取消身份。 */
   foregroundExecutionId?: string;
   queryId?: QueryId;
@@ -613,10 +611,6 @@ export interface TurnCompletePayload {
   duration: number;
   inputId?: string;
   resultType: TurnResultType;
-  /** 当前 turn 是否消费过来源为 subagent 的后台结果通知。 */
-  backgroundSubagentResultConsumed?: boolean;
-  /** 当前 turn 是否消费过来源为 workflow（dynamic-workflow run）的后台通知。 */
-  workflowResultConsumed?: boolean;
   /** 内部抢占（如 sendQueuedNow）只终止当前 turn，不等价于用户手动 Stop 队列。 */
   preserveQueueAutoDrainOnCancel?: boolean;
 }
@@ -625,10 +619,6 @@ export interface TurnErrorPayload {
   error: ErrorPayload;
   turnPhase: string;
   inputId?: string;
-  /** 当前 turn 是否消费过来源为 subagent 的后台结果通知。 */
-  backgroundSubagentResultConsumed?: boolean;
-  /** 当前 turn 是否消费过来源为 workflow（dynamic-workflow run）的后台通知。 */
-  workflowResultConsumed?: boolean;
 }
 
 export type TurnResultType =
@@ -732,7 +722,9 @@ export interface ModelSelectedPayload {
  * 执行 Selection 退回会话 Selection 的原因，与 @zcode/shared 的 selectionFallback 规则同值域：
  * 卡过期由声明的 provider 错误码命中，其余任何加速请求失败归为 request_failed。
  */
-export type TurnExecutionModelFallbackReason = "highspeed_card_expired" | "highspeed_request_failed";
+export type TurnExecutionModelFallbackReason =
+  | "highspeed_card_expired"
+  | "highspeed_request_failed";
 
 export interface TurnExecutionModelFallbackPayload {
   inputId?: string;
@@ -918,15 +910,11 @@ export interface ToolCallResultPayload {
   toolCallId: ToolCallId;
   result: ToolResultPayload;
   duration: number;
-  /** Skill metadata 仅用于 telemetry，不进入模型可见的 result.content。 */
-  skillMetadata?: SkillTelemetryMetadata;
 }
 
 export interface ToolCallErrorPayload {
   toolCallId: ToolCallId;
   error: ErrorPayload;
-  /** Skill metadata 仅用于 telemetry，不进入模型可见的错误正文。 */
-  skillMetadata?: SkillTelemetryMetadata;
 }
 
 export interface ToolBatchCompletePayload {
@@ -1163,7 +1151,7 @@ export interface ToolResultPayload {
   success: boolean;
   content: string;
   display?: ToolResultDisplayPayload;
-  perf?: import("../tools/performance.js").ToolExecutionTelemetry;
+  exitCode?: number;
   error?: ErrorPayload;
   truncated?: boolean;
   originalBytes?: number;
@@ -1187,7 +1175,7 @@ export interface TokenUsage {
 export interface ErrorPayload {
   code?: string;
   detail?: string;
-  /** 错误链中最深的非 wrapper frame 的原始 message，供客户端 telemetry 定位根因。 */
+  /** 错误链中最深的非 wrapper frame 的原始 message，供客户端诊断定位根因。 */
   underlyingErrorMessage?: string;
   /** 同一底层 frame 的 detail/errorDetails/details 内容。 */
   underlyingErrorDetail?: string;

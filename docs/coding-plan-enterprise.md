@@ -50,23 +50,6 @@
 11. `SUCCESS` 视为支付成功；`FAIL`、`CLOSED`、`CANCELLED` 视为失败或关闭。
 12. 成功后刷新企业定价和个人 Coding Plan 权益快照。
 
-## 购买埋点金额
-
-团队购买的 `purchase_pay_ck` 和 `purchase_result` 使用同一份试算金额快照。
-快照保留 `order/calculate` 返回的全部 Amount 语义：
-
-- `totalOriginalAmount` 取 `totalOriginalAmount`。
-- `campaignDiscountAmount` 取 `campaignDiscountAmount`。
-- `totalPayAmount` 取 `totalPayAmount`。
-- `giveAmount` 取 `giveDeductAmount`。
-- `cashAmount` 取 `balanceDeductAmount`。
-- `thirdPartyAmount` 取 `thirdPayAmount`。
-- 团队接口不提供 `refundAmount` / `residualAmount`，两者上报空字符串。
-
-支付成功的 order status 响应不返回金额，结果埋点必须复用支付前冻结的快照，
-不在成功后重新试算。历史待支付订单只能确认 `pendingOrder.amount`，将其记为
-`thirdPartyAmount`，其他无法确认的金额字段保持空字符串。
-
 ## 暂不包含
 
 首版不实现取消续费、恢复续费、续费、完整待支付订单列表页、企业成员席位管理，也不支持手动输入余额或赠金抵扣金额。团队购买入口仅处理单笔待支付订单的拦截、取消和继续支付恢复。

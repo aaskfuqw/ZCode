@@ -24,7 +24,6 @@ import { createRefreshRuntimeHeadersBeforeModelAttempt } from "./model-runtime-h
 import { createRuntimeModel } from "./runtime-model.js";
 import { isStartPlanBusyStreamRecoveryFailure } from "./streaming-recovery.js";
 import { recordModelUsageFact } from "./usage-observability.js";
-import { runTargetCompletionVerificationWithTelemetry } from "./target-completion-verification-telemetry.js";
 
 export interface TargetCompletionVerificationResult {
   target: SessionGoal;
@@ -84,7 +83,7 @@ export async function verifyActiveTargetCompletionForContinuation(
       verification,
     };
   };
-  return runTargetCompletionVerificationWithTelemetry(this, input, execute);
+  return execute();
 }
 
 async function verifyTargetCompletion(
@@ -322,9 +321,7 @@ async function generateTargetCompletionVerificationText(
     try {
       const invocationContext = {
         metadata: traceContextToLogContext(input.traceContext),
-        modelCall: {
-          operation: "goal_completion_verification" as const,
-        },
+        modelCall: { operation: "goal_completion_verification" as const },
         statusSink: this.createModelStatusSink(input.traceContext, input.events),
         traceContext: input.traceContext,
         refreshRuntimeHeadersBeforeAttempt: createRefreshRuntimeHeadersBeforeModelAttempt(this, {

@@ -768,7 +768,7 @@ export class ZCodeProtocolAgentServer {
       case zcodeProtocolMethods.pluginsOverview:
         return await getPluginsOverview(this.context, request.params);
       case zcodeProtocolMethods.processChildProcesses:
-        return listChildProcesses(this.context.deps.mcpTelemetry?.listProcesses() ?? []);
+        return listChildProcesses(this.context.deps.mcpProcessRegistry?.listProcesses() ?? []);
       case zcodeProtocolMethods.runtimeCapabilities:
         return { independentPlanState: true };
       case zcodeProtocolMethods.pluginsMarketplaceAdd:

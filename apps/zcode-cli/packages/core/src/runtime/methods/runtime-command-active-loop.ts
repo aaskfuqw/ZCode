@@ -11,8 +11,6 @@ import { isStaleBranchRuntimeCommand } from "./runtime-command-generation.js";
 import { createRuntimeUserEntry, type RuntimeMessageEntry } from "../../agent/message-history.js";
 
 export interface ActiveLoopRuntimeCommandDrainResult {
-  backgroundSubagentResultConsumed: boolean;
-  workflowResultConsumed: boolean;
   consumedCommandIds: RuntimeCommandId[];
   drained: number;
   messageIds: MessageId[];
@@ -24,8 +22,6 @@ export async function drainPendingRuntimeCommandsForActiveLoop(
 ): Promise<ActiveLoopRuntimeCommandDrainResult> {
   const commands = this.runtimeCommandQueue.getByMaxPriority("next");
   const consumedCommandIds: RuntimeCommandId[] = [];
-  let backgroundSubagentResultConsumed = false;
-  let workflowResultConsumed = false;
   const messageIds: MessageId[] = [];
   const runtimeEntries: RuntimeMessageEntry[] = [];
 
@@ -55,19 +51,6 @@ export async function drainPendingRuntimeCommandsForActiveLoop(
     }
 
     consumedCommandIds.push(removed.id);
-    // active-loop 不会创建新的 TurnStarted；这里把已消费事实带到当前 turn 的终态，且只认结构化 subagent 来源，避免 Bash 混入。
-    if (
-      removed.mode === "task-notification" &&
-      removed.originMeta?.backgroundSource === "subagent"
-    ) {
-      backgroundSubagentResultConsumed = true;
-    }
-    if (
-      removed.mode === "task-notification" &&
-      removed.originMeta?.backgroundSource === "workflow"
-    ) {
-      workflowResultConsumed = true;
-    }
     messageIds.push(messageId);
     runtimeEntries.push(
       createRuntimeUserEntry(
@@ -80,8 +63,6 @@ export async function drainPendingRuntimeCommandsForActiveLoop(
   }
 
   return {
-    backgroundSubagentResultConsumed,
-    workflowResultConsumed,
     consumedCommandIds,
     drained: consumedCommandIds.length,
     messageIds,

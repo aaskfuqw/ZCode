@@ -582,12 +582,6 @@ export interface ZCodeToolCall {
   title: string;
   /** agent ToolCall 原始 payload，调试协议字段时以此为准 */
   raw: unknown;
-  /** Skill resolved metadata；只用于 telemetry attribution。 */
-  skillMetadata?: {
-    qualifiedName?: string;
-    pluginId?: string;
-    source?: "agents" | "zcode" | "bundled" | "plugin" | "remote";
-  };
 }
 export interface ZCodeToolCallUpdate {
   type: "tool_call_update";
@@ -611,12 +605,6 @@ export interface ZCodeToolCallUpdate {
   error?: string;
   /** agent ToolCallUpdate 原始 payload，调试协议字段时以此为准 */
   raw: unknown;
-  /** Skill resolved metadata；只用于 telemetry attribution。 */
-  skillMetadata?: {
-    qualifiedName?: string;
-    pluginId?: string;
-    source?: "agents" | "zcode" | "bundled" | "plugin" | "remote";
-  };
 }
 export interface ZCodePlan {
   type: "plan";

@@ -1,7 +1,6 @@
 import type { RefObject } from "react";
 import type {
   ZCodeProvider,
-  SessionCreateSource,
   ZCodeTaskRuntimeStatus,
   ZCodeTaskMeta,
   GitChangeSourceId,
@@ -64,7 +63,6 @@ export interface CreateTaskOptions {
   expectedWorkspaceKey?: string;
   provider?: ZCodeProvider;
   groupedDraftPlacement?: GroupedDraftTaskPlacement;
-  createSource?: SessionCreateSource;
   /** 新草稿输入框预填文本；只写草稿，不自动发送。 */
   initialPrompt?: string;
   /** 与 initialPrompt canonical 前缀对应的结构化 mention；仅用于编辑器展示。 */
@@ -240,7 +238,6 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
     targetWorkspacePath: string,
     targetWorkspaceIdentity?: string,
     targetWorkspacePurpose?: import("@zcode/shared").WorkspacePurpose,
-    createSource?: SessionCreateSource,
   ) => void;
   handleOpenCommandCenter: () => void;
   handleRefreshGit: () => void;
@@ -275,9 +272,7 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   handleOpenWorkflowRunDirectory: (
     request: import("@/lib/workspaceSidePane.js").OpenScopedWorkflowRunDirectorySideTabRequest,
   ) => void;
-  handleOpenWorkflowActorSession: (
-    request: OpenScopedWorkflowActorSessionSideTabRequest,
-  ) => void;
+  handleOpenWorkflowActorSession: (request: OpenScopedWorkflowActorSessionSideTabRequest) => void;
   handleOpenWorkflowWorkspace: (request: OpenScopedWorkflowWorkspaceSideTabRequest) => void;
   handleOpenWorkflowArtifact: (request: OpenScopedWorkflowArtifactSideTabRequest) => void;
   handleCloseCodeViewer: () => void;

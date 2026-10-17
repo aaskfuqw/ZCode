@@ -172,8 +172,6 @@ export interface AgentRuntimeCoreMethods {
   }): void;
   enqueueSubagentMessage(input: EnqueueSubagentMessageInput): undefined;
   drainPendingRuntimeCommandsForActiveLoop(): Promise<{
-    backgroundSubagentResultConsumed: boolean;
-    workflowResultConsumed: boolean;
     consumedCommandIds: RuntimeCommandId[];
     drained: number;
     messageIds: MessageId[];

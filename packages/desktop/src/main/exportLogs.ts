@@ -1064,7 +1064,7 @@ async function copyLogArchiveFilesToDirectory(
             .then(() => true)
             .catch(() => false)
         : false;
-      // telemetry/agent 日志文件可能在“扫描完待导出列表”之后被后台轮转、删除或改权限，
+      // 历史诊断/agent 日志文件可能在“扫描完待导出列表”之后被后台轮转、删除或改权限，
       // 软链目标也可能在这段窗口里失效。复制失败后再核一次源文件可读性；
       // 如果源头已经不可读，就把它当成坏文件跳过，避免单个 ENOENT/EACCES 让导出整体失败。
       if (!sourceReadableAfterFailure) {
@@ -1103,7 +1103,7 @@ export async function writeLogArchiveZip(
   const stagingDir = await mkdtemp(join(stageRootDir, "stage-"));
   try {
     // yazl.addFile 内部会再次对源路径执行 fs.stat/createReadStream。
-    // 对于软链目标或正在被轮转的 telemetry 文件，这一步仍然可能异步抛错并触发未监听的 error 事件。
+    // 对于软链目标或正在被轮转的 历史诊断文件，这一步仍然可能异步抛错并触发未监听的 error 事件。
     // 这里先把可读文件稳定复制到临时目录，再从临时目录压缩，保证 zip 阶段只面对我们自己控制的常规文件。
     await writeLogArchiveDirectory(stagingDir, artifacts);
 

@@ -667,54 +667,6 @@ describe("Edit tool contract", () => {
     expect(fs.files.get(file)).toBe("<node>value</tag>\n");
   });
 
-  it("adds Edit performance attribution with patch matching statistics", async () => {
-    const file = join(tmpDir, "perf-edit.txt");
-    const fs = createMemoryFileSystem({ [file]: "alpha\nbeta\n" });
-    const byteLength = Buffer.byteLength;
-    let newContentByteCountCalls = 0;
-    const byteLengthSpy = vi.spyOn(Buffer, "byteLength").mockImplementation((value, encoding) => {
-      if (value === "alpha\ngamma\n" && encoding === "utf8") {
-        newContentByteCountCalls += 1;
-      }
-      return byteLength(value, encoding);
-    });
-
-    try {
-      const output = await editHandler(
-        { file_path: file, old_string: "beta", new_string: "gamma" },
-        contextWith(fs, { readFileState: createReadFileState(file, "alpha\nbeta\n") }),
-      );
-
-      expect(output).toMatchObject({
-        filePath: file,
-        perf: {
-          detail: {
-            kind: "patch",
-            filesystem: {
-              readMs: expect.any(Number),
-              writeMs: expect.any(Number),
-              fileCount: 1,
-              totalBytes: byteLength("alpha\ngamma\n", "utf8"),
-              maxFileBytes: byteLength("alpha\ngamma\n", "utf8"),
-              workspaceKind: "local",
-            },
-            patch: {
-              matchMs: expect.any(Number),
-              hunkCount: 1,
-              matchAttempts: 1,
-            },
-          },
-        },
-      });
-      // 内存 FS 写入和 revision 计算会读取新内容大小；这里约束 perf 字段只额外计算一次。
-      expect(newContentByteCountCalls).toBe(4);
-      expect(JSON.stringify((output as any).perf)).not.toContain(file);
-      expect(JSON.stringify((output as any).perf)).not.toContain("gamma");
-    } finally {
-      byteLengthSpy.mockRestore();
-    }
-  });
-
   it("rejects files larger than the edit limit before reading them", async () => {
     const file = join(tmpDir, "huge.txt");
     const fs = createMemoryFileSystem({ [file]: "old" });

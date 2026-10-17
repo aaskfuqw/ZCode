@@ -2081,7 +2081,12 @@ describe("WorkflowEngine — 出生阶段坐标（phaseName）", () => {
     // 所以不带 sourceSessionId；出生事实照带——读面据它把节点归到子代理名下
     // （docs/execution-engine.md「Events」）。失败的行同样短路复现，也同样带。
     const journal = new InMemoryJournalStore();
-    journal.createRun({ runId: RUN, caps: { maxConcurrency: 16 }, spentTokens: 0, status: "running" });
+    journal.createRun({
+      runId: RUN,
+      caps: { maxConcurrency: 16 },
+      spentTokens: 0,
+      status: "running",
+    });
     journal.putActor({ runId: RUN, siteId: "actor#1", ordinal: 1 });
     const row = (siteId: string, seq: number, instructions: string): NodeRecord => ({
       runId: RUN,
@@ -2105,7 +2110,9 @@ describe("WorkflowEngine — 出生阶段坐标（phaseName）", () => {
     const { engine, driver } = setup({ journal });
     const actor = engine.createActor("actor#1");
     await expect(engine.ask("ask#1", actor, "first task")).resolves.toBe("r-ask#1");
-    await expect(engine.ask("ask#2", actor, "second task")).rejects.toMatchObject({ code: "DriverError" });
+    await expect(engine.ask("ask#2", actor, "second task")).rejects.toMatchObject({
+      code: "DriverError",
+    });
 
     expect(driver.startAskCount()).toBe(0);
     const facts = { kind: "ask", actor: { siteId: "actor#1", ordinal: 1 } };
@@ -2276,7 +2283,12 @@ describe("WorkflowEngine — node-dispatched 重复出生事实", () => {
 
   it("carries the facts of the new life when a running row is re-queued on resume", async () => {
     const journal = new InMemoryJournalStore();
-    journal.createRun({ runId: RUN, caps: { maxConcurrency: 16 }, spentTokens: 0, status: "running" });
+    journal.createRun({
+      runId: RUN,
+      caps: { maxConcurrency: 16 },
+      spentTokens: 0,
+      status: "running",
+    });
     journal.putActor({ runId: RUN, siteId: "actor#1", ordinal: 1 });
     // 上一世崩在执行中：这一行是 running，重跑要按记录的 actorSeq 重新派发。
     journal.putNode({
@@ -2315,7 +2327,7 @@ describe("WorkflowEngine — node-dispatched 重复出生事实", () => {
   });
 });
 
-describe("run-launched：发起 run 那一轮的锚点（docs/execution-engine.md「Token telemetry for subagents」）", () => {
+describe("run-launched：发起 run 那一轮的锚点（docs/execution-engine.md「Workflow launch correlation and usage」）", () => {
   const make = (journal: InMemoryJournalStore) =>
     new WorkflowEngine({
       runId: RUN,

@@ -14,7 +14,7 @@ import type {
   ModelApiCallObservation,
   ModelApiErrorPhase,
   ResolvedModelApiCallObservation,
-} from "../telemetry/index.js";
+} from "./call-context.js";
 
 export * from "./image-media.js";
 export * from "./model.js";
@@ -263,36 +263,14 @@ export interface ModelStreamStalledStatusEvent extends ModelNetworkStatusBase {
   message: string;
 }
 
-/**
- * 仅供实时观测 Sink 消费的 Provider 里程碑。它们不进入 SessionEvent/回放协议，
- * 避免为了 Trace 事件扩大产品状态面。
- */
-export interface ModelTelemetryMilestoneStatusEvent extends ModelNetworkStatusBase {
-  type: "model_first_provider_event" | "model_first_content" | "model_first_text";
-  elapsedMs: number;
-}
-
-/** 仅投递进程内 telemetry statusSink，不进入请求 UI 事件；字段不得携带凭据或用户内容。 */
-export type ModelRequestObservation = Readonly<{
-  kind: string;
-  [field: string]: string | number | boolean | undefined;
-}>;
-
-export interface ModelRequestObservationStatusEvent extends ModelNetworkStatusBase {
-  type: "model_request_observation";
-  observation: ModelRequestObservation;
-}
-
 export type ModelNetworkStatusEvent =
   | ModelRequestQueuedStatusEvent
   | ModelRequestAdmittedStatusEvent
-  | ModelRequestObservationStatusEvent
   | ModelRequestStartedStatusEvent
   | ModelRequestCompletedStatusEvent
   | ModelRequestFailedStatusEvent
   | ModelRetryScheduledStatusEvent
-  | ModelStreamStalledStatusEvent
-  | ModelTelemetryMilestoneStatusEvent;
+  | ModelStreamStalledStatusEvent;
 
 export interface ModelStatusSink {
   publish(event: ModelNetworkStatusEvent): void | Promise<void>;
@@ -689,7 +667,7 @@ export interface ModelTextRequest extends ModelRequestSettings {
    * 每重试一次在 adapter base timeout 上加 30000ms。
    */
   streamIdleTimeoutRetryNumber?: number;
-  /** Runtime-only recovery attribution；只进入 status/telemetry，不发送给 Provider。 */
+  /** Runtime-only recovery attribution；只进入 local status，不发送给 Provider。 */
   streamRecovery?: ModelStreamRecoveryStatus;
   /**
    * Runtime-only provider stream 边界开关。compact 隐藏流用它保留首个真实 provider event

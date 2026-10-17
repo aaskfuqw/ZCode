@@ -301,7 +301,7 @@ export async function recordToolUsageFromEvent(
         status: "completed",
         completedAt: event.timestamp.getTime(),
         durationMs: numberValue(payload.duration),
-        exitCode: numberValue(command?.exitCode),
+        exitCode: numberValue(result?.exitCode ?? command?.exitCode),
         outputBytes: numberValue(result?.returnedBytes ?? result?.originalBytes),
         truncated: result?.truncated === true,
       });

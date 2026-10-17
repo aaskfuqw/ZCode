@@ -28,9 +28,9 @@ afterEach(async () => {
 });
 
 describe("ensureCliDeviceMid", () => {
-  it("consumes the existing Desktop/telemetry deviceMid without rewriting other state", async () => {
+  it("consumes the existing Desktop deviceMid without rewriting other state", async () => {
     const root = await createTemporaryRoot();
-    const stateFile = await writeTelemetryState(root, {
+    const stateFile = await writeLegacyIdentity(root, {
       deviceMid: "7f1431f0-53e8-41c1-9cf9-22d11aa51d6a",
       lastDailyActiveDate: "2026-07-27",
     });
@@ -49,7 +49,7 @@ describe("ensureCliDeviceMid", () => {
 
   it("generates and persists one shared UUID for concurrent CLI consumers", async () => {
     const root = await createTemporaryRoot();
-    await writeTelemetryState(root, {
+    await writeLegacyIdentity(root, {
       lastDailyActiveDate: "2026-07-27",
     });
     let createCount = 0;
@@ -70,9 +70,8 @@ describe("ensureCliDeviceMid", () => {
       "b77a8d4b-38a8-40c8-a7c8-ab9f7637dadc",
     ]);
     expect(createCount).toBe(1);
-    await expect(readJson(telemetryStateFile(root))).resolves.toEqual({
+    await expect(readJson(identityFile(root))).resolves.toEqual({
       deviceMid: "b77a8d4b-38a8-40c8-a7c8-ab9f7637dadc",
-      lastDailyActiveDate: "2026-07-27",
     });
   });
 
@@ -86,12 +85,12 @@ describe("ensureCliDeviceMid", () => {
     expect(deviceMid).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
-    await expect(readJson(telemetryStateFile(root))).resolves.toMatchObject({
+    await expect(readJson(identityFile(root))).resolves.toMatchObject({
       deviceMid,
     });
   });
 
-  it("uses one process-stable fallback when the telemetry state cannot be persisted", async () => {
+  it("uses one process-stable fallback when the identity store cannot be persisted", async () => {
     const root = await createTemporaryRoot();
     const blockedBaseDir = join(root, "not-a-directory");
     await writeFile(blockedBaseDir, "blocked", "utf-8");
@@ -151,7 +150,7 @@ describe("Anthropic request metadata", () => {
         sessionId: "sess_openai",
       }),
     ).resolves.toBeUndefined();
-    await expect(readFile(telemetryStateFile(root), "utf-8")).rejects.toMatchObject({
+    await expect(readFile(legacyIdentityFile(root), "utf-8")).rejects.toMatchObject({
       code: "ENOENT",
     });
   });
@@ -185,7 +184,7 @@ describe("Anthropic request metadata", () => {
 
   it("injects dynamic metadata into generate and stream while preserving Anthropic options", async () => {
     const root = await createTemporaryRoot();
-    await writeTelemetryState(root, {
+    await writeLegacyIdentity(root, {
       deviceMid: "7f1431f0-53e8-41c1-9cf9-22d11aa51d6a",
     });
     let generated: AiSdkGenerateTextOptions | undefined;
@@ -273,12 +272,16 @@ async function createTemporaryRoot(): Promise<string> {
   return root;
 }
 
-function telemetryStateFile(root: string): string {
+function identityFile(root: string): string {
+  return join(root, ".zcode", "v2", "device-identity.json");
+}
+
+function legacyIdentityFile(root: string): string {
   return join(root, ".zcode", "v2", "telemetry-state.json");
 }
 
-async function writeTelemetryState(root: string, state: Record<string, unknown>): Promise<string> {
-  const stateFile = telemetryStateFile(root);
+async function writeLegacyIdentity(root: string, state: Record<string, unknown>): Promise<string> {
+  const stateFile = legacyIdentityFile(root);
   await mkdir(join(root, ".zcode", "v2"), { recursive: true });
   await writeFile(stateFile, JSON.stringify(state, null, 2), "utf-8");
   return stateFile;

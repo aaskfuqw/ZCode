@@ -300,7 +300,7 @@ descendant.once("message", () => {
     },
   );
 
-  it("高频 telemetry 保持实时有序分发且应用退出后仍回收 Agent", async () => {
+  it("高频协议事件 保持实时有序分发且应用退出后仍回收 Agent", async () => {
     const frameCount = 300;
     const child = spawn(
       process.execPath,
@@ -308,7 +308,7 @@ descendant.once("message", () => {
         "-e",
         `
 const frames = Array.from({ length: ${frameCount} }, (_, index) => ({
-  method: "v4/telemetry/event",
+  method: "v4/session/notification",
   params: { index, pid: process.pid },
 }));
 process.stdout.write(frames.map((frame) => JSON.stringify(frame)).join("\\n") + "\\n");
@@ -327,7 +327,6 @@ setInterval(() => {}, 1000);
     const receivedIndexes: number[] = [];
     const allFramesPromise = new Promise<void>((resolve) => {
       transport.onMessage((message) => {
-        if (!("method" in message) || message.method !== "v4/telemetry/event") return;
         const params = message.params as { index?: unknown; pid?: unknown } | undefined;
         if (firstFrameAt === 0) firstFrameAt = Date.now();
         if (typeof params?.pid === "number") agentPid = params.pid;
@@ -339,7 +338,7 @@ setInterval(() => {}, 1000);
     await allFramesPromise;
 
     try {
-      // 修复原因：进程清理曾在每条 telemetry 前同步 spawnSync("ps")，300 条消息
+      // 修复原因：进程清理曾在每条协议事件 前同步 spawnSync("ps")，300 条消息
       // 会阻塞 Host 数秒并让 subagent 面板空白。运行期帧必须直接交付；完整树扫描
       // 只允许在 disposeAndWait 已进入退出阶段后执行。
       expect(Date.now() - firstFrameAt).toBeLessThan(750);

@@ -462,7 +462,7 @@ remote workspaceKey = workspaceIdentity.trim()（必需）
   `workspaceIdentity` / `remoteSessionId`，第一版返回 unsupported/cold miss，不能降级成只按远端 path
   共享。
 - env value 只进入 cache 实例持有的 process-salted cryptographic digest，不进入可序列化 raw key；
-  不得出现在日志、错误或 telemetry。
+  不得出现在日志或错误。
 - port 只从 `serverConfig` 计算规范化 fingerprint，不在 cache entry 中保留 raw config。
 - key 日志只允许输出 opaque fingerprint 和 hit/miss reason。
 - client capability 或 catalog payload schema 变化必须使旧 entry miss。

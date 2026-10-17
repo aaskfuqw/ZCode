@@ -1,4 +1,4 @@
-// dwf run 发起锚点的解析与读回（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Token telemetry for subagents」）。
+// dwf run 发起锚点的解析与读回（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Workflow launch correlation and usage」）。
 import { describe, expect, it } from "vitest";
 import { createRootTraceContext, createSessionId, createTurnId } from "@zcode/contracts";
 import { InMemoryJournalStore } from "@zcode/dynamic-workflow";

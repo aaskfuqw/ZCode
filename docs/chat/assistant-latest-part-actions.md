@@ -10,7 +10,7 @@ Assistant turn 的操作区提供 copy、赞、踩、fork、retry，并在末尾
 - 赞 / 踩是互斥反馈。再次点击当前选中项会清空反馈，点击另一项会直接切换。
 - 反馈只保存在当前 `ConversationAssistantTextActions` 组件的本地状态中；组件重挂、刷新或
   重新打开任务后清空，不写 transcript、数据库或 renderer store。
-- 点击只更新当前按钮状态并上报应用遥测；不发送 V4 command，不进入 provider-visible
+- 点击只更新当前按钮状态；不发送 V4 command，不进入 provider-visible
   history，也不注入后续 Agent prompt。
 - Fork 是否可用完全由 CLI 投影的 `row.actions.canFork` 决定；running 中的稳定 assistant
   row 也可被 CLI stable resolver 放行，pane 不自行按 phase 猜测。
@@ -51,7 +51,7 @@ desktop / mobile assistant action toolbar
                     |
           +---------+---------+
           v                   v
-  aria-pressed / style   fire-and-forget telemetry
+  aria-pressed / style   persistent reaction command
 ```
 
 反馈没有跨组件生命周期的权威事实，也不参与 desktop continuous 或 mobile replayable 消息

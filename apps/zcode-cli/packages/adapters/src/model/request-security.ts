@@ -1,11 +1,7 @@
-import type { Logger, ModelRequestObservation } from "@zcode/contracts";
+import type { Logger } from "@zcode/contracts";
 import type { RegistryProviderConfig } from "@zcode/provider";
 
-export interface ModelRequestObservationSource {
-  take(requestId: string): ModelRequestObservation[];
-}
-
-export interface ModelRequestSecurityPort extends ModelRequestObservationSource {
+export interface ModelRequestSecurityPort {
   protectTransport(input: {
     providerId: string;
     providerConfig: {

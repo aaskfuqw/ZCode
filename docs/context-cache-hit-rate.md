@@ -68,7 +68,7 @@ name/value limited to 512 characters; error messages are limited to 2048 charact
 
 The panel reads `session/debug`, a read-only, session-scoped observation query. The CLI session
 record owns a bounded in-memory observation of live `model_network_status` events, independent
-of chat subscriptions and telemetry reporting. It retains the latest 200 completed main-turn
+of chat subscriptions and automatic reporting. It retains the latest 200 completed main-turn
 requests and 100 network events; aggregate counters cover all observed main-turn completions.
 Closing the panel does not stop collection. Closing/reclaiming the CLI session or restarting its
 process clears these diagnostics; persisted history does not invent missing network timing.

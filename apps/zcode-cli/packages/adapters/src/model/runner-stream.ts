@@ -68,7 +68,6 @@ import {
   createAttemptStatusContext,
   createStatusContext,
   publishModelStatus,
-  publishModelTelemetryMilestone,
 } from "./runner-status.js";
 import { StreamingToolCallAssembler } from "./streaming-tool-call-assembler.js";
 import type { ResolvedAiSdkModelRetryOptions } from "./retry-policy.js";
@@ -86,7 +85,7 @@ import {
   modelFailureStatusFields,
   providerRequestIdFromHeaders,
   readModelFailureErrorPhase,
-} from "./runner-telemetry.js";
+} from "./runner-errors.js";
 import { repairReasoningHistoryAfterSignatureRejection } from "./reasoning-history-normalization.js";
 
 type StreamFailurePhase = "request_setup" | "response_body";
@@ -210,29 +209,9 @@ export async function* runStreamText(input: {
     }): Promise<void> => {
       if (timeToFirstContentMs === undefined && observation.contentMs !== undefined) {
         timeToFirstContentMs = observation.contentMs;
-        await publishModelTelemetryMilestone(
-          {
-            ...statusContext,
-            attempt,
-            elapsedMs: observation.contentMs,
-            timestamp: new Date(startedAt + observation.contentMs).toISOString(),
-            type: "model_first_content",
-          },
-          { logger: input.logger, statusSink: input.statusSink },
-        );
       }
       if (timeToFirstTextMs === undefined && observation.textMs !== undefined) {
         timeToFirstTextMs = observation.textMs;
-        await publishModelTelemetryMilestone(
-          {
-            ...statusContext,
-            attempt,
-            elapsedMs: observation.textMs,
-            timestamp: new Date(startedAt + observation.textMs).toISOString(),
-            type: "model_first_text",
-          },
-          { logger: input.logger, statusSink: input.statusSink },
-        );
       }
     };
 
@@ -342,16 +321,6 @@ export async function* runStreamText(input: {
         }
         if (timeToFirstProviderEventMs === undefined) {
           timeToFirstProviderEventMs = Date.now() - startedAt;
-          await publishModelTelemetryMilestone(
-            {
-              ...statusContext,
-              attempt,
-              elapsedMs: timeToFirstProviderEventMs,
-              timestamp: new Date(startedAt + timeToFirstProviderEventMs).toISOString(),
-              type: "model_first_provider_event",
-            },
-            { logger: input.logger, statusSink: input.statusSink },
-          );
         }
 
         let event: Awaited<ReturnType<typeof handleStreamChunk>>;
@@ -1607,13 +1576,11 @@ function statusPublishOptions(
   input: {
     logger?: Logger;
     request: AiSdkModelTextRequest;
-    resolved?: Pick<ResolvedAiSdkModel, "requestObservations">;
     statusSink?: ModelStatusSink;
   },
   admission?: AttemptAdmission,
 ) {
   return {
-    requestObservations: input.resolved?.requestObservations,
     logger: input.logger,
     requestStatusSink: input.request.statusSink,
     statusSink: input.statusSink,

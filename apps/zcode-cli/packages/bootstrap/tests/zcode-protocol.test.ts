@@ -1262,8 +1262,7 @@ describe("ZCodeProtocolAgentServer", () => {
           clientMode: "desktop-continuous",
         },
       });
-      // staging 已在 ACK 内加入可选 openTiming 诊断；这里守住 response 仍只承载 ACK，
-      // 初始 frame 仍必须进入 request-scoped outbox，不把诊断字段误判成 initial payload。
+      // Initial frames belong to the request-scoped outbox; the response carries only the ACK.
       expect(response).toMatchObject({
         id,
         result: {
@@ -1271,9 +1270,6 @@ describe("ZCodeProtocolAgentServer", () => {
             subscriptionId: expect.any(String),
             mode: "snapshot",
             logEpoch: expect.any(String),
-            // 会话主题的 ACK 额外携带 session open 计时遥测（staging 的 ARMS 面）；
-            // 列表/配置主题没有会话可计时，不带这个键。
-            ...(index === 0 ? { openTiming: expect.any(Object) } : {}),
           },
         },
       });

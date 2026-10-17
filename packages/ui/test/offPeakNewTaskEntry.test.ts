@@ -223,25 +223,6 @@ afterEach(() => {
 });
 
 describe("OffPeakNewTaskEntry", () => {
-  it.each(["loading", "error"] as const)(
-    "purchase inventory %s does not enter purchase from the blocked template",
-    (status) => {
-      h.inventory.status = status;
-      const onOpenAutomations = clickStandupTemplate();
-      const options = h.toast.mock.calls[0]?.[1];
-      expect(h.setPendingCreateDraft).not.toHaveBeenCalled();
-      expect(onOpenAutomations).not.toHaveBeenCalled();
-      if (status === "loading") {
-        expect(options?.actionLabel).toBeUndefined();
-      } else {
-        expect(options?.actionLabel).toBe("purchase.entry.retry");
-        options?.onAction?.();
-        expect(h.inventory.retry).toHaveBeenCalledOnce();
-      }
-      expect(h.openCodingPlanUpgrade).not.toHaveBeenCalled();
-    },
-  );
-
   it("远程目录为空时显示本地 Customize 入口", () => {
     h.offPeakTemplateIds.current = [];
 
@@ -427,18 +408,6 @@ describe("OffPeakNewTaskEntry", () => {
     expect(h.openCodingPlanUpgrade).toHaveBeenCalledWith({
       providerId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
       initialAudience: "personal",
-      funnelContext: {
-        purchaseFunnelId: "idle-funnel-home",
-        upgradeSource: "session_idle_time",
-        eventRegion: "app.session",
-        eventText: "升级",
-        entryPlanStatus: "no_plan",
-        entryPlanLevel: "",
-        entryPlanList: "",
-        purchaseAudience: "personal",
-        providerFamily: "zai",
-        channel: "Z_AI",
-      },
     });
   });
 
@@ -486,17 +455,6 @@ describe("OffPeakNewTaskEntry", () => {
     expect(h.toast).not.toHaveBeenCalled();
     expect(h.setPendingCreateDraft).toHaveBeenCalledOnce();
     expect(onOpenAutomations).toHaveBeenCalledOnce();
-  });
-
-  it("uses the visible English Upgrade copy as the idle-time event text", () => {
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("idle-funnel-en");
-    h.messages.current["settings.modelProvider.codingPlan.upgrade"] = "Upgrade";
-    clickStandupTemplate();
-
-    const toastOptions = h.toast.mock.calls[0]?.[1];
-    toastOptions?.onAction?.();
-
-    expect(h.openCodingPlanUpgrade.mock.calls[0]?.[0]?.funnelContext?.eventText).toBe("Upgrade");
   });
 
   it.each([
@@ -580,10 +538,6 @@ describe("OffPeakNewTaskEntry", () => {
       expect(h.setPendingCreateDraft).toHaveBeenCalledWith({
         title,
         prompt,
-        telemetrySource: {
-          eventRegion: "app.session",
-          templateId: "standupGitSummary",
-        },
       });
       expect(onOpenAutomations).toHaveBeenCalledOnce();
     },

@@ -209,12 +209,10 @@ export type OffPeakTaskCreateResult =
       task: ZCodeOffPeakTask;
       ticketInitialState: OffPeakTaskTicketInitialState;
       queuePosition?: number;
-      providerName: string;
     }
   | {
       ok: false;
       failureStage: OffPeakTaskCreateFailureStage;
       errorCategory: OffPeakTaskCreateErrorCategory;
       errorCode: string;
-      providerName: string;
     };

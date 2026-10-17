@@ -158,7 +158,7 @@ zai 新代码统一用新 family-aware helper，不引入新 literal。
 
 ### Phase 4 — consumer 对齐
 
-14+ `parse/matches/create` 调用点（model selection groups、usage sources、telemetry、off-peak、
+14+ `parse/matches/create` 调用点（model selection groups、usage sources、off-peak、
 composer、services layer）逐个改 family-aware。多数已在 `createTeamPlanConnectionKey` dispatcher 内，
 只需下游 matcher/parse 也走 family-aware 版本。literal `startsWith("team-plan:...")` 检查点逐个评估。
 

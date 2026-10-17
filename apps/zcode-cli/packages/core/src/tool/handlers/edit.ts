@@ -42,12 +42,6 @@ import {
   normalizeReadFileStateMtimeMs,
 } from "../read-file-state.js";
 import { createReadFileStateMetadataFromEntry } from "../read-file-state-metadata.js";
-import {
-  attachToolExecutionTelemetry,
-  elapsedMsSince,
-  fileByteCount,
-  workspaceKind,
-} from "./tool-perf.js";
 
 const EDIT_PROVIDER_DESCRIPTION = [
   "Performs exact string replacement in a file.",
@@ -133,8 +127,6 @@ export const editHandler: ToolHandler = async (input, context) => {
         actualNewString: new_string,
         newContent: new_string,
         replaceAll: replace_all,
-        fsReadMs: 0,
-        patchMatchMs: 0,
         matchAttempts: 0,
       });
     }
@@ -151,8 +143,6 @@ export const editHandler: ToolHandler = async (input, context) => {
       "File is too large to edit (1GB). Maximum editable file size is 1GB.",
     );
   }
-
-  const readStartedAt = Date.now();
   const read = await fileSystemPort.readTextFile(
     {
       path: filePath,
@@ -160,7 +150,6 @@ export const editHandler: ToolHandler = async (input, context) => {
     },
     { signal: context.abortSignal },
   );
-  const fsReadMs = elapsedMsSince(readStartedAt);
   const content = normalizeLineEndings(read.content);
   const oldString = normalizeLineEndings(old_string);
   const requestedNewString = normalizeLineEndings(new_string);
@@ -184,8 +173,6 @@ export const editHandler: ToolHandler = async (input, context) => {
       newContent: requestedNewString,
       read,
       replaceAll: replace_all,
-      fsReadMs,
-      patchMatchMs: 0,
       matchAttempts: 0,
     });
   }
@@ -199,14 +186,11 @@ export const editHandler: ToolHandler = async (input, context) => {
 
   const readStateFailure = getEditableReadStateFailure(filePath, read, context.readFileState);
   if (readStateFailure) return readStateFailure;
-
-  const patchMatchStartedAt = Date.now();
   const match = findEditMatch({
     content,
     search: oldString,
     replaceAll: replace_all,
   });
-  const patchMatchMs = elapsedMsSince(patchMatchStartedAt);
   if (match.status === "not_found") {
     return editFailure(
       EditErrorCode.OLD_STRING_NOT_FOUND,
@@ -245,8 +229,6 @@ export const editHandler: ToolHandler = async (input, context) => {
     replaceAll: replace_all,
     matchStrategy: match.strategy,
     matchCandidateCount: match.candidateCount,
-    fsReadMs,
-    patchMatchMs,
     matchAttempts: 1,
   });
 };
@@ -477,8 +459,6 @@ async function writeEditResult(input: {
   newContent: string;
   read?: FileSystemReadTextResult;
   replaceAll: boolean;
-  fsReadMs: number;
-  patchMatchMs: number;
   matchAttempts: number;
   matchStrategy?: string;
   matchCandidateCount?: number;
@@ -504,7 +484,6 @@ async function writeEditResult(input: {
     memoryRoot: input.context.memoryRoot,
     sessionId: input.context.sessionId,
   });
-  const writeStartedAt = Date.now();
   const writeResult = await fileSystemPort.writeTextFile(
     {
       path: input.filePath,
@@ -518,7 +497,6 @@ async function writeEditResult(input: {
     },
     { signal: input.context.abortSignal },
   );
-  const fsWriteMs = elapsedMsSince(writeStartedAt);
 
   const readFileStateEntry = updateReadFileStateAfterEdit(
     input.context.readFileState,
@@ -533,40 +511,18 @@ async function writeEditResult(input: {
     oldContent: input.originalFile,
     newContent: contentToWrite,
   });
-  // perf 里 totalBytes/maxFileBytes 语义相同，缓存结果避免大文件编辑时重复扫描新内容。
-  const newContentBytes = fileByteCount(contentToWrite);
 
-  return attachToolExecutionTelemetry(
-    {
-      filePath: input.inputFilePath,
-      oldString: input.actualOldString,
-      newString: input.actualNewString,
-      originalFile: input.originalFile,
-      structuredPatch,
-      userModified: false,
-      replaceAll: input.replaceAll,
-      matchStrategy: input.matchStrategy,
-      matchCandidateCount: input.matchCandidateCount,
-    } satisfies EditOutput,
-    {
-      detail: {
-        kind: "patch",
-        filesystem: {
-          readMs: input.fsReadMs,
-          writeMs: fsWriteMs,
-          fileCount: 1,
-          totalBytes: newContentBytes,
-          maxFileBytes: newContentBytes,
-          workspaceKind: workspaceKind(input.context),
-        },
-        patch: {
-          matchMs: input.patchMatchMs,
-          hunkCount: structuredPatch.length,
-          matchAttempts: input.matchAttempts,
-        },
-      },
-    },
-  );
+  return {
+    filePath: input.inputFilePath,
+    oldString: input.actualOldString,
+    newString: input.actualNewString,
+    originalFile: input.originalFile,
+    structuredPatch,
+    userModified: false,
+    replaceAll: input.replaceAll,
+    matchStrategy: input.matchStrategy,
+    matchCandidateCount: input.matchCandidateCount,
+  } satisfies EditOutput;
 }
 
 function updateReadFileStateAfterEdit(

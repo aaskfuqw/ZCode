@@ -9,14 +9,14 @@
 
 ## 功能摘要
 
-| 字段     | 结论                                                                                    |
-| -------- | --------------------------------------------------------------------------------------- |
-| 改动层级 | presentation、runtime config                                                            |
-| 用户入口 | ZCode Desktop 本地 workspace、Desktop-attached SSH/WSL/Docker workspace                 |
-| 评估入口 | `zcode --surface desktop --prompt <text>`                                               |
-| 权威状态 | Services 根据可信宿主事实推导、并在 Agent 启动时冻结的 `presentationSurface`            |
-| 默认值   | `terminal`                                                                              |
-| 不涉及   | UI directive 解析、协议 schema、telemetry、provider `sourceTitle`、V4 delivery/recovery |
+| 字段     | 结论                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| 改动层级 | presentation、runtime config                                                 |
+| 用户入口 | ZCode Desktop 本地 workspace、Desktop-attached SSH/WSL/Docker workspace      |
+| 评估入口 | `zcode --surface desktop --prompt <text>`                                    |
+| 权威状态 | Services 根据可信宿主事实推导、并在 Agent 启动时冻结的 `presentationSurface` |
+| 默认值   | `terminal`                                                                   |
+| 不涉及   | UI directive 解析、协议 schema、provider `sourceTitle`、V4 delivery/recovery |
 
 ## Context Section 契约
 
@@ -112,7 +112,7 @@ remote connect command
 `--surface desktop` 只模拟输出呈现能力，不修改：
 
 - provider `sourceTitle`；headless CLI 仍是 `cli`，Protocol/Desktop 仍是 `electron`。
-- telemetry `runtimeSurface`。
+- Host business `hostRuntimeSurface`。
 - Desktop `desktop-continuous` 与手机 `web-remote-replayable` 的 delivery/recovery 语义。
 
 ## 多端与远程边界
@@ -177,17 +177,17 @@ Main ready
 
 ## 验收用例
 
-| Case    | Setup                                                  | Action                             | Assertions                                               |
-| ------- | ------------------------------------------------------ | ---------------------------------- | -------------------------------------------------------- |
-| DCTX-01 | 默认/terminal ContextBuilder                           | 构建 context                       | 不包含 `desktop_context`                                 |
-| DCTX-02 | `zcode_desktop` ContextBuilder                         | 构建 context                       | section 恰好一次，元数据准确，位于 `dynamic_behavior` 前 |
-| DCTX-03 | `zcode_desktop` + custom system prompt                 | 构建 context                       | 不包含 `desktop_context`                                 |
-| DCTX-04 | subagent runtime                                       | 构建 context                       | 不包含 `desktop_context`                                 |
-| DCTX-05 | `--surface desktop --prompt`                           | 创建 App                           | runtime config 为 `zcode_desktop`，`sourceTitle` 不变    |
-| DCTX-06 | `app-server --stdio --surface desktop`                 | 启动 protocol runner               | 每个 session App 注入 `zcode_desktop`                    |
-| DCTX-07 | local Desktop runtime fact / attached remote authority | 创建 Services 并解析 Agent command | 参数包含 `--surface desktop`                             |
-| DCTX-08 | 普通 HTTP server/manual stdio，无 Desktop 宿主事实     | 创建 Services 并解析 Agent command | 不自动添加 Desktop surface                               |
-| DCTX-09 | 非法值/不支持命令                                      | CLI 参数校验                       | 返回清晰错误，不启动 App                                 |
+| Case    | Setup                                                  | Action                              | Assertions                                               |
+| ------- | ------------------------------------------------------ | ----------------------------------- | -------------------------------------------------------- |
+| DCTX-01 | 默认/terminal ContextBuilder                           | 构建 context                        | 不包含 `desktop_context`                                 |
+| DCTX-02 | `zcode_desktop` ContextBuilder                         | 构建 context                        | section 恰好一次，元数据准确，位于 `dynamic_behavior` 前 |
+| DCTX-03 | `zcode_desktop` + custom system prompt                 | 构建 context                        | 不包含 `desktop_context`                                 |
+| DCTX-04 | subagent runtime                                       | 构建 context                        | 不包含 `desktop_context`                                 |
+| DCTX-05 | `--surface desktop --prompt`                           | 创建 App                            | runtime config 为 `zcode_desktop`，`sourceTitle` 不变    |
+| DCTX-06 | `app-server --stdio --surface desktop`                 | 启动 protocol runner                | 每个 session App 注入 `zcode_desktop`                    |
+| DCTX-07 | local Desktop runtime fact / attached remote authority | 创建 Services 并解析 Agent command  | 参数包含 `--surface desktop`                             |
+| DCTX-08 | 普通 HTTP server/manual stdio，无 Desktop 宿主事实     | 创建 Services 并解析 Agent command  | 不自动添加 Desktop surface                               |
+| DCTX-09 | 非法值/不支持命令                                      | CLI 参数校验                        | 返回清晰错误，不启动 App                                 |
 | DCTX-10 | `entry-stdio` 收到 `desktop-attached-remote`           | 经真实 Services 装配解析 Agent 命令 | authority、resolver surface、命令参数均保持 Desktop      |
 
 ## 影响简报
@@ -197,7 +197,7 @@ Main ready
 | must-inspect   | CLI parser -> Runtime config -> ContextBuilder | Desktop section 的唯一注入主链            |
 | must-inspect   | Host facts -> Services -> Agent process args   | 复用可信宿主事实推导 Desktop surface      |
 | conditional    | 手机 remote -> shared Host/CLI                 | 继承同一 prompt，但不改变 replayable 交付 |
-| invariant-only | `sourceTitle` / telemetry                      | 不随 CLI 评估参数改变                     |
+| invariant-only | `sourceTitle` / local diagnostics              | 不随 CLI 评估参数改变                     |
 | invariant-only | custom prompt / subagent                       | 不注入 Desktop 默认 section               |
 | evidence-only  | Core/CLI/Bootstrap/Services/Server 集成测试    | 覆盖本地与远程宿主装配，不增加 UI E2E     |
 

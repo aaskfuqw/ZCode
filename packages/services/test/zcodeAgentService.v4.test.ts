@@ -574,13 +574,6 @@ describe("zcodeAgentService v4 conversation channel", () => {
 
       expect(sessionsIndex.ack.subscriptionId).toBe("sub-1");
       expect(conversation.ack.subscriptionId).toBe("sub-1");
-      expect(conversation.ack.openTiming).toMatchObject({
-        version: 1,
-        hostPrepareMs: expect.any(Number),
-        providerRegistrySyncMs: expect.any(Number),
-        taskMetaReadMs: expect.any(Number),
-        cliRequestMs: expect.any(Number),
-      });
       expect(commandResolver).toHaveBeenCalledTimes(1);
 
       // 修复原因：只读 topic 已经登记 active client，旧 fast path 会直接返回它并绕过
@@ -828,11 +821,6 @@ describe("zcodeAgentService v4 conversation channel", () => {
         subscriptionId: "sub-1",
         mode: "snapshot",
         logEpoch: "epoch-1",
-      });
-      expect(result.ack.openTiming).toMatchObject({
-        version: 1,
-        hostPrepareMs: expect.any(Number),
-        cliProcessState: "spawned",
       });
       expect(result).toEqual({ ack: result.ack });
 

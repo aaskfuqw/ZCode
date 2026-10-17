@@ -1,10 +1,9 @@
-import type { ZCodeMcpResourceSample } from "@zcode/shared";
+import type { SessionActivityEvent } from "@zcode/shared/zcode-protocol-v4";
+
 import { Emitter } from "@zcode/rpc";
-import type { ZCodeMcpTelemetryEvent, ZCodeProcessResourceSample } from "@zcode/shared";
 import type {
   ConversationTopicFrame,
   ConversationTopicWireFrame,
-  ConversationTelemetryFact,
   CuaPermissionObservation,
   SessionsIndexTopicFrame,
   SessionsIndexTopicWireFrame,
@@ -54,11 +53,8 @@ function completeWire<F extends { topic: string; subscriptionId: string }>(
 
 function setupBase() {
   const conversationFrames = new Emitter<ConversationTopicWireFrame>();
-  const telemetryFacts = new Emitter<ConversationTelemetryFact>();
+  const sessionActivity = new Emitter<SessionActivityEvent>();
   const cuaPermissionObservations = new Emitter<ZCodeAgentCuaPermissionObservation>();
-  const processResourceSamples = new Emitter<ZCodeProcessResourceSample>();
-  const mcpResourceSamples = new Emitter<ZCodeMcpResourceSample[]>();
-  const mcpTelemetryEvents = new Emitter<ZCodeMcpTelemetryEvent>();
   const sessionsIndexFrames = new Emitter<SessionsIndexTopicWireFrame>();
   const workspaceConfigFrames = new Emitter<WorkspaceConfigTopicWireFrame>();
   const runtimeRestarts = new Emitter<{ workspaceKey: string }>();
@@ -89,11 +85,8 @@ function setupBase() {
       },
     })),
     onDynamicConversationFrame: vi.fn(() => conversationFrames.event),
-    onDynamicConversationTelemetryFact: vi.fn(() => telemetryFacts.event),
+    onDynamicSessionActivity: vi.fn(() => sessionActivity.event),
     onDynamicCuaPermissionObservation: vi.fn(() => cuaPermissionObservations.event),
-    onDynamicProcessResourceSample: vi.fn(() => processResourceSamples.event),
-    onDynamicMcpResourceSamples: vi.fn(() => mcpResourceSamples.event),
-    onDynamicMcpTelemetry: vi.fn(() => mcpTelemetryEvents.event),
     subscribeSessionsIndexV4: vi.fn(async (params: unknown) => ({
       ack: {
         subscriptionId: nextId(params),
@@ -152,13 +145,10 @@ function setupBase() {
     setConnectionFlowStateV4: vi.fn(async () => {}),
   } as unknown as IZCodeAgentService;
   return {
+    sessionActivity,
     base,
     conversationFrames,
-    telemetryFacts,
     cuaPermissionObservations,
-    processResourceSamples,
-    mcpResourceSamples,
-    mcpTelemetryEvents,
     sessionsIndexFrames,
     workspaceConfigFrames,
     runtimeRestarts,
@@ -347,225 +337,80 @@ describe("ZCodeAgent connection-scoped service facade", () => {
     });
   });
 
-  it("只有 trusted Host relay 能跨连接订阅 CLI 进程资源样本", () => {
-    const { base, processResourceSamples } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const relaySeen: ZCodeProcessResourceSample[] = [];
-    const desktopSeen: ZCodeProcessResourceSample[] = [];
-    const mobileSeen: ZCodeProcessResourceSample[] = [];
-
-    relay.service.onDynamicProcessResourceSample()((sample) => relaySeen.push(sample));
-    desktop.service.onDynamicProcessResourceSample()((sample) => desktopSeen.push(sample));
-    mobile.service.onDynamicProcessResourceSample()((sample) => mobileSeen.push(sample));
-    const sample: ZCodeProcessResourceSample = {
-      arch: "x64",
-      cpuCores: 1,
-      cpuPercent: 12.5,
-      intervalMs: 60_000,
-      logicalCpuCount: 8,
-      platform: "linux",
-      rssKb: 64_000,
-    };
-    processResourceSamples.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicProcessResourceSample).toHaveBeenCalledTimes(1);
-  });
-
-  it("只有 trusted Host relay 能订阅 MCP 遥测", () => {
-    const { base, mcpTelemetryEvents } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const sample: ZCodeMcpTelemetryEvent = {
-      arch: "x64",
-      kind: "process_start",
-      mcpId: "builtin:node_repl",
-      mcpInstanceId: "mcp-instance-1",
-      mcpIsolation: "workspace",
-      mcpSource: "builtin",
-      occurredAt: 1,
-      platform: "linux",
-    };
-    const relaySeen: ZCodeMcpTelemetryEvent[] = [];
-    const desktopSeen: ZCodeMcpTelemetryEvent[] = [];
-    const mobileSeen: ZCodeMcpTelemetryEvent[] = [];
-
-    relay.service.onDynamicMcpTelemetry()((event) => relaySeen.push(event));
-    desktop.service.onDynamicMcpTelemetry()((event) => desktopSeen.push(event));
-    mobile.service.onDynamicMcpTelemetry()((event) => mobileSeen.push(event));
-    mcpTelemetryEvents.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicMcpTelemetry).toHaveBeenCalledTimes(1);
-  });
-
-  it("只有 trusted Host relay 能订阅 MCP 资源数组", () => {
-    const { base, mcpResourceSamples } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const sample: ZCodeMcpResourceSample[] = [
-      {
-        mcpId: "builtin:node_repl",
-        instanceToken: "cli-instance-01",
-        sampledAt: 300000,
-        intervalMs: 300000,
-        processCount: 1,
-        rssKbTotal: 100,
-        rssKbMaxProcess: 100,
-        cpuTimeMsDelta: 0,
-        uptimeMinutes: 5,
-        platform: "linux",
-        arch: "x64",
-        logicalCpuCount: 8,
-        totalMemoryGb: 32,
-      },
-    ];
-    const relaySeen: ZCodeMcpResourceSample[][] = [];
-    const desktopSeen: ZCodeMcpResourceSample[][] = [];
-    const mobileSeen: ZCodeMcpResourceSample[][] = [];
-
-    relay.service.onDynamicMcpResourceSamples()((event) => relaySeen.push(event));
-    desktop.service.onDynamicMcpResourceSamples()((event) => desktopSeen.push(event));
-    mobile.service.onDynamicMcpResourceSamples()((event) => mobileSeen.push(event));
-    mcpResourceSamples.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicMcpResourceSamples).toHaveBeenCalledTimes(1);
-  });
-
-  it("只有可信 desktop-continuous attachment 能订阅 workspace telemetry fact", async () => {
-    const { base, telemetryFacts } = setupBase();
+  it("only the trusted Desktop attachment receives live session activity", () => {
+    const { base, sessionActivity } = setupBase();
     const desktop = createZCodeAgentConnectionScope(base, {
-      connectionId: "desktop-telemetry",
+      connectionId: "desktop-activity",
       clientMode: "desktop-continuous",
     });
     const mobile = createZCodeAgentConnectionScope(base, {
-      connectionId: "mobile-telemetry",
+      connectionId: "mobile-activity",
       clientMode: "web-remote-replayable",
     });
-    const desktopSeen: ConversationTelemetryFact[] = [];
-    const mobileSeen: ConversationTelemetryFact[] = [];
-    // Root supervisor 在协议握手前挂载；可信 desktop 的只读 emitter 订阅必须可提前建立。
-    desktop.service.onDynamicConversationTelemetryFact({ workspacePath: "/repo" })((fact) =>
-      desktopSeen.push(fact),
+    const desktopSeen: SessionActivityEvent[] = [];
+    const mobileSeen: SessionActivityEvent[] = [];
+    desktop.service.onDynamicSessionActivity({ workspacePath: "/repo" })((event) =>
+      desktopSeen.push(event),
     );
-    mobile.service.onDynamicConversationTelemetryFact({ workspacePath: "/repo" })((fact) =>
-      mobileSeen.push(fact),
+    mobile.service.onDynamicSessionActivity({ workspacePath: "/repo" })((event) =>
+      mobileSeen.push(event),
     );
-    for (const scope of [desktop, mobile]) {
-      await scope.service.helloConversationV4();
-      await scope.service.initializeConversationV4({
-        kind: "clientHello",
-        protocolVersion: 3,
-        clientId: `${scope === desktop ? "desktop" : "mobile"}-client`,
-        appVersion: "4.0.0",
-      });
-    }
-
-    telemetryFacts.fire({
-      version: 1,
-      eventId: "event-1",
+    const event: SessionActivityEvent = {
+      eventId: "start-1",
       eventSeq: 1,
-      occurredAt: 1,
       sessionId: "session-1",
       kind: "turn.started",
-      sourceCommandId: "command-1",
-    });
-
-    expect(desktopSeen).toHaveLength(1);
-    expect(mobileSeen).toHaveLength(0);
-    expect(base.onDynamicConversationTelemetryFact).toHaveBeenCalledTimes(1);
+    };
+    sessionActivity.fire(event);
+    expect(desktopSeen).toEqual([event]);
+    expect(mobileSeen).toEqual([]);
+    expect(base.onDynamicSessionActivity).toHaveBeenCalledOnce();
   });
 
-  it("trusted host relay 只向 desktop-continuous 下游转发 telemetry fact", () => {
-    const { base, telemetryFacts } = setupBase();
+  it("the Host relay forwards live activity only to its trusted Desktop downstream", () => {
+    const { base, sessionActivity } = setupBase();
     const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-telemetry-relay",
+      connectionId: "server-relay",
       clientMode: "desktop-continuous",
       role: "trusted-host-relay",
     });
     const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-telemetry-downstream",
+      connectionId: "desktop-downstream",
       clientMode: "desktop-continuous",
     });
     const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-telemetry-downstream",
+      connectionId: "mobile-downstream",
       clientMode: "web-remote-replayable",
     });
-    const relaySeen: ConversationTelemetryFact[] = [];
-    const desktopSeen: ConversationTelemetryFact[] = [];
-    const mobileSeen: ConversationTelemetryFact[] = [];
-    relay.service.onDynamicConversationTelemetryFact({ workspacePath: "/repo" })((fact) =>
-      relaySeen.push(fact),
+    const relaySeen: SessionActivityEvent[] = [];
+    const desktopSeen: SessionActivityEvent[] = [];
+    const mobileSeen: SessionActivityEvent[] = [];
+    relay.service.onDynamicSessionActivity({ workspacePath: "/repo" })((event) =>
+      relaySeen.push(event),
     );
-    desktop.service.onDynamicConversationTelemetryFact({ workspacePath: "/repo" })((fact) =>
-      desktopSeen.push(fact),
+    desktop.service.onDynamicSessionActivity({ workspacePath: "/repo" })((event) =>
+      desktopSeen.push(event),
     );
-    mobile.service.onDynamicConversationTelemetryFact({ workspacePath: "/repo" })((fact) =>
-      mobileSeen.push(fact),
+    mobile.service.onDynamicSessionActivity({ workspacePath: "/repo" })((event) =>
+      mobileSeen.push(event),
     );
-
-    const fact: ConversationTelemetryFact = {
-      version: 1,
-      eventId: "relay-event-1",
+    const event: SessionActivityEvent = {
+      eventId: "start-1",
       eventSeq: 1,
-      occurredAt: 1,
-      sessionId: "session-1",
+      sessionId: "detached-child",
       kind: "turn.started",
-      sourceCommandId: "command-1",
     };
-    telemetryFacts.fire(fact);
-
-    expect(relaySeen).toHaveLength(0);
-    expect(desktopSeen).toEqual([fact]);
-    expect(mobileSeen).toHaveLength(0);
-    expect(base.onDynamicConversationTelemetryFact).toHaveBeenCalledOnce();
+    sessionActivity.fire(event);
+    expect(relaySeen).toEqual([]);
+    expect(desktopSeen).toEqual([event]);
+    expect(mobileSeen).toEqual([]);
+    expect(base.onDynamicSessionActivity).toHaveBeenCalledOnce();
     expect(
       readTrustedZCodeAgentV4Connection(
-        vi.mocked(base.onDynamicConversationTelemetryFact).mock.calls[0]?.[0],
+        vi.mocked(base.onDynamicSessionActivity).mock.calls[0]?.[0],
       ),
     ).toEqual({
-      connectionId: "relay:22:server-telemetry-relay28:desktop-telemetry-downstream",
+      connectionId: "relay:12:server-relay18:desktop-downstream",
       clientMode: "desktop-continuous",
     });
   });
@@ -1984,41 +1829,4 @@ describe("ZCodeAgent connection-scoped service facade", () => {
     await scope.dispose();
     runtimeLifecycle.dispose();
   });
-});
-
-it("本地 TTFT 检查点只向本地 desktop continuous attachment 暴露", () => {
-  const { base } = setupBase();
-  const facts = new Emitter<import("@zcode/shared").LocalTtftFacts>();
-  base.onDynamicLocalTtftFacts = vi.fn(() => facts.event);
-  const desktop = createZCodeAgentConnectionScope(base, {
-    connectionId: "desktop",
-    clientMode: "desktop-continuous",
-  });
-  const mobile = createZCodeAgentConnectionScope(base, {
-    connectionId: "mobile",
-    clientMode: "web-remote-replayable",
-  });
-  const localSeen = vi.fn();
-  const remoteSeen = vi.fn();
-  const mobileSeen = vi.fn();
-  desktop.service.onDynamicLocalTtftFacts({ workspacePath: "/same" })(localSeen);
-  desktop.service.onDynamicLocalTtftFacts({
-    workspacePath: "/same",
-    workspaceIdentity: "ssh:remote",
-    remoteSessionId: "remote",
-  })(remoteSeen);
-  mobile.service.onDynamicLocalTtftFacts({ workspacePath: "/same" })(mobileSeen);
-  facts.fire({
-    version: 1,
-    observationId: "e0b15fc2-3a50-4d73-854d-61fa148cbfd0",
-    commandId: "input",
-    instanceId: "cli",
-    receivedAt: 100,
-  });
-  expect(localSeen).toHaveBeenCalledOnce();
-  expect(remoteSeen).not.toHaveBeenCalled();
-  expect(mobileSeen).not.toHaveBeenCalled();
-  expect(base.onDynamicLocalTtftFacts).toHaveBeenCalledOnce();
-  desktop.dispose();
-  mobile.dispose();
 });

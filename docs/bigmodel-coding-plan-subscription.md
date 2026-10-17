@@ -148,10 +148,6 @@ Z.AI 登录成功后会先用 OAuth access token 调用 `POST https://api.z.ai/a
 - Z.AI 未登录或接口不可用：保留静态套餐列表，可展示静态价格快照；点击订阅进入登录流程。
 - Z.AI `batch-preview` 成功：静态套餐列表合并接口返回的真实价格和按钮状态，并使用接口购买链路。
 
-## 购买埋点
-
-个人版 Coding Plan 支付链路上报 `purchase_pay_ck` 和 `purchase_result`。`product_name` 统一使用「套餐名 / 计费周期」格式，例如英文界面为 `GLM Coding Lite / month`、中文界面为 `GLM Coding Lite / 月`；BigModel 和 Z.AI 使用同一套展示规则。套餐名优先来自单品 `preview`，缺失时回退到静态商品配置合并后的 `productName`，避免 `/pay/batch-preview` 未返回 `productName` 时埋点退化成 `productId`。`billing_period` 仍保持机器可分析枚举 `month` / `quarter` / `year`。金额埋点不再上报模糊的 `amount`，而是冻结单品 `preview` 返回的 `cashAmount` / `giveAmount` / `thirdPartyAmount` / `refundAmount` / `residualAmount`；缺失字段保持空字符串，不用其他金额反推。
-
 ## Z.AI 海外支付确认页
 
 Z.AI 海外 Coding Plan 使用单页确认式收银台，不再把 PayPal、Stripe 支付动作直接挂在支付方式按钮上。

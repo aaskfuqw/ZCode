@@ -656,7 +656,9 @@ describe("AgentRuntime session persistence", () => {
     await runtime.executeTurn("first prompt");
     await runtime.executeTurn("second prompt");
 
-    const userMessages = store.savedMessages.filter((message) => message.role === "user" && !message.synthetic);
+    const userMessages = store.savedMessages.filter(
+      (message) => message.role === "user" && !message.synthetic,
+    );
     const assistantSaves = store.savedMessages.filter((message) => message.role === "assistant");
     const assistantMessageIds = new Set(assistantSaves.map((message) => message.id));
     const completedAssistantSaves = assistantSaves.filter(
@@ -2822,7 +2824,11 @@ describe("AgentRuntime session persistence", () => {
 
     await runtime.executeTurn("summarize", [{ type: "file", path: "missing.md" }]);
 
-    const userMessages = capturedMessages.filter((message) => message.role === "user" && !providerContentToText(message.content).startsWith("<system-reminder>"));
+    const userMessages = capturedMessages.filter(
+      (message) =>
+        message.role === "user" &&
+        !providerContentToText(message.content).startsWith("<system-reminder>"),
+    );
     expect(userMessages.map((message) => message.content)).toEqual(["summarize"]);
     expect(providerMessagesToText(capturedMessages)).not.toContain(
       "[Attached text/plain: missing.md]",
@@ -3557,7 +3563,6 @@ describe("AgentRuntime session persistence", () => {
     expect(capturedModel?.options.reasoningLevel).toBe("disabled");
     expect(capturedModelCall?.modelCall).toEqual({
       operation: "workspace_git_commit_message",
-      reasoning: { requestedLevel: "disabled" },
     });
   });
 
@@ -3604,7 +3609,6 @@ describe("AgentRuntime session persistence", () => {
     });
     expect(capturedModelCall).toEqual({
       operation: "workspace_git_commit_message",
-      reasoning: { requestedLevel: "low" },
     });
     expect(capturedModelSelection).toMatchObject({
       options: { maxOutputTokens: 5_000, reasoningLevel: "low" },

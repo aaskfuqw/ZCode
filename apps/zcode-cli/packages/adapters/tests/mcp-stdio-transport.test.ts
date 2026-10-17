@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ProcessTreeStdioClientTransport } from "../src/mcp/stdio-transport.js";
 
 describe("ProcessTreeStdioClientTransport", () => {
-  it("retains the direct child exit code for crash telemetry", async () => {
+  it("retains the direct child exit code for process lifecycle handling", async () => {
     const transport = new ProcessTreeStdioClientTransport({
       args: ["-e", "process.exit(7)"],
       command: process.execPath,

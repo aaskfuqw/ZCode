@@ -60,7 +60,7 @@ one balance request:
 GET https://zcode.z.ai/api/v1/zcode-plan/billing/balance?app_version=<ZCODE_VERSION>
 Authorization: Bearer <zcodejwttoken>          # Z.AI
 Authorization: Bearer <zcodejwttoken>          # BigModel
-X-Device-Mid: <telemetry-state.json deviceMid>  # required; missing -> 400 {"code":3001,"msg":"parameter error"}
+X-Device-Mid: <device-identity.json deviceMid>  # required; missing -> 400 {"code":3001,"msg":"parameter error"}
 ```
 
 `X-Device-Mid` is required by the backend for this endpoint even though it is an
@@ -183,7 +183,7 @@ Field contract (server guaranteed, no legacy fallbacks on the client):
 
 Telemetry identity impact: `subscription.details` now carries all active plans
 in server priority order, so the `plan_product_id` reported by `send_btn`
-telemetry reads `details[0]` — the highest-priority active plan. Server-side
+the plan view reads `details[0]` — the highest-priority active plan. Server-side
 reordering intentionally flips this id. See
 `docs/monitoring/business-monitoring.md` for the reporting contract.
 

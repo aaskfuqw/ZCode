@@ -15,7 +15,6 @@ const DEFAULT_FULL_E2E_SPEC_GLOB = "./test/e2e/**/*.test.ts";
 const CODING_PLAN_TEAM_SPEC_MARKERS = [
   "conversation-session-start-plan-independent.test.ts",
   // 创建埋点回归复用本地账号控制面，避免初始化/发送访问真实套餐与登录服务。
-  "conversation-session-create-telemetry.test.ts",
   "conversation-session-automation-run-title-stable.test.ts",
   "coding-plan-team-usage.test.ts",
   "coding-plan-entitlement-presentation.test.ts",

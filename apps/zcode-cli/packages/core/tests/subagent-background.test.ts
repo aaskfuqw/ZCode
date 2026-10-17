@@ -352,7 +352,7 @@ describe("subagent background notifications", () => {
       expectedBackgroundSource?: "bash" | "subagent" | "workflow";
       expectedOriginMeta?: BackgroundResultOriginMeta;
       expectedBackgroundSubagentResultConsumed?: boolean;
-      /** 批里有 dynamic-workflow run 的通知（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Token telemetry for subagents」）。 */
+      /** 批里有 dynamic-workflow run 的通知（apps/zcode-cli/packages/dynamic-workflow/docs/execution-engine.md「Workflow launch correlation and usage」）。 */
       expectedWorkflowResultConsumed?: boolean;
       id: string;
       originMetas: Array<BackgroundResultOriginMeta | undefined>;
@@ -560,20 +560,8 @@ describe("subagent background notifications", () => {
       expect(turnStarts[0]?.backgroundSource).toBe(scenario.expectedBackgroundSource);
       const turnCompletes = (await eventStore.getEvents(sessionId))
         .filter((event) => event.type === SessionEventType.TurnComplete)
-        .map(
-          (event) =>
-            event.payload as {
-              backgroundSubagentResultConsumed?: boolean;
-              workflowResultConsumed?: boolean;
-            },
-        );
+        .map((event) => event.payload as {});
       expect(turnCompletes).toHaveLength(1);
-      expect(turnCompletes[0]?.backgroundSubagentResultConsumed).toBe(
-        scenario.expectedBackgroundSubagentResultConsumed,
-      );
-      expect(turnCompletes[0]?.workflowResultConsumed).toBe(
-        scenario.expectedWorkflowResultConsumed,
-      );
     }
   });
 
@@ -751,7 +739,6 @@ describe("subagent background notifications", () => {
 
     const turn = (runtime as any).executeTurnCommand("consume background result", undefined, {
       abortSignal: abortController.signal,
-      backgroundSubagentResultConsumed: true,
       inputSource: "background_task",
       inputVisibility: "model-only",
       recordedInputMessageId: "background-result-message",
@@ -770,10 +757,6 @@ describe("subagent background notifications", () => {
     const cancelled = (await eventStore.getEvents(sessionId)).find(
       (event) => event.type === SessionEventType.TurnComplete,
     );
-    expect(cancelled?.payload).toMatchObject({
-      backgroundSubagentResultConsumed: true,
-      resultType: "cancelled",
-    });
   });
 
   it("drains active-loop background notifications into model-only history without starting a turn", async () => {

@@ -135,11 +135,6 @@ describe("runCompactSummaryModelRequest", () => {
     expect(streamText).toHaveBeenCalledWith(expectedModelRequest(request));
     expect(generateText).toHaveBeenCalledTimes(1);
     expect(generateText).toHaveBeenCalledWith(expectedModelRequest(request));
-    expect(streamContexts[0]?.modelCall?.logicalCallId).toBeTruthy();
-    expect(generateContexts[0]?.modelCall).toMatchObject({
-      callCause: "fallback_replacement",
-      previousLogicalCallId: streamContexts[0]?.modelCall?.logicalCallId,
-    });
     expect(warn).toHaveBeenCalledWith(
       "Compact summary stream failed; falling back to non-streaming",
       expect.objectContaining({

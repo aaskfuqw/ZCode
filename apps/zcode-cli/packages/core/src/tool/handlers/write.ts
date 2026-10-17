@@ -26,12 +26,6 @@ import {
 } from "../read-file-state.js";
 import { createReadFileStateMetadataFromEntry } from "../read-file-state-metadata.js";
 import type { ReadFileStateEntry, ReadFileStateMap, ToolExecutionContext } from "../types.js";
-import {
-  attachToolExecutionTelemetry,
-  elapsedMsSince,
-  fileByteCount,
-  workspaceKind,
-} from "./tool-perf.js";
 
 const WRITE_PROVIDER_DESCRIPTION = [
   "Writes a file to the local filesystem, overwriting if one exists.",
@@ -92,8 +86,6 @@ export const writeHandler: ToolHandler = async (input, context) => {
   let originalEncoding: FileSystemTextEncoding | undefined;
   let originalLineEndings: "LF" | "CRLF" | undefined;
   let originalRevision: FileSystemReadTextResult["revision"] | undefined;
-  const readStartedAt = Date.now();
-  let fsReadMs = 0;
   try {
     const read = await fileSystemPort.readTextFile(
       {
@@ -107,9 +99,7 @@ export const writeHandler: ToolHandler = async (input, context) => {
     originalEncoding = read.encoding;
     originalLineEndings = read.lineEndings;
     originalRevision = read.revision;
-    fsReadMs = elapsedMsSince(readStartedAt);
   } catch (error) {
-    fsReadMs = elapsedMsSince(readStartedAt);
     if (!isFileSystemPortError(error) || error.code !== "not_found") {
       throw error;
     }
@@ -121,7 +111,6 @@ export const writeHandler: ToolHandler = async (input, context) => {
     memoryRoot: context.memoryRoot,
     sessionId: context.sessionId,
   });
-  const writeStartedAt = Date.now();
   const writeResult = await fileSystemPort.writeTextFile(
     {
       path: filePath,
@@ -135,7 +124,6 @@ export const writeHandler: ToolHandler = async (input, context) => {
     },
     { signal: context.abortSignal },
   );
-  const fsWriteMs = elapsedMsSince(writeStartedAt);
 
   const readFileStateEntry = updateReadFileStateAfterWrite(
     context.readFileState,
@@ -146,67 +134,29 @@ export const writeHandler: ToolHandler = async (input, context) => {
   recordReadFileStateMetadata(context, readFileStateEntry);
 
   if (originalFile) {
-    return attachToolExecutionTelemetry(
-      {
-        type: "update",
-        filePath: file_path,
-        content: contentToWrite,
-        structuredPatch: createStructuredPatch({
-          filePath: file_path,
-          oldContent: originalFile,
-          newContent: contentToWrite,
-        }),
-        originalFile,
-        userModified: false,
-      },
-      createWritePerformanceTelemetry({
-        content: contentToWrite,
-        fsReadMs,
-        fsWriteMs,
-        context,
-      }),
-    );
-  }
-
-  return attachToolExecutionTelemetry(
-    {
-      type: "create",
+    return {
+      type: "update",
       filePath: file_path,
       content: contentToWrite,
-      structuredPatch: [],
-      originalFile: null,
+      structuredPatch: createStructuredPatch({
+        filePath: file_path,
+        oldContent: originalFile,
+        newContent: contentToWrite,
+      }),
+      originalFile,
       userModified: false,
-    },
-    createWritePerformanceTelemetry({
-      content: contentToWrite,
-      fsReadMs,
-      fsWriteMs,
-      context,
-    }),
-  );
-};
+    };
+  }
 
-function createWritePerformanceTelemetry(input: {
-  content: string;
-  context: ToolExecutionContext;
-  fsReadMs: number;
-  fsWriteMs: number;
-}) {
-  const totalBytes = fileByteCount(input.content);
   return {
-    detail: {
-      kind: "filesystem" as const,
-      filesystem: {
-        readMs: input.fsReadMs,
-        writeMs: input.fsWriteMs,
-        fileCount: 1,
-        totalBytes,
-        maxFileBytes: totalBytes,
-        workspaceKind: workspaceKind(input.context),
-      },
-    },
+    type: "create",
+    filePath: file_path,
+    content: contentToWrite,
+    structuredPatch: [],
+    originalFile: null,
+    userModified: false,
   };
-}
+};
 
 export const writeToolEntry: ToolEntry = {
   capability: "Create or overwrite a file through the file-system adapter",

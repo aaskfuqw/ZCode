@@ -30,57 +30,6 @@ import type { ToolEntry, ToolExecutionContext, ToolHandler } from "../src/tool/t
 import { createTestRuntimeModel } from "./test-runtime-model.js";
 
 describe("ToolExecutor trace propagation", () => {
-  it("preserves Skill metadata when the handler fails", async () => {
-    const sessionId = createSessionId("skill-error-metadata");
-    const turnId = createTurnId("skill-error-turn");
-    const traceContext = createRootTraceContext({ sessionId, turnId });
-    const toolCallId = createToolCallId("skill-error-call");
-    const events: SessionEvent[] = [];
-    const registry = createToolRegistry();
-    registry.register({
-      inputSchema: {},
-      metadata: {
-        concurrentSafe: true,
-        destructive: false,
-        name: "Skill",
-        needsApproval: false,
-        readOnly: true,
-        riskLevel: "low",
-        sideEffectScope: "session",
-      },
-      handler: async (_input, context) => {
-        context.recordSkillTelemetryMetadata?.({
-          qualifiedName: "document-skills:pptx",
-          pluginId: "document-skills@zcode-plugins-official",
-          source: "plugin",
-        });
-        throw new Error("post hook failed");
-      },
-    });
-    const executor = createToolExecutor({
-      emitEvent: async (event) => {
-        events.push(event);
-      },
-      permissionService: new PermissionService(defaultPermissionConfig),
-      registry,
-      sessionId,
-      turnId,
-      traceContext,
-    });
-
-    await executor.execute({ id: toolCallId, input: {}, name: "Skill" }, { traceContext });
-
-    const errorEvent = events.find((event) => event.type === SessionEventType.ToolCallError);
-    expect(errorEvent?.payload).toMatchObject({
-      toolCallId,
-      skillMetadata: {
-        qualifiedName: "document-skills:pptx",
-        pluginId: "document-skills@zcode-plugins-official",
-        source: "plugin",
-      },
-    });
-  });
-
   it("emits ToolCallError when a model calls a tool missing from the registry", async () => {
     const sessionId = createSessionId("tool-registry-miss");
     const turnId = createTurnId("tool-turn");
@@ -888,85 +837,6 @@ describe("ToolExecutor trace propagation", () => {
       SessionEventType.ToolCallResult,
     ]);
     expect((events[1]?.payload as any).decision).toBe("allow");
-  });
-
-  it("merges permission wait and handler perf into tool result events", async () => {
-    const sessionId = createSessionId("tool-perf-permission");
-    const turnId = createTurnId("tool-turn");
-    const traceContext = createRootTraceContext({ sessionId, turnId });
-    const events: SessionEvent[] = [];
-    const registry = createToolRegistry();
-    const permissionBroker: PermissionBrokerPort = {
-      async requestPermission() {
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        return { decision: "allow", reason: "approved in perf test" };
-      },
-    };
-
-    registry.register({
-      inputSchema: {},
-      metadata: {
-        concurrentSafe: false,
-        destructive: false,
-        name: "WriteLike",
-        needsApproval: true,
-        readOnly: false,
-        riskLevel: "medium",
-        sideEffectScope: "workspace",
-      },
-      handler: async () => ({
-        filePath: "/work/demo.txt",
-        content: "demo",
-        perf: {
-          detail: {
-            kind: "filesystem",
-            filesystem: {
-              writeMs: 7,
-              fileCount: 1,
-              totalBytes: 4,
-              workspaceKind: "local",
-            },
-          },
-        },
-      }),
-    });
-
-    const executor = createToolExecutor({
-      emitEvent: async (event) => {
-        events.push(event);
-      },
-      mode: "build",
-      permissionBroker,
-      permissionService: new PermissionService(defaultPermissionConfig),
-      registry,
-      sessionId,
-      turnId,
-      traceContext,
-    });
-
-    const result = await executor.execute(
-      {
-        id: createToolCallId("call-write-perf"),
-        input: { file_path: "demo.txt" },
-        name: "WriteLike",
-      },
-      { traceContext },
-    );
-
-    expect(result.success).toBe(true);
-    const resultEvent = events.find((event) => event.type === SessionEventType.ToolCallResult);
-    expect((resultEvent?.payload as any).result.perf).toMatchObject({
-      permissionWaitMs: expect.any(Number),
-      detail: {
-        kind: "filesystem",
-        filesystem: {
-          writeMs: 7,
-          fileCount: 1,
-          totalBytes: 4,
-          workspaceKind: "local",
-        },
-      },
-    });
   });
 
   it("blocks tool execution when a PreToolUse hook denies the call", async () => {
@@ -1996,9 +1866,6 @@ describe("ToolExecutor trace propagation", () => {
     expect(result.success).toBe(true);
     expect(receivedInput).toEqual({ file_path: "approved.txt" });
     const resultEvent = events.find((event) => event.type === SessionEventType.ToolCallResult);
-    expect((resultEvent?.payload as any).result.perf).toMatchObject({
-      permissionWaitMs: expect.any(Number),
-    });
   });
 
   it("runs side-effecting tools without approval in yolo mode", async () => {

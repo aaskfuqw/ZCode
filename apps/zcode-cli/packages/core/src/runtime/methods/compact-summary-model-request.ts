@@ -74,15 +74,7 @@ export async function runCompactSummaryModelRequest(
   input: RunCompactSummaryModelRequestInput,
 ): Promise<RuntimeModelTextResult> {
   const state = createCompactSummaryStreamState();
-  const streamingLogicalCallId = crypto.randomUUID();
-  const streamingRequest: CompactSummaryModelRequest = {
-    ...input.request,
-    modelCall: {
-      ...input.request.modelCall,
-      callCause: input.request.modelCall?.callCause ?? "initial",
-      logicalCallId: streamingLogicalCallId,
-    },
-  };
+  const streamingRequest = input.request;
 
   try {
     for await (const event of compactModelStream(input, streamingRequest)) {
@@ -281,18 +273,7 @@ async function handleCompactSummaryStreamFailure(
     observedPartialOutput: state.sawDelta,
   });
 
-  const fallbackRequest = {
-    ...input.request,
-    modelCall: {
-      ...input.request.modelCall,
-      attributes: {
-        ...input.request.modelCall?.attributes,
-      },
-      callCause: "fallback_replacement" as const,
-      logicalCallId: crypto.randomUUID(),
-      previousLogicalCallId: input.request.modelCall?.logicalCallId,
-    },
-  };
+  const fallbackRequest = input.request;
   return runWithModelInvocationContext(invocationContext(fallbackRequest), () =>
     input.model.generateText(cleanRequest(fallbackRequest)),
   );
@@ -338,7 +319,6 @@ function isCompactSummarySetupFailure(error: unknown): boolean {
   }
 
   if (streamFailurePhase === "request_setup") {
-
     // 其他同步 setup 或明确 HTTP 拒绝属于原请求错误，不能用第二种 transport 掩盖。
     return context?.httpResponseStatus !== 404;
   }

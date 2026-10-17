@@ -4,7 +4,6 @@ export function createModelRequestSecurityState(): ModelRequestSecurityState {
   return {
     createExecution: () => ({
       protectTransport: ({ transport }) => transport,
-      take: () => [],
     }),
   };
 }

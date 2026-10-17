@@ -13,7 +13,7 @@ import type {
   McpToolDescriptor,
 } from "@zcode/contracts";
 import { randomUUID } from "node:crypto";
-import type { McpTelemetryTracker } from "./telemetry.js";
+import type { McpProcessRegistry } from "./process-registry.js";
 
 const DEFAULT_IDLE_GRACE_MS = 30_000;
 
@@ -35,7 +35,7 @@ export interface McpConnectionPoolOptions {
   createAdapter(input: CreateMcpAdapterForPoolInput): McpPort;
   idleGraceMs?: number;
   logger?: Logger;
-  telemetry?: McpTelemetryTracker;
+  processRegistry?: McpProcessRegistry;
 }
 
 export interface McpConnectionPool {
@@ -85,7 +85,7 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         mcpServerName: entry.serverName,
       });
     } finally {
-      options.telemetry?.unregisterConnection({
+      options.processRegistry?.unregisterConnection({
         connectionId: entry.connectionContext.mcpConnectionId,
       });
     }
@@ -166,7 +166,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
     const leaseId = `${++leaseSequence}:${leaseOptions.leaseId ?? "lease"}`;
     const sessionId = leaseOptions.sessionId?.trim() || undefined;
     const leased = new Map<string, string>();
-    const configuredServers = new Map<string, McpServerConfig>();
     const appListeners = new Map<string, Set<{ listener: () => void; off: () => void }>>();
     const invalidateApps = (serverName: string) => {
       const watchers = appListeners.get(serverName);
@@ -177,7 +176,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
       }
     };
     let leaseClosed = false;
-    let sessionStartupReported = false;
 
     const requireEntry = (serverName: string): PoolEntry => {
       const key = leased.get(serverName);
@@ -194,10 +192,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
       const entry = entries.get(key);
       if (!entry) return;
       if (!entry.refs.delete(leaseId)) return;
-      options.telemetry?.releaseOwner({
-        connectionId: entry.connectionContext.mcpConnectionId,
-        ownerId: leaseId,
-      });
       logger?.info("MCP connection lease released", {
         ...entry.connectionContext,
         event: "mcp.pool.lease.released",
@@ -222,13 +216,10 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
       });
       const previousKey = leased.get(serverName);
       let entry = entries.get(key);
-      let ownerAdded = false;
       if (entry) {
         if (entry.closeTimer) clearTimeout(entry.closeTimer);
         entry.closeTimer = undefined;
-        const previousRefCount = entry.refs.size;
         entry.refs.add(leaseId);
-        ownerAdded = entry.refs.size !== previousRefCount;
         if (connectOptions.revalidate) {
           await revalidateEntry(entry, config, connectOptions);
         }
@@ -240,9 +231,8 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
           connectOptions,
           sessionId,
         });
-        options.telemetry?.registerConnection({
+        options.processRegistry?.registerConnection({
           connectionId: connectionContext.mcpConnectionId,
-          isolation: connectionContext.mcpIsolation,
           serverName,
           ...(config.source ? { source: config.source.kind } : {}),
         });
@@ -261,7 +251,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
           serverName,
         };
         entries.set(key, entry);
-        ownerAdded = true;
         logger?.info("MCP pooled connection created", {
           ...connectionContext,
           event: "mcp.pool.connection.created",
@@ -274,10 +263,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         const previous = entries.get(previousKey);
         if (previous) {
           if (previous.refs.delete(leaseId)) {
-            options.telemetry?.releaseOwner({
-              connectionId: previous.connectionContext.mcpConnectionId,
-              ownerId: leaseId,
-            });
             logger?.info("MCP connection lease released", {
               ...previous.connectionContext,
               event: "mcp.pool.lease.released",
@@ -291,13 +276,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         }
       }
       leased.set(serverName, key);
-      if (ownerAdded) {
-        options.telemetry?.acquireOwner({
-          connectionId: entry.connectionContext.mcpConnectionId,
-          ownerId: leaseId,
-          ...(sessionId ? { sessionId } : {}),
-        });
-      }
       if (previousKey !== key) {
         // workspace 隔离连接会被多个 session 共享，不能把首个 session 记成唯一 owner；
         // 单独记录 lease 生命周期才能准确表达多对一关系。
@@ -322,25 +300,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         const status = (await entry.adapter.status())[serverName];
         if (status) statuses[serverName] = status;
         tools.push(...(await entry.adapter.listTools()));
-      }
-      if (sessionId && !sessionStartupReported) {
-        sessionStartupReported = true;
-        const enabledServers = [...configuredServers].filter(
-          ([, config]) => config.enabled !== false,
-        );
-        const connectedCount = enabledServers.filter(
-          ([serverName]) => statuses[serverName]?.status === "connected",
-        ).length;
-        options.telemetry?.recordSessionStartup({
-          configuredCount: enabledServers.length,
-          connectedCount,
-          failedCount: enabledServers.length - connectedCount,
-          processCount: enabledServers.filter(
-            ([serverName, config]) =>
-              config.type === "stdio" && statuses[serverName]?.status === "connected",
-          ).length,
-          sessionId,
-        });
       }
       return { statuses, tools };
     };
@@ -430,10 +389,6 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         servers: Record<string, McpServerConfig>,
         connectOptions: McpConnectOptions = {},
       ): Promise<McpConnectionSnapshot> {
-        configuredServers.clear();
-        for (const [serverName, config] of Object.entries(servers)) {
-          configuredServers.set(serverName, config);
-        }
         const configuredNames = new Set(Object.keys(servers));
         for (const serverName of [...leased.keys()]) {
           if (!configuredNames.has(serverName)) release(serverName);

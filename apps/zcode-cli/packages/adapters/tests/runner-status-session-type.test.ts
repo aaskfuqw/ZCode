@@ -8,15 +8,7 @@ function modelCall(
 ): ResolvedModelApiCallObservation {
   return {
     actorKind,
-    logicalCallId: "logical-call",
     operation,
-    reasoning: {
-      capability: "unknown",
-      effectiveControl: "unknown",
-      effectiveState: "unknown",
-      requestedControl: "provider_default",
-      requestedState: "provider_default",
-    },
   };
 }
 

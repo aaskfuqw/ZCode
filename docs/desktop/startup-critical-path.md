@@ -154,7 +154,7 @@ pending
 补充约束：
 
 1. `syncWindowTabs`、`syncWebRemoteControlWorkspaces`、Web 远控 task 索引和依赖完整 workspace 集合的
-   telemetry scope，只能在 `complete` 后消费 tabs。桌面仍是 `desktop-continuous`，手机仍是
+   attachment scope，只能在 `complete` 后消费 tabs。桌面仍是 `desktop-continuous`，手机仍是
    `web-remote-replayable`；这里不引入新的 replay/snapshot 状态。
 2. 用户若在 `active-ready` 到 `complete` 之间关闭启动 active tab，补齐必须把该关闭视为本窗口用户意图，
    不得从旧的持久化快照把它重新加入。期间新开的 workspace/settings tab 与当前焦点仍需保留。
@@ -187,11 +187,11 @@ workspace/session 数据，至少各跑 3 次改前/改后冷启动，报告中�
 和数据库 clone，按 baseline/optimized 交替执行各 5 次；未清空操作系统文件缓存，因此这里的“冷启动”
 指冷进程启动，不把不可控的整机冷缓存作为前提。
 
-| 指标 | 改前中位数 | 改后中位数 | 变化 |
-| --- | ---: | ---: | ---: |
-| T0 到输入框可用（T6） | 5,441ms | 3,249ms | -2,193ms（快 40.3%） |
-| Local Host 初始化 | 2,707ms | 17ms | -2,690ms（快 99.4%） |
-| React commit 后 startup gate | 3,278ms | 579ms | -2,699ms（快 82.3%） |
+| 指标                         | 改前中位数 | 改后中位数 |                 变化 |
+| ---------------------------- | ---------: | ---------: | -------------------: |
+| T0 到输入框可用（T6）        |    5,441ms |    3,249ms | -2,193ms（快 40.3%） |
+| Local Host 初始化            |    2,707ms |       17ms | -2,690ms（快 99.4%） |
+| React commit 后 startup gate |    3,278ms |      579ms | -2,699ms（快 82.3%） |
 
 新的单次异步 login shell snapshot 本身中位数仍约 `1,626ms`，但它在 Main 模块初始化时启动，和
 Electron ready、窗口及 renderer 加载重叠；5 轮中都在 Local Host 创建前完成，所以不再进入 Host

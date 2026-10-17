@@ -244,7 +244,7 @@ describe("node.ts wires the authoritative origin into resolveSpawnEnv", () => {
   const spawnEnvStart = source.indexOf("resolveSpawnEnv: async (");
   const spawnEnvBlock = source.slice(
     spawnEnvStart,
-    source.indexOf("...buildAgentTelemetrySpawnEnv({", spawnEnvStart),
+    source.indexOf("...createNodeProviderRuntimePathEnv({", spawnEnvStart),
   );
 
   it("locates the resolveSpawnEnv closure at all", () => {

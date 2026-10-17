@@ -49,14 +49,14 @@ describe("global database startup", () => {
     expect(states.filter((phase) => phase === "ready")).toHaveLength(1);
   });
 
-  it("does not publish ready before service assembly and survives telemetry failure", async () => {
+  it("does not publish ready before service assembly and survives observer failure", async () => {
     const coordinator = new DatabaseStartupCoordinator({
       prepare: async (report) => {
         report("starting_services");
         throw new Error("service assembly failed");
       },
       publish: () => {
-        throw new Error("telemetry unavailable");
+        throw new Error("observer unavailable");
       },
     });
     await coordinator.start();

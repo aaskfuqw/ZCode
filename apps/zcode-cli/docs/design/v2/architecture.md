@@ -740,7 +740,7 @@ File Watcher 是提示机制，不是正确性机制。
 
 ### 7.3 网络
 
-网络能力统一进入 `HttpClient` 类边界。provider、MCP、web fetch、remote config 和 telemetry 不各自发明网络行为。
+网络能力统一进入 `HttpClient` 类边界。provider、MCP、web fetch 和 remote config 不各自发明网络行为。
 
 ### 7.4 Artifact
 
@@ -910,7 +910,7 @@ watcher 只提供上下文提示。真正的并发安全由 file write adapter �
 - skills。
 - MCP / ZCode app-server。
 - plugin capability。
-- metrics 和 telemetry。
+- Local diagnostics and user-visible usage accounting.
 - memory pipeline。
 
 ---

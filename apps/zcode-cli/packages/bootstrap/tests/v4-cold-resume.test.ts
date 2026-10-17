@@ -201,13 +201,6 @@ describe("v4 冷恢复（gateway 单元）", () => {
     expect(host.resumeCalls).toEqual(["sess-cold"]);
     expect(host.sessions.has("sess-cold")).toBe(true);
     expect(result.ack.mode).toBe("snapshot");
-    expect(result.ack.openTiming).toMatchObject({
-      version: 1,
-      sessionRuntimeState: "cold",
-      cliSessionRestoreMs: expect.any(Number),
-      initialFrameEncodeMs: expect.any(Number),
-      snapshotRowCount: expect.any(Number),
-    });
     expect(result.initialFrame?.payload.kind).toBe("snapshot");
   });
 
@@ -270,40 +263,6 @@ describe("v4 冷恢复（gateway 单元）", () => {
       expect(getSessionUsageSeed).not.toHaveBeenCalled();
     } finally {
       release.resolve();
-      gateway.dispose();
-    }
-  });
-
-  it("首帧编码耗时包含 wire projection 构建", async () => {
-    const sessionId = "sess-live-initial-frame-timing";
-    const host = makeColdHost();
-    host.sessions.add(sessionId);
-    let monotonicTime = 0;
-    let simulateWireProjectionBuild = false;
-    const gateway = makeColdGateway(host, {
-      now: () => {
-        // publisher 构建 initial frame 时会写 sentAt；借该公开时钟缝隙推进 monotonic clock，
-        // 可确定性验证构建耗时是否包含在 initialFrameEncodeMs，而不依赖真实 CPU 速度。
-        if (simulateWireProjectionBuild) monotonicTime += 25;
-        return 1_700_000_999_000;
-      },
-    });
-    gateway.ingest(
-      sessionId,
-      makeEvent(sessionId, 1, SessionEventType.SessionCreated, {
-        mode: "default",
-        contextWindow: 200_000,
-      }),
-    );
-
-    const nowSpy = vi.spyOn(performance, "now").mockImplementation(() => monotonicTime);
-    simulateWireProjectionBuild = true;
-
-    try {
-      const result = await gateway.subscribe(subscribeParams(sessionId));
-      expect(result.ack.openTiming?.initialFrameEncodeMs).toBe(25);
-    } finally {
-      nowSpy.mockRestore();
       gateway.dispose();
     }
   });

@@ -1,4 +1,4 @@
-import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
+import { Button } from "@/components/ui/button.js";
 import { Loader2Icon, RocketIcon } from "lucide-react";
 import type { UsageEntitlementSnapshot, UsageQuotaLimit } from "@zcode/shared";
 import { cn } from "@/components/lib/utils.js";
@@ -82,13 +82,7 @@ export function hasChatStartPlanBalance(config: ChatStartPlanBalanceConfig | und
   );
 }
 
-function ChatStartPlanBalanceMeter({
-  limit,
-  locale,
-}: {
-  limit: UsageQuotaLimit;
-  locale: string;
-}) {
+function ChatStartPlanBalanceMeter({ limit, locale }: { limit: UsageQuotaLimit; locale: string }) {
   const total = resolveLimitTotal(limit);
   const remaining = resolveLimitRemaining(limit);
   const remainingRatio = total > 0 ? Math.max(0, Math.min(1, remaining / total)) : 0;
@@ -99,16 +93,12 @@ function ChatStartPlanBalanceMeter({
   return (
     <div className="min-w-0 space-y-1.5">
       <div className="min-w-0 space-y-0.5 text-ui-sm">
-        <div className="min-w-0 truncate text-foreground-subtle">
-          {formatLimitModels(limit)}
-        </div>
+        <div className="min-w-0 truncate text-foreground-subtle">{formatLimitModels(limit)}</div>
         <div className="min-w-0 text-ui-sm tabular-nums">
           <span className="font-mono text-foreground">
             {formatStartPlanRemainingPercentage(remainingRatio, locale)}
           </span>
-          {renewTime ? (
-            <span className="text-foreground-subtle"> · {renewTime}</span>
-          ) : null}
+          {renewTime ? <span className="text-foreground-subtle"> · {renewTime}</span> : null}
         </div>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
@@ -157,7 +147,7 @@ export function ChatStartPlanBalancePanel({
         </div>
         {config.onUpgradeClick ? (
           <div className="inline-flex shrink-0 items-center gap-1">
-            <CodingPlanEntryButton
+            <Button
               type="button"
               size="xs"
               className={cn(
@@ -181,11 +171,9 @@ export function ChatStartPlanBalancePanel({
                   variant="surface"
                 />
               ) : null}
-            </CodingPlanEntryButton>
+            </Button>
             {upgradeButtonHighlighted ? (
-              <CodingPlanBillingDiscountInfoDialog
-                config={billingDiscount.config}
-              />
+              <CodingPlanBillingDiscountInfoDialog config={billingDiscount.config} />
             ) : null}
           </div>
         ) : null}

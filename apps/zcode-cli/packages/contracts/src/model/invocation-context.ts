@@ -1,7 +1,7 @@
 import type { RequestVerificationReason } from "@zcode/shared";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ZCodeProviderAccountAccess } from "@zcode/shared";
-import type { ModelApiCallObservation } from "../telemetry/index.js";
+import type { ModelApiCallObservation } from "./call-context.js";
 import type { TraceContext } from "../tracing/tracer.js";
 import type {
   ModelRequestAdmission,

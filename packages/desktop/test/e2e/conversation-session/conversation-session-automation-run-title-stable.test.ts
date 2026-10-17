@@ -39,9 +39,6 @@ const INITIAL_PROMPT = "E2E_AUTOMATION_TITLE_STABLE 这条初始指令不应被�
 const RUN_PROMPT = "E2E_AUTOMATION_TITLE_STABLE 随机介绍一位红楼梦人物";
 const AUTOMATION_TITLE = "AUTOMATION_TITLE_STABLE_TASK";
 const FINAL_TOKEN = "automation-title-stable-done";
-const TELEMETRY_REPORT_PATH = "/api/v1/event/report";
-
-type JsonRecord = Record<string, unknown>;
 
 describe("automation run keeps the first-input session title", () => {
   after(async () => {
@@ -57,8 +54,6 @@ describe("automation run keeps the first-input session title", () => {
     // 继承英文系统语言后把“已运行 0 次”渲染为 “Ran 0 times”。
     await seedSettings({ locale: "zh-CN", localePreference: "zh-CN" });
     await prepareV4ConversationE2E({ resetDraftBeforeProvider: true });
-    const telemetryFetch = await browser.electron.mock("net", "fetch");
-    await telemetryFetch.mockResolvedValue({ ok: true, status: 204 });
     await clickTestIdByDom(TID_AUTOMATIONS_OPEN, {
       timeoutMsg: "侧栏没有出现定时任务入口",
     });
@@ -83,10 +78,7 @@ describe("automation run keeps the first-input session title", () => {
       timeoutMsg: "定时任务创建按钮不可点击",
     });
 
-    const initialCardText = await waitForAutomationCardText(
-      AUTOMATION_TITLE,
-      "已运行 0 次",
-    );
+    const initialCardText = await waitForAutomationCardText(AUTOMATION_TITLE, "已运行 0 次");
     expect(initialCardText).toContain("下次运行");
     expect(initialCardText).not.toMatch(/已运行\s*0\s*\/\s*\d+\s*次/);
     await clickAutomationCardByTitle(AUTOMATION_TITLE);
@@ -107,16 +99,10 @@ describe("automation run keeps the first-input session title", () => {
       90000,
     );
 
-    const telemetry = await waitForAutomationSessionTelemetry(telemetryFetch, taskId);
-    assertAutomationSessionTelemetry(telemetry, taskId);
-
     // automation 执行轮只能读取任务定义；写工具必须在发给 provider 前被 turn-scoped
     // denylist 移除，避免任务在运行时自改、自删或递归创建新任务。
     const runRequest = { lastUserMessageIncludes: [RUN_PROMPT] };
-    await waitForUpstreamRequest(
-      runRequest,
-      "没有捕获到定时任务立即运行的 provider 请求",
-    );
+    await waitForUpstreamRequest(runRequest, "没有捕获到定时任务立即运行的 provider 请求");
     const runToolNames = await getUpstreamRequestToolNames(runRequest);
     expect(runToolNames).toContain("CronList");
     expect(runToolNames).not.toContain("CronCreate");
@@ -135,103 +121,11 @@ describe("automation run keeps the first-input session title", () => {
     await clickTestIdByDom(TID_AUTOMATIONS_OPEN, {
       timeoutMsg: "执行完成后无法返回定时任务列表",
     });
-    const dispatchedCardText = await waitForAutomationCardText(
-      AUTOMATION_TITLE,
-      "已运行 1 次",
-    );
+    const dispatchedCardText = await waitForAutomationCardText(AUTOMATION_TITLE, "已运行 1 次");
     expect(dispatchedCardText).toContain("下次运行");
     expect(dispatchedCardText).not.toMatch(/已运行\s*1\s*\/\s*\d+\s*次/);
   });
 });
-
-async function waitForAutomationSessionTelemetry(
-  telemetryFetch: Awaited<ReturnType<typeof browser.electron.mock>>,
-  taskId: string,
-): Promise<JsonRecord[]> {
-  let latest: JsonRecord[] = [];
-  await browser.waitUntil(
-    async () => {
-      await telemetryFetch.update();
-      latest = telemetryFetch.mock.calls
-        .map((call) => parseTelemetryRequest(call))
-        .filter((request): request is JsonRecord => request !== null)
-        .filter((request) => request.talk_id === taskId);
-      return (
-        latest.some((request) => request.element_name === "agent_step") &&
-        latest.some((request) => request.element_name === "session_create") &&
-        latest.some((request) => request.element_name === "message_completion")
-      );
-    },
-    {
-      timeout: 30000,
-      timeoutMsg: "新建定时任务立即运行后没有捕获到 agent_step / message_completion",
-    },
-  );
-  return latest;
-}
-
-function assertAutomationSessionTelemetry(telemetry: JsonRecord[], taskId: string): void {
-  const steps = telemetry.filter((request) => request.element_name === "agent_step");
-  const completions = telemetry.filter((request) => request.element_name === "message_completion");
-  const sends = telemetry.filter((request) => request.element_name === "send_btn");
-
-  expect(steps.length).toBeGreaterThanOrEqual(1);
-  expect(completions).toHaveLength(1);
-  expect(sends).toHaveLength(0);
-  const creations = telemetry.filter((request) => request.element_name === "session_create");
-  expect(creations).toHaveLength(1);
-  expect(creations[0]).toMatchObject({
-    talk_id: taskId,
-    event_extra_detail: {
-      create_source: "automation_scheduled",
-      client_kind: "desktop",
-      workspace_kind: "local",
-      remote_kind: "",
-    },
-  });
-  expect(creations[0]!.event_id).toMatch(
-    /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-  );
-
-  const completion = completions[0]!;
-  const completionDetail = completion.event_extra_detail as JsonRecord;
-  expect(completion.talk_id).toBe(taskId);
-  expect(completionDetail).toMatchObject({
-    message_source: "scheduled_task",
-    task_trigger: "manual",
-  });
-  const automationId = String(completionDetail.automation_id ?? "");
-  const messageId = String(completion.message_id ?? "");
-  expect(creations[0]!.message_id).toBe(messageId);
-  expect(automationId).not.toBe("");
-  expect(messageId.startsWith(`${automationId}:manual:`)).toBe(true);
-
-  for (const step of steps) {
-    expect(step).toMatchObject({ talk_id: taskId, message_id: messageId });
-    expect(step.event_extra_detail as JsonRecord).toMatchObject({
-      message_source: "scheduled_task",
-      task_trigger: "manual",
-      automation_id: automationId,
-    });
-  }
-  expect(completionDetail.agent_step_cnt).toBe(String(steps.length));
-}
-
-function parseTelemetryRequest(call: unknown[]): JsonRecord | null {
-  const [input, init] = call;
-  if (!String(input ?? "").includes(TELEMETRY_REPORT_PATH) || !isRecord(init)) return null;
-  if (typeof init.body !== "string") return null;
-  try {
-    const parsed: unknown = JSON.parse(init.body);
-    return isRecord(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 async function clickAutomationCardByTitle(title: string): Promise<void> {
   let latestTitles: string[] = [];
@@ -240,13 +134,9 @@ async function clickAutomationCardByTitle(title: string): Promise<void> {
       const result = await browser.execute(
         (cardTestId, expectedTitle) => {
           const cards = Array.from(
-            document.querySelectorAll<HTMLElement>(
-              `[data-testid="${cardTestId}"]`,
-            ),
+            document.querySelectorAll<HTMLElement>(`[data-testid="${cardTestId}"]`),
           );
-          const target = cards.find((card) =>
-            card.innerText.includes(expectedTitle),
-          );
+          const target = cards.find((card) => card.innerText.includes(expectedTitle));
           target?.click();
           return {
             clicked: Boolean(target),
@@ -299,13 +189,9 @@ async function waitForTaskItemContaining(title: string): Promise<string> {
         (baseTestId, expectedTitle) => {
           const prefix = `${baseTestId}-`;
           const items = Array.from(
-            document.querySelectorAll<HTMLElement>(
-              `[data-testid^="${prefix}"]`,
-            ),
+            document.querySelectorAll<HTMLElement>(`[data-testid^="${prefix}"]`),
           );
-          const target = items.find((item) =>
-            item.innerText.includes(expectedTitle),
-          );
+          const target = items.find((item) => item.innerText.includes(expectedTitle));
           return {
             taskId: target?.dataset.testid?.slice(prefix.length) ?? null,
             titles: items.map((item) => item.innerText),
@@ -330,23 +216,16 @@ async function waitForTaskItemContaining(title: string): Promise<string> {
 
 async function expectHeaderTitle(expectedTitle: string): Promise<void> {
   const actual = await browser.execute((titleTestId) => {
-    const header = document.querySelector<HTMLElement>(
-      `[data-testid="${titleTestId}"]`,
-    );
+    const header = document.querySelector<HTMLElement>(`[data-testid="${titleTestId}"]`);
     return header?.getAttribute("title") ?? header?.innerText.trim() ?? null;
   }, TID_WORKSPACE_TITLE);
   expect(actual).toBe(expectedTitle);
 }
 
-async function expectTaskItemTitle(
-  taskId: string,
-  expectedTitle: string,
-): Promise<void> {
+async function expectTaskItemTitle(taskId: string, expectedTitle: string): Promise<void> {
   const actual = await browser.execute(
     (taskItemTestId) => {
-      const item = document.querySelector<HTMLElement>(
-        `[data-testid="${taskItemTestId}"]`,
-      );
+      const item = document.querySelector<HTMLElement>(`[data-testid="${taskItemTestId}"]`);
       return item?.innerText ?? null;
     },
     testId(TID_TASK_ITEM, taskId),

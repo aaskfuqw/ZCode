@@ -169,8 +169,6 @@ export class AiSdkModelAdapter {
         refreshRuntimeHeadersBeforeAttempt: contextRefreshRuntimeHeadersBeforeAttempt,
         ...invocationContext
       } = context ?? {};
-      const shouldAttachReasoningTelemetry = request.options.reasoningLevel !== undefined;
-      const selectedReasoningLevel = request.options.reasoningLevel;
       const requestAuthDependency = options.requestDependencies?.requestAuth;
       // Bug 根因：加速卡（highspeed）与 Off-Peak 同为 Coding Plan 派生模式，本轮动态鉴权
       // （zcode JWT + Coding Plan 双 JWT + X-Highspeed-Card-ID）
@@ -221,19 +219,6 @@ export class AiSdkModelAdapter {
         abortSignal: request.abortSignal,
         maxOutputTokens: request.options.maxOutputTokens,
         ...invocationContext,
-        ...(shouldAttachReasoningTelemetry
-          ? {
-              modelCall: {
-                ...invocationContext.modelCall,
-                reasoning: {
-                  ...invocationContext.modelCall?.reasoning,
-                  // 过去按 none/off 等档位名称猜测 enabled/disabled，导致 Telemetry
-                  // 把 Provider 方言当成统一语义。这里只记录请求实际选择的公开档位。
-                  ...(selectedReasoningLevel ? { requestedLevel: selectedReasoningLevel } : {}),
-                },
-              },
-            }
-          : {}),
         ...(refreshRuntimeHeadersBeforeAttempt
           ? {
               refreshRuntimeHeadersBeforeAttempt: (input) =>

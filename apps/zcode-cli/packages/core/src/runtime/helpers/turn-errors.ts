@@ -153,8 +153,6 @@ export async function appendTurnOutcomeEvent(
     logEvent: string;
     logLabel: string;
     preserveQueueAutoDrainOnCancel?: boolean;
-    backgroundSubagentResultConsumed?: boolean;
-    workflowResultConsumed?: boolean;
     historyRoundCount?: number;
   },
 ): Promise<void> {
@@ -174,10 +172,6 @@ export async function appendTurnOutcomeEvent(
           duration: params.durationMs,
           resultType: "cancelled",
           inputId,
-          ...(params.backgroundSubagentResultConsumed
-            ? { backgroundSubagentResultConsumed: true }
-            : {}),
-          ...(params.workflowResultConsumed ? { workflowResultConsumed: true } : {}),
           ...(params.preserveQueueAutoDrainOnCancel
             ? { preserveQueueAutoDrainOnCancel: true }
             : {}),
@@ -196,10 +190,6 @@ export async function appendTurnOutcomeEvent(
           },
           turnPhase,
           inputId,
-          ...(params.backgroundSubagentResultConsumed
-            ? { backgroundSubagentResultConsumed: true }
-            : {}),
-          ...(params.workflowResultConsumed ? { workflowResultConsumed: true } : {}),
         },
         traceContext,
       );

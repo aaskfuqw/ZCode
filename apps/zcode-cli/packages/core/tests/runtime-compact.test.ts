@@ -715,12 +715,6 @@ describe("AgentRuntime manual compact", () => {
     expect(streamRequest).toEqual(fallbackRequest);
     const streamModelCall = compactCalls[0]?.invocationContext?.modelCall;
     const fallbackModelCall = compactCalls[1]?.invocationContext?.modelCall;
-    expect(streamModelCall?.logicalCallId).toBeTruthy();
-    expect(fallbackModelCall).toMatchObject({
-      callCause: "fallback_replacement",
-      previousLogicalCallId: streamModelCall?.logicalCallId,
-    });
-    expect(fallbackModelCall?.logicalCallId).not.toBe(streamModelCall?.logicalCallId);
     const events = await eventStore.getEvents(sessionId);
     expect(
       events.filter(
@@ -2616,7 +2610,10 @@ describe("AgentRuntime manual compact", () => {
     const runtime = createTestAgentRuntime(
       sessionId,
       // 本场景固定截断预算；目录补齐另由 agent-listing-persistence 覆盖。
-      { systemPrompt: "You are a compact prompt-too-long test agent.", subagents: { enabled: false } },
+      {
+        systemPrompt: "You are a compact prompt-too-long test agent.",
+        subagents: { enabled: false },
+      },
       {
         eventStore,
         modelFactory: createTestModelFactory(

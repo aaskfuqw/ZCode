@@ -132,7 +132,6 @@ function createProviderBusyError(providerId: string, providerCode = "3010"): Err
 }
 
 describe("AgentRuntime tool loop", () => {
-
   it("tracks Bash background completion through direct execution wait", async () => {
     const sessionId = createSessionId("runtime-bash-background-direct-wait");
     const turnId = createTurnId("turn-bash-background-direct-wait");
@@ -1405,7 +1404,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore: createTestSessionEventStore(),
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            mainInputs.push(providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content));
+            mainInputs.push(
+              providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content),
+            );
             mainModelStarted.resolve();
             await mainModelCanFinish.promise;
             return {
@@ -1429,7 +1430,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore: createTestSessionEventStore(),
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            childInputs.push(providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content));
+            childInputs.push(
+              providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content),
+            );
             return {
               finishReason: "stop",
               providerMetadata: undefined,
@@ -1933,14 +1936,6 @@ describe("AgentRuntime tool loop", () => {
     expect(secondRequestText).toContain("tool-ok");
     expect(secondRequestText).toContain("<task-notification>");
     expect(secondRequestText).toContain("<task-id>active-loop-bg</task-id>");
-    const completedTurns = (await eventStore.getEvents(sessionId))
-      .filter((event) => event.type === SessionEventType.TurnComplete)
-      .map(
-        (event) =>
-          (event.payload as { backgroundSubagentResultConsumed?: boolean })
-            .backgroundSubagentResultConsumed,
-      );
-    expect(completedTurns).toContain(true);
   });
 
   it("drains a subagent message before the next active tool-loop model request", async () => {
@@ -3279,7 +3274,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("Verify whether the active session goal")) {
               verifierCount += 1;
               if (verifierCount === 1) {
@@ -3352,7 +3349,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("finish target")) {
               requestOrder.push("prompt");
               return {
@@ -3432,7 +3431,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("finish with continuation error")) {
               requestOrder.push("prompt");
               return {
@@ -3497,7 +3498,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("plain prompt")) {
               requestOrder.push("prompt");
               return {
@@ -3543,7 +3546,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("Verify whether the active session goal")) {
               requestOrder.push("verifier-pass");
               return {
@@ -3606,7 +3611,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("blocking prompt")) {
               requestOrder.push("prompt");
               promptStarted.resolve();
@@ -3683,7 +3690,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("blocking prompt")) {
               requestOrder.push("prompt");
               promptStarted.resolve();
@@ -4012,7 +4021,9 @@ describe("AgentRuntime tool loop", () => {
         },
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const requestText = providerMessagesToText(withoutAgentListingMessages(request.messages));
+            const requestText = providerMessagesToText(
+              withoutAgentListingMessages(request.messages),
+            );
             const isContinuation = requestText.includes(
               "Continue working toward the active session goal.",
             );
@@ -4090,7 +4101,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             const isVerifier = latestText.includes("Verify whether the active session goal");
             if (isVerifier) {
               verifierOutputTokenSettings.push({
@@ -4228,7 +4241,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("<task-id>bg-notification-1</task-id>")) {
               expect(latestText).toContain("<task-id>bg-notification-2</task-id>");
               requestOrder.push("notification-batch");
@@ -4329,7 +4344,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("<task-id>bg-notification-clear</task-id>")) {
               requestOrder.push("notification");
               await sessionStore.clearTarget({ sessionID: sessionId });
@@ -4384,7 +4401,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("<task-id>bg-notification-loop</task-id>")) {
               requestOrder.push("notification");
               return {
@@ -4474,7 +4493,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("<task-id>bg-notification-yield</task-id>")) {
               requestOrder.push("notification");
               return {
@@ -4580,7 +4601,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("<task-id>bg-notification-disabled</task-id>")) {
               requestOrder.push("notification");
               return {
@@ -4633,7 +4656,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            requests.push(providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content));
+            requests.push(
+              providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content),
+            );
             return {
               finishReason: "stop",
               providerMetadata: undefined,
@@ -4698,7 +4723,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             requestOrder.push(
               latestText.includes("<task-notification>")
                 ? "notification"
@@ -4751,7 +4778,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("first prompt")) {
               requestOrder.push("first-prompt");
               firstPromptStarted.resolve();
@@ -6835,7 +6864,9 @@ describe("AgentRuntime tool loop", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           async generateText(request: any) {
-            const latestText = providerContentToText(withoutAgentListingMessages(request.messages).at(-1)?.content);
+            const latestText = providerContentToText(
+              withoutAgentListingMessages(request.messages).at(-1)?.content,
+            );
             if (latestText.includes("Verify whether the active session goal")) {
               requestOrder.push("verifier-old");
               verifierStarted.resolve();
@@ -6935,7 +6966,9 @@ describe("AgentRuntime tool loop", () => {
     expect(toolNames).toContain("Bash");
     expect(planModeReminder).toMatchObject({ role: "system" });
     expect(userMessages).toHaveLength(1);
-    expect(withoutAgentListingMessages((modelRequestEvent?.payload as { messages: any[] }).messages)).toEqual(capturedMessages);
+    expect(
+      withoutAgentListingMessages((modelRequestEvent?.payload as { messages: any[] }).messages),
+    ).toEqual(capturedMessages);
     expect(realUserMessage?.cacheControl).toEqual({ type: "ephemeral" });
     expect(planModeReminderText).not.toContain("<system-reminder>");
     expect(planModeReminderText).toContain("Plan mode is active");
@@ -13355,7 +13388,11 @@ describe("AgentRuntime tool loop", () => {
     const events = await eventStore.getEvents(sessionId);
     const forkEvent = events.find((event) => event.type === SessionEventType.SessionForked);
     const child = sessionStore.createdSessions.find((session) => session.parentID === sessionId);
-    const childMessages = child ? (await sessionStore.messages({ sessionID: child.id })).filter((message) => message.info.source !== "agent_listing_delta") : [];
+    const childMessages = child
+      ? (await sessionStore.messages({ sessionID: child.id })).filter(
+          (message) => message.info.source !== "agent_listing_delta",
+        )
+      : [];
     const visibleChildText = childMessages
       .filter((message) => message.info.source !== "rewind")
       .map(messageText)
@@ -13475,13 +13512,17 @@ describe("AgentRuntime tool loop", () => {
     const forkEvent = events.find((event) => event.type === SessionEventType.SessionForked);
     const child = sessionStore.createdSessions.find((session) => session.parentID === sessionId);
     const allChildMessages = child ? await sessionStore.messages({ sessionID: child.id }) : [];
-    const listings = allChildMessages.filter((message) => message.info.source === "agent_listing_delta");
+    const listings = allChildMessages.filter(
+      (message) => message.info.source === "agent_listing_delta",
+    );
     expect(listings).toHaveLength(1);
     expect(listings[0]?.parts[0]?.metadata?.runtimeMessage).toMatchObject({
       source: "agent_listing_delta",
       agentListingDelta: { addedTypes: ["Explore", "general-purpose"] },
     });
-    const childMessages = allChildMessages.filter((message) => message.info.source !== "agent_listing_delta");
+    const childMessages = allChildMessages.filter(
+      (message) => message.info.source !== "agent_listing_delta",
+    );
 
     expect(fork).toMatchObject({
       copiedMessageCount: 4,

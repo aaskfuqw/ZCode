@@ -7,8 +7,6 @@ import {
   type PermissionUpdate,
   type ToolResultDisplayPayload,
   type ToolSideEffectScope,
-  type ToolExecutionTelemetry,
-  type SkillTelemetryMetadata,
   type TraceContext,
   type TurnId,
 } from "@zcode/contracts";
@@ -56,8 +54,7 @@ export async function emitToolCallResult(
   serialization: ToolResultSerialization,
   durationMs: number,
   display: ToolResultDisplayPayload | undefined,
-  perf: ToolExecutionTelemetry | undefined,
-  skillMetadata: SkillTelemetryMetadata | undefined,
+  exitCode: number | undefined,
 ): Promise<void> {
   await deps.emitEvent({
     id: crypto.randomUUID() as any,
@@ -69,12 +66,11 @@ export async function emitToolCallResult(
     sequenceNumber: 0,
     payload: {
       toolCallId: toolCall.id,
-      ...(skillMetadata ? { skillMetadata } : {}),
       result: {
         success: true,
         content: serialization.content,
         display,
-        perf,
+        exitCode,
         truncated: serialization.truncated,
         originalBytes: serialization.originalBytes,
         returnedBytes: serialization.returnedBytes,
@@ -92,7 +88,6 @@ export async function emitToolCallError(
   traceContext: TraceContext,
   turnId: TurnId | undefined,
   error: ToolExecutionResult["error"],
-  skillMetadata?: SkillTelemetryMetadata,
 ): Promise<void> {
   await deps.emitEvent({
     id: crypto.randomUUID() as any,
@@ -105,7 +100,6 @@ export async function emitToolCallError(
     payload: {
       toolCallId,
       error,
-      ...(skillMetadata ? { skillMetadata } : {}),
     },
   });
 }

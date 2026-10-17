@@ -174,4 +174,4 @@ For planning modes, append the sections in `references/case-planning-template.md
 - Keep desktop `desktop-continuous` and mobile `web-remote-replayable` semantics separate.
 - Preserve workspace isolation with `workspaceIdentity?.trim() || workspacePath`; use `workspacePath` for execution and display.
 - Treat task sqlite index, session snapshots, runtime snapshots, localStorage, settings files, provider registry, and backend APIs as distinct sources until synchronization is proven.
-- Split environment faults, remote/replayable semantics, performance, telemetry, persistence migrations, and tool cross-products into specialized docs when they would obscure the main feature path.
+- Split environment faults, remote/replayable semantics, performance, local diagnostics, persistence migrations, and tool cross-products into specialized docs when they would obscure the main feature path.

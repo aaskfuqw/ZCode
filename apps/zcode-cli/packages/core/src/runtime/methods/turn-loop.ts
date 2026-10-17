@@ -1,6 +1,5 @@
 import { getTurnTools } from "./turn-tool-visibility.js";
 import { appendRuntimeAgentListing } from "../helpers/agent-listing.js";
-import { beginLocalTurnPreparation } from "@zcode/contracts";
 import {
   CompactPhase,
   CompactReason,
@@ -55,9 +54,6 @@ export async function runRegularTurnLoop(
 
     if (state.modelStepCount > 0 && !outputTokenRecoveryActive) {
       const drainedRuntimeCommands = await this.drainPendingRuntimeCommandsForActiveLoop();
-      state.backgroundSubagentResultConsumed ||=
-        drainedRuntimeCommands.backgroundSubagentResultConsumed;
-      state.workflowResultConsumed ||= drainedRuntimeCommands.workflowResultConsumed;
       appendTurnRequestEntries(state.turnRequestState, drainedRuntimeCommands.runtimeEntries);
       if (drainedRuntimeCommands.drained > 0) {
         state.repeatedToolCallSignature = undefined;
@@ -112,16 +108,11 @@ export async function runRegularTurnLoop(
       recordCompactHistoryRound(state);
     }
     throwIfTurnAborted(state.turnAbortSignal);
-
-    const finishMcp = beginLocalTurnPreparation(state.turnTraceContext, "mcp");
     await this.initializeMcp(state.turnTraceContext);
     // tools/list_changed 只在回合开始前生效。
     await this.refreshMcpToolsIfChanged(state.turnTraceContext);
-    finishMcp();
     throwIfTurnAborted(state.turnAbortSignal);
-    const finishTools = beginLocalTurnPreparation(state.turnTraceContext, "tools");
     const tools = getTurnTools(this, state);
-    finishTools();
     if (!outputTokenRecoveryActive) {
       await appendRuntimeAgentListing(this, state.turnRequestState, tools, state.turnTraceContext);
     }

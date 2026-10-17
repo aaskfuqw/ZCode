@@ -13,8 +13,6 @@ const h = vi.hoisted(() => ({
   registerWebRemoteControlIpcHandlers: vi.fn(),
   shellOpenExternal: vi.fn(),
   shellOpenPath: vi.fn(),
-  configureRemoteUsageArmsTelemetry: vi.fn(),
-  reportRemoteConnectResultToArms: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -45,18 +43,8 @@ vi.mock("../src/main/desktopOAuthDeepLink.js", () => ({
   registerOAuthState: vi.fn(),
 }));
 
-vi.mock("../src/main/desktopArmsCustomEvent.js", () => ({
-  createFinalArmsCustomEventE2EController: vi.fn(),
-  dispatchFinalArmsCustomEvent: vi.fn(),
-}));
-
 vi.mock("../src/main/desktopWebRemoteControlIpc.js", () => ({
   registerWebRemoteControlIpcHandlers: h.registerWebRemoteControlIpcHandlers,
-}));
-
-vi.mock("../src/main/desktopRemoteUsageArmsTelemetry.js", () => ({
-  configureRemoteUsageArmsTelemetry: h.configureRemoteUsageArmsTelemetry,
-  reportRemoteConnectResultToArms: h.reportRemoteConnectResultToArms,
 }));
 
 function createOptions(): RemoteIpcOptions {
@@ -65,21 +53,6 @@ function createOptions(): RemoteIpcOptions {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-    },
-    appTelemetryRuntime: {
-      onRendererReady: vi.fn(),
-      syncRendererContext: vi.fn(),
-      onOAuthCallbackHandled: vi.fn(),
-    },
-    appTelemetryCore: {
-      reportEvent: vi.fn(async () => {}),
-    },
-    reportRemoteUsageEvent: vi.fn(),
-    armsCustomContext: {
-      deviceMid: "device-mid",
-      platform: "darwin",
-      appVersion: "1.0.0",
-      armsEnv: "local",
     },
     webRemoteControlManager: {
       authorizeStart: vi.fn(),
@@ -93,10 +66,6 @@ function createOptions(): RemoteIpcOptions {
     cancelPendingRemoteWorkspaceSessionsForWindow: vi.fn(),
     bindRemoteWorkspaceSessionContext: vi.fn(),
     confirmRendererAttachmentReady: vi.fn(),
-    getRemoteConnectionStats: vi.fn(() => ({
-      activeSessionCount: 0,
-      activeTargetCount: 0,
-    })),
     isDockerDaemonAvailable: vi.fn(async () => true),
     listAvailableWSLDistros: vi.fn(async () => []),
     listAvailableDockerContainers: vi.fn(async () => []),
@@ -166,5 +135,87 @@ describe("OpenExternal 对 file URL 的分流", () => {
     await vi.waitFor(() => expect(options.logger.warn).toHaveBeenCalledTimes(1));
     expect(h.shellOpenPath).not.toHaveBeenCalled();
     expect(h.shellOpenExternal).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConnectRemote business admission", () => {
+  beforeEach(() => {
+    h.handlers.clear();
+    h.listeners.clear();
+    h.fromWebContents.mockReset();
+  });
+
+  async function registerConnectHandler() {
+    const { registerRemoteIpcHandlers } = await import("../src/main/desktopMainIpcRemote.js");
+    const options = createOptions();
+    registerRemoteIpcHandlers(options);
+    const handler = h.handlers.get(PlatformChannels.ConnectRemote);
+    expect(handler).toBeDefined();
+    return { handler: handler!, options };
+  }
+
+  it("passes the window, request correlation and remote workspace identity to the owner", async () => {
+    const { handler, options } = await registerConnectHandler();
+    const sender = { id: 17 };
+    const win = { webContents: sender };
+    h.fromWebContents.mockReturnValue(win);
+    const target = { kind: "ssh", host: "example.com", username: "developer" };
+    await expect(
+      handler(
+        { sender },
+        {
+          target,
+          requestId: " request-1 ",
+          workspacePath: "/workspace/project",
+          workspaceIdentity: "ssh:project",
+        },
+      ),
+    ).resolves.toEqual({ success: true, sessionId: "remote-session-1" });
+    expect(h.fromWebContents).toHaveBeenCalledWith(sender);
+    expect(options.createRemoteWorkspaceSession).toHaveBeenCalledExactlyOnceWith(
+      win,
+      target,
+      "request-1",
+      { workspacePath: "/workspace/project", workspaceIdentity: "ssh:project" },
+    );
+  });
+
+  it("accepts a target without workspace context", async () => {
+    const { handler, options } = await registerConnectHandler();
+    const win = { webContents: { id: 18 } };
+    h.fromWebContents.mockReturnValue(win);
+    const target = { kind: "docker", container: "dev-container" };
+    await expect(handler({ sender: win.webContents }, target)).resolves.toEqual({
+      success: true,
+      sessionId: "remote-session-1",
+    });
+    expect(options.createRemoteWorkspaceSession).toHaveBeenCalledExactlyOnceWith(
+      win,
+      target,
+      undefined,
+      undefined,
+    );
+  });
+
+  it("rejects invalid targets before creating a connection", async () => {
+    const { handler, options } = await registerConnectHandler();
+    await expect(handler({ sender: { id: 17 } }, { target: { kind: "ssh" } })).resolves.toEqual({
+      success: false,
+      error: expect.stringContaining("Invalid connect-remote payload"),
+    });
+    expect(options.createRemoteWorkspaceSession).not.toHaveBeenCalled();
+  });
+
+  it("returns connection failures to the renderer", async () => {
+    const { handler, options } = await registerConnectHandler();
+    h.fromWebContents.mockReturnValue({ webContents: { id: 17 } });
+    vi.mocked(options.createRemoteWorkspaceSession).mockRejectedValueOnce(
+      new Error("Connection cancelled"),
+    );
+    await expect(handler({ sender: { id: 17 } }, { kind: "wsl" })).resolves.toEqual({
+      success: false,
+      error: "Connection cancelled",
+    });
+    expect(options.logger.error).toHaveBeenCalledOnce();
   });
 });

@@ -24,13 +24,13 @@ describe("NodeApiClient endpoint rewriting", () => {
       resolveZCodeEndpointOrigin: async () => "http://localhost:3030",
     });
 
-    await client.request(`${DEFAULT_ZCODE_ENDPOINT_ORIGIN}/api/v1/event/report?x=1`);
+    await client.request(`${DEFAULT_ZCODE_ENDPOINT_ORIGIN}/api/v1/client/configs?x=1`);
     await client.request("https://example.com/static/config.json");
     await client.request("https://feedback.example.invalid/api/v1/tickets");
     await client.request("https://api.z.ai/v1/models");
 
     expect(fetchImpl.mock.calls.map(([input]) => String(input))).toEqual([
-      "http://localhost:3030/api/v1/event/report?x=1",
+      "http://localhost:3030/api/v1/client/configs?x=1",
       "https://example.com/static/config.json",
       "https://feedback.example.invalid/api/v1/tickets",
       "https://api.z.ai/v1/models",
@@ -129,8 +129,7 @@ describe("NodeApiClient endpoint rewriting", () => {
     { name: "state 文件缺失", content: null },
     { name: "state JSON 损坏", content: "{" },
     { name: "deviceMid 为空字符串", content: JSON.stringify({ deviceMid: "" }) },
-    { name: "deviceMid 含不可打印字符", content: JSON.stringify({ deviceMid: "mid\n1" }) },
-  ])("$name 时不注入 deviceMid header", async ({ content }) => {
+  ])("$name 时为业务初始化有效身份", async ({ content }) => {
     const dataBaseDir = mkdtempSync(join(tmpdir(), "zcode-device-mid-invalid-"));
     tempDirs.push(dataBaseDir);
     setDataBaseDir(dataBaseDir);
@@ -150,12 +149,12 @@ describe("NodeApiClient endpoint rewriting", () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers);
-    expect(headers.get("X-Device-Mid")).toBeNull();
+    expect(headers.get("X-Device-Mid")).toMatch(/^[^\r\n]+$/);
   });
 
-  it("统一来源 headers 支持可控的客户端上下文字段", () => {
+  it("统一来源 headers 支持可控的客户端上下文字段", async () => {
     expect(
-      buildZCodeSourceHeaders({
+      await buildZCodeSourceHeaders({
         appVersion: "2.14.0",
         arch: "arm64",
         clientLanguage: "zh-CN",

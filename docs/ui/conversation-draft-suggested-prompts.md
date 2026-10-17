@@ -228,23 +228,3 @@ Service/cache authority 的多个推荐项或模板消费方不得重复请求�
 
 组件继续作为纯展示和点击入口；服务端配置只提供候选与 capability hint，UI 只消费目标 Host 的可信解析结果，
 不再读取 workspace catalog，并保持单行标题、隐藏 Plugin 引用、替换草稿且不自动发送的既有契约。
-
-## Prompt 模板点击埋点
-
-Desktop 中每次点击推荐 Prompt 模板（包括普通 Prompt 预填、Automations 导航和 Off-Peak 导航）均通过现有
-`reportAppTelemetryEvent()` 上报一次产品埋点。Web 和手机远控本轮只保留既有 UI 行为，不调用该埋点；
-两端真实上报链路后续单独补齐。事件固定为：
-
-| 字段 | 值 / 口径 |
-| --- | --- |
-| `elementName` | `prompt_template_ck` |
-| `eventRegion` | `app.session` |
-| `eventType` | `ck` |
-| `eventText` | 当前界面语言下用户实际看到的模板名称 |
-| `eventExtraDetail.template_id` | Client Scenes prompt item 的 `item.id`，作为跨语言和改名稳定的统计维度 |
-| `eventExtraDetail.template_prompt` | 当前界面语言解析后的完整 Prompt；不包含用户后续编辑内容 |
-
-`eventExtraDetail` 严格只包含 `template_id` 和 `template_prompt`，不上传 `template_name`、
-`template_action`、`talkId` 或 `messageId`。点击埋点在点击处理开始时触发，并与异步 Plugin 操作、导航
-或草稿预填解耦；埋点失败不得阻塞原有交互。Desktop 的 `userId`、客户端上下文和设备字段继续由既有
-`/event/report` 宿主链路补充。Web / 手机远控不在本轮 `/event/report` 统计范围内。

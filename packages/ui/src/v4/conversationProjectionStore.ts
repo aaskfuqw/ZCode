@@ -14,7 +14,6 @@ import {
   SUBSCRIPTION_CONTENT_REJECTED,
   type ConversationRow,
   type ConversationSnapshot,
-  type ConversationOpenTiming,
   type ConversationTopicFrame,
   type SessionModelTransition,
   type ToolCallRow,
@@ -111,8 +110,6 @@ export interface ConversationStoreState {
   snapshot: ConversationSnapshot | null;
   subscriptionId: string | null;
   lastError: string | null;
-  /** 首次 conversation subscribe 的低频 Host/CLI timing；不进入 snapshot 事实。 */
-  openTiming?: ConversationOpenTiming;
   /** Renderer 首帧 timing；与 snapshot 一起通知，避免 UI 读取到半更新的诊断状态。 */
   rendererTiming?: SessionOpenRendererTiming;
   optimisticCommands: readonly OptimisticCommand[];
@@ -467,7 +464,6 @@ export class ConversationProjectionStore {
         status: "live",
         subscriptionId: result.ack.subscriptionId,
         lastError: null,
-        openTiming: result.ack.openTiming,
       });
       this.subscriptionHasAppliedBase = Boolean(
         snapshot && result.ack.mode === "resume" && result.ack.logEpoch === snapshot.logEpoch,
@@ -1012,7 +1008,7 @@ export class ConversationProjectionStore {
    */
   private failRecovery(reasonCode: string, options: { contentEligible?: boolean } = {}): void {
     if (!this.recovery) return;
-    // 内容确定性失败与传输失败必须可区分：前者重连不会变好，遥测按 code 聚合时也不该把一次
+    // 内容确定性失败与传输失败必须可区分：前者重连不会变好，本地日志按 code 聚合时也不该把一次
     // 版本失配读成网络抖动（reasonCode 词表见 wire-fault.ts）。
     const contentFault = this.recovery.contentFault && options.contentEligible !== false;
     const code = contentFault ? SUBSCRIPTION_CONTENT_REJECTED : reasonCode;

@@ -112,11 +112,11 @@ describe("codeViewer helpers", () => {
     ];
     const afterLines = [
       ...beforeLines.slice(0, 33),
-      "import { reportAppLaunch, reportDailyActive } from './telemetry/index.js'",
+      "import { restoreSession, refreshCommands } from './sessions/index.js'",
       ...beforeLines.slice(33, 335),
-      "// Fire-and-forget telemetry for app launch and daily active",
-      "reportAppLaunch().catch(() => {})",
-      "reportDailyActive().catch(() => {})",
+      "// Restore the session and refresh its commands",
+      "restoreSession().catch(() => {})",
+      "refreshCommands().catch(() => {})",
       "",
       ...beforeLines.slice(335),
     ];
@@ -126,11 +126,11 @@ describe("codeViewer helpers", () => {
     });
 
     expect(diff).toContain(
-      "+import { reportAppLaunch, reportDailyActive } from './telemetry/index.js'",
+      "+import { restoreSession, refreshCommands } from './sessions/index.js'",
     );
-    expect(diff).toContain("+// Fire-and-forget telemetry for app launch and daily active");
-    expect(diff).toContain("+reportAppLaunch().catch(() => {})");
-    expect(diff).toContain("+reportDailyActive().catch(() => {})");
+    expect(diff).toContain("+// Restore the session and refresh its commands");
+    expect(diff).toContain("+restoreSession().catch(() => {})");
+    expect(diff).toContain("+refreshCommands().catch(() => {})");
     expect(diff?.match(/^@@ /gm)).toHaveLength(2);
     expect(diff).not.toContain("-type ActiveSession = RuntimeSessionState");
     expect(diff).not.toContain("-middle 0;");

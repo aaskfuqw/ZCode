@@ -31,10 +31,7 @@ export async function recordToolUsageFromResult(
       firstOutputAt: result.completedAt.getTime(),
       completedAt: result.completedAt.getTime(),
       durationMs: result.durationMs,
-      exitCode:
-        result.performance?.detail?.kind === "command"
-          ? result.performance.detail.command.exitCode
-          : undefined,
+      exitCode: result.exitCode,
       timeToFirstOutputMs: result.completedAt.getTime() - result.startedAt.getTime(),
       outputBytes,
       truncated: result.serialization?.truncated,

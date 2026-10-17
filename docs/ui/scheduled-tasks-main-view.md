@@ -213,7 +213,6 @@ scheduled-task 远程候选目录 -- cron contents 本地校验/解析 --> 模�
 - Settings 页当前仍通过 `settingsPageConfig.ts` 暴露 Automations 分区，并直接渲染 `AutomationsSection`；该入口没有工作区主视图的 Automations `main` 锚点，因此其 Toast 必须走全窗口居中回退。若未来移除此兼容入口，再同步删除本条事实说明。
 - 定时任务主视图不渲染 `WorkspaceHeader` 或草稿标题栏占位，避免出现聊天 / 项目顶部栏。
 - 定时任务管理操作失败时，底层 RPC / Agent 错误只写入 UI logger 供诊断；主视图不得把原始错误以持久红色横幅或原文 toast 暴露给用户。用户侧仅显示与当前动作对应的简短本地化提示，避免重复反馈和泄露 session、command、reasoning effort 等实现细节。
-- 自动化管理 UI 统一上报三个可通过 `automation_id` 关联真实运行结果的生命周期事件：手动创建接口终态 `automation_create_result`、确认立即运行意图 `automation_run_now_ck`、确认删除意图 `automation_delete_ck`。事件区域固定为 `app.automations`，列表与编辑页通过 `action_source` 区分且不得重复上报；模板创建携带配置平台下发的稳定 `template_id`，`item-*` 原值透传，不兼容或归一化为旧的无前缀本地 ID。不得上报标题、任务指令、工作区信息或完整 endpoint，自定义 provider 只允许携带 hostname；埋点失败不得中断业务流程。
 - `automation_create_result`：成功时 `error_code` / `error_msg` 均为空；失败时 `error_code` 为固定枚举 `limit` / `timeout` / `network` / `auth` / `validation` / `unknown`。只在本地按已知错误码或错误模式匹配分类，匹配顺序同上述枚举；不能识别或没有错误文本时使用 `unknown`，不宣称精确根因。`error_msg` 非空原文为 `[redacted]`，空值保持空，不上传路径、URL、凭据或原文片段。
 - `agent_step` 中成功完成的 `CronCreate` 工具步骤必须携带该工具结果新生成的 `automation_id`；执行中、失败、取消和其它工具不得猜测或携带该字段。该 ID 表示“本步骤创建出的任务”，不得与当前 automation 派发上下文的任务 ID 混用。
 - 主视图容器使用普通 workspace 背景与受限内容宽度；桌面与普通 Web 模式保持同一布局语义，手机 `/remote` 按上面的产品边界隐藏 Automations。

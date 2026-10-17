@@ -42,8 +42,6 @@ describe("BigModel Coding Plan 官网 webview 支付完成 E2E", () => {
     };
     await setInventoryMode("hold");
     await browser.refresh();
-    const telemetryFetch = await browser.electron.mock("net", "fetch");
-    await telemetryFetch.mockResolvedValue({ ok: true, status: 204 });
     await openBigModelCodingPlanPersonalUpgradePanel(async () => {
       const entry = () => $('[data-testid="sidebar-coding-plan-upgrade-button"]');
       await browser.waitUntil(async () => (await entry().getAttribute("data-disabled")) !== null, {
@@ -63,12 +61,6 @@ describe("BigModel Coding Plan 官网 webview 支付完成 E2E", () => {
           timeout: 15000,
         },
       );
-      await telemetryFetch.update();
-      expect(
-        telemetryFetch.mock.calls.filter(([, init]) =>
-          String((init as { body?: string })?.body).includes("coding_plan_upgrade_ck"),
-        ),
-      ).toHaveLength(0);
       await setInventoryMode("ready");
       await entry().click();
       expect(await $('[data-testid="coding-plan-embedded-webview"]').isExisting()).toBe(false);
@@ -81,52 +73,8 @@ describe("BigModel Coding Plan 官网 webview 支付完成 E2E", () => {
         },
         { timeout: 15000 },
       );
-      await telemetryFetch.update();
-      expect(
-        telemetryFetch.mock.calls.filter(([, init]) =>
-          String((init as { body?: string })?.body).includes("coding_plan_upgrade_ck"),
-        ),
-      ).toHaveLength(0);
     });
     await waitForCodingPlanWebviewDisplayed();
-
-    const readEntryEvents = async () => {
-      await telemetryFetch.update();
-      return telemetryFetch.mock.calls.flatMap(([url, init]) => {
-        if (!String(url).includes("/event/report")) return [];
-        const body = (init as { body?: string } | undefined)?.body;
-        if (!body) return [];
-        const event = JSON.parse(body) as {
-          element_name: string;
-          event_extra_detail: Record<string, string>;
-        };
-        return event.element_name === "coding_plan_upgrade_ck" ? [event] : [];
-      });
-    };
-    await browser.waitUntil(async () => (await readEntryEvents()).length === 1, {
-      timeout: 10000,
-      timeoutMsg: "购买入口没有通过 App net.fetch 上报一次",
-    });
-    const [entry] = await readEntryEvents();
-    if (!entry) throw new Error("App 入口事件不存在");
-    expect(entry.event_extra_detail.purchase_funnel_id).toBeTruthy();
-    expect(entry.event_extra_detail.entry_plan_list).toBe(
-      "coding_plan__personal_pro,start_plan__zcode_v3_start_plan",
-    );
-    await browser.waitUntil(
-      async () => {
-        const storage = await readCodingPlanWebviewLocalStorage([
-          "zcode:coding-plan:report-context",
-        ]);
-        const context = JSON.parse(storage["zcode:coding-plan:report-context"] || "{}");
-        return (
-          context.purchase_funnel_id === entry.event_extra_detail.purchase_funnel_id &&
-          context.purchase_entry_reporter === "app" &&
-          (context.entry_plan_list ?? "") === entry.event_extra_detail.entry_plan_list
-        );
-      },
-      { timeout: 10000, timeoutMsg: "App 上报字段与 WebView 注入上下文不一致" },
-    );
     await browser.electron.execute((electron) => {
       const guest = electron.webContents
         .getAllWebContents()
@@ -140,20 +88,6 @@ describe("BigModel Coding Plan 官网 webview 支付完成 E2E", () => {
         guest.reload();
       });
     });
-    await browser.waitUntil(
-      async () => {
-        const storage = await readCodingPlanWebviewLocalStorage([
-          "zcode:coding-plan:report-context",
-        ]);
-        const context = JSON.parse(storage["zcode:coding-plan:report-context"] || "{}");
-        return (
-          context.purchase_entry_reporter === "app" &&
-          context.purchase_funnel_id === entry.event_extra_detail.purchase_funnel_id
-        );
-      },
-      { timeout: 10000 },
-    );
-    expect(await readEntryEvents()).toHaveLength(1);
     await triggerCodingPlanWebviewPurchaseComplete("bigmodel");
     await waitForCodingPlanWebviewClosed();
 

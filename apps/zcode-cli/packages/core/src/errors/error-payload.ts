@@ -59,7 +59,7 @@ export function projectExecutionErrorPayload(
   const message = primaryFrame?.message ?? sanitizeText(fallbackMessage) ?? fallbackMessage;
   const code = selectErrorCode(primaryFrame, frames);
   const detail = buildErrorDetail(frames, message);
-  // 保留最深层非 wrapper frame 的原始 message/detail，供 UI telemetry 定位具体失败原因；
+  // 保留最深层非 wrapper frame 的原始 message/detail，供 UI diagnostics 定位具体失败原因；
   // 不改变既有 detail 的拼接结果或错误处理行为。
   const underlyingFrame =
     [...frames].reverse().find((frame) => !frame.isWrapper) ?? frames[frames.length - 1];
@@ -70,12 +70,8 @@ export function projectExecutionErrorPayload(
     ...(code ? { code } : {}),
     message,
     ...(detail ? { detail } : {}),
-    ...(underlyingFrame?.message
-      ? { underlyingErrorMessage: underlyingFrame.message }
-      : {}),
-    ...(underlyingFrame?.detail
-      ? { underlyingErrorDetail: underlyingFrame.detail }
-      : {}),
+    ...(underlyingFrame?.message ? { underlyingErrorMessage: underlyingFrame.message } : {}),
+    ...(underlyingFrame?.detail ? { underlyingErrorDetail: underlyingFrame.detail } : {}),
   };
 }
 
@@ -94,8 +90,7 @@ function projectErrorAttribution(
   const providerErrorCode =
     selectContextCode(contexts, ["providerCode"]) ??
     frames.map((frame) => frame.code).find((code) => /^\d+$/.test(code ?? ""));
-  const retryable =
-    selectContextBoolean(contexts, "retryable") ?? selectFrameRetryable(frames);
+  const retryable = selectContextBoolean(contexts, "retryable") ?? selectFrameRetryable(frames);
   const source = selectSource(contexts);
 
   const attribution: ErrorAttribution = {

@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // 模拟 ipcRenderer 的 on / removeListener
 const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
-/** installArmsRumBridgeIpcForward 会替换 ipcRenderer.send，断言须用此引用 */
+/** Stable IPC send reference for disposer assertions. */
 const mockIpcSend = vi.fn();
 const mockIpcRenderer = {
   on: vi.fn((channel: string, handler: (...args: unknown[]) => void) => {
@@ -222,10 +222,12 @@ describe("preload IPC disposer", () => {
       releaseHandler,
     );
 
-    for (const handler of listeners.get(PlatformChannels.BrowserViewScreenshotSurfacePrepare) ?? []) {
+    for (const handler of listeners.get(PlatformChannels.BrowserViewScreenshotSurfacePrepare) ??
+      []) {
       handler({}, payload);
     }
-    for (const handler of listeners.get(PlatformChannels.BrowserViewScreenshotSurfaceRelease) ?? []) {
+    for (const handler of listeners.get(PlatformChannels.BrowserViewScreenshotSurfaceRelease) ??
+      []) {
       handler({}, releasePayload);
     }
     expect(prepare).toHaveBeenCalledTimes(1);

@@ -108,43 +108,6 @@ describe("Write model-result harness", () => {
     expect(fs.files.get(file)).toBe("new line\nkept line\n");
   });
 
-  it("adds Write performance attribution without exposing file content", async () => {
-    const file = join(tmpDir, "perf-existing.txt");
-    const fs = createMemoryFileSystem({
-      [file]: "old line\n",
-    });
-    const context = contextWith(fs, {
-      readFileState: createReadFileState(file, "old line\n"),
-    });
-
-    const result = await writeForModel(
-      {
-        file_path: file,
-        content: "new line\nextra\n",
-      },
-      context,
-    );
-
-    expect(result.output).toMatchObject({
-      type: "update",
-      perf: {
-        detail: {
-          kind: "filesystem",
-          filesystem: {
-            readMs: expect.any(Number),
-            writeMs: expect.any(Number),
-            fileCount: 1,
-            totalBytes: Buffer.byteLength("new line\nextra\n", "utf8"),
-            maxFileBytes: Buffer.byteLength("new line\nextra\n", "utf8"),
-            workspaceKind: "local",
-          },
-        },
-      },
-    });
-    expect(JSON.stringify((result.output as any).perf)).not.toContain(file);
-    expect(JSON.stringify((result.output as any).perf)).not.toContain("new line");
-  });
-
   it("accepts a normalized read-state key when the stored display path differs", async () => {
     const file = join(tmpDir, "existing-normalized-key.txt");
     const fs = createMemoryFileSystem({

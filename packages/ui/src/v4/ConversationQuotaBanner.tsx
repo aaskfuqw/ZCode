@@ -1,4 +1,3 @@
-import { CodingPlanEntryButton } from "@/settings/CodingPlanEntryButton.js";
 import { useEffect, useRef } from "react";
 import type { CodingPlanBillingDiscountConfig } from "@zcode/shared";
 import { InfoIcon, RocketIcon, XIcon } from "lucide-react";
@@ -123,7 +122,7 @@ export function ConversationQuotaBanner({
         </div>
         {onUpgrade ? (
           <div className="inline-flex shrink-0 items-center gap-1">
-            <CodingPlanEntryButton
+            <Button
               type="button"
               size="sm"
               className={cn(
@@ -144,7 +143,7 @@ export function ConversationQuotaBanner({
                   variant="surface"
                 />
               ) : null}
-            </CodingPlanEntryButton>
+            </Button>
             {showBillingDiscountBadge ? (
               <CodingPlanBillingDiscountInfoDialog config={billingDiscountConfig} />
             ) : null}

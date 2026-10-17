@@ -10,7 +10,7 @@
 - Root 的 `handleLogout` 在执行 `oauthService.logout()` 前先查询桌面主进程维护的运行中会话计数。
 - 如果检测到运行中 agent session，确认文案显示具体数量；如果没有检测到，文案仍说明 App 会重启。
 - “断开连接并重启”是完成退出登录流程的主操作，确认按钮使用统一 ConfirmDialog 的默认 primary 按钮；运行中会话风险只通过标题和描述说明，不降级为 warning/danger 按钮。
-- 用户取消时不触发 telemetry、logout 或重启。
+- 用户取消时不触发 logout 或重启。
 - 用户确认后按原有顺序清理 OAuth、provider family domain 和展示态，然后通过桌面命令请求 App 重启。
 
 ## 边界

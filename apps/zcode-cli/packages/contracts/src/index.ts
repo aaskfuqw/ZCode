@@ -51,8 +51,8 @@ export * from "./model/index.js";
 export * from "./model/image-media.js";
 export * from "./model/media-policy.js";
 
-// Telemetry
-export * from "./telemetry/index.js";
+// Model call context
+export * from "./model/call-context.js";
 
 // Errors
 export * from "./errors/index.js";
@@ -101,8 +101,5 @@ export {
   MEDIA_BUDGET_CURRENT_VIDEO_TOO_LARGE_ERROR_CODE,
   VIDEO_INPUT_MAX_BYTES,
 } from "@zcode/shared";
-
-export * from "./tracing/local-turn-preparation.js";
-export type { LocalTtftDetail } from "@zcode/shared";
 
 export * from "./interfaces/permission-full-access.js";

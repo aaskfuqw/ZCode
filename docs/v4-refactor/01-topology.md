@@ -80,7 +80,7 @@ Browser / 任意普通 client
   └─ GET /ws（旧 mode header 被忽略）──────────> replayable terminal
 ```
 
-`hello/clientHello` 只完成 wire v3 协商、连接身份确认和遥测身份注册。客户端可上报稳定 `clientId`、版本与展示用途的 `clientKind`，但不能覆盖 host 注入的 `connectionId/clientMode/profile`。UI-facing `subscribe` 不再接受 `deliveryProfile` 或 `clientMode`。
+`hello/clientHello` 只完成 wire v3 协商、连接身份确认。客户端可上报稳定 `clientId`、版本与展示用途的 `clientKind`，但不能覆盖 host 注入的 `connectionId/clientMode/profile`。UI-facing `subscribe` 不再接受 `deliveryProfile` 或 `clientMode`。
 
 远程 workspace 的连接、订阅、命令与缓存继续贯穿 `workspaceIdentity` 和 `remoteSessionId`。身份 key 一律为 `workspaceIdentity?.trim() || workspacePath`；文件读写与进程 cwd 才使用 `workspacePath`。
 
