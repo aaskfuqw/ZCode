@@ -7,12 +7,12 @@ export const enUS: ZCodeCopy = {
       localeUnsupported: (value) =>
         `Unsupported --locale value: ${value}. Supported locales: en-US, zh-CN, auto.`,
     },
-    help: (version) => `zcode ${version}
+    help: (version) => `zcode-next ${version}
 
 Usage:
-  zcode [command] [options]
+  zcode-next [command] [options]
 
-With no command, zcode opens the full-screen TUI.
+With no command, zcode-next opens the full-screen TUI.
 
 Commands:
   app-server Run the ZCode Protocol stdio app server
@@ -287,7 +287,7 @@ Slash Commands:
     },
     terminal: {
       requiresInteractive: "TUI requires an interactive terminal.",
-      starting: "Starting ZCode... Ctrl+C to exit",
+      starting: "Starting ZCode Next... Ctrl+C to exit",
     },
     transcript: {
       compact: {

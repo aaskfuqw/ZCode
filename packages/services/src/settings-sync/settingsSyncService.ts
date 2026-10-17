@@ -412,35 +412,35 @@ function resolveUserHomeDir(): string {
 }
 
 function getWorkspaceZcodeSkillRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "skills");
+  return join(workspacePath, ".zcode-next", "skills");
 }
 
 function getUserZcodeSkillRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "skills");
+  return join(resolveUserHomeDir(), ".zcode-next", "skills");
 }
 
 function getWorkspaceZcodeCommandRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "commands");
+  return join(workspacePath, ".zcode-next", "commands");
 }
 
 function getUserZcodeCommandRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "commands");
+  return join(resolveUserHomeDir(), ".zcode-next", "commands");
 }
 
 function getWorkspaceZcodePluginRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "plugins");
+  return join(workspacePath, ".zcode-next", "plugins");
 }
 
 function getUserZcodePluginRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "plugins");
+  return join(resolveUserHomeDir(), ".zcode-next", "plugins");
 }
 
 function getUserZcodeCliConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+  return join(resolveUserHomeDir(), ".zcode-next", "cli", "config.json");
 }
 
 function getWorkspaceZcodeConfigPath(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "config.json");
+  return join(workspacePath, ".zcode-next", "config.json");
 }
 
 function getClaudeUserAgentsFileSourcePath(): string {
@@ -448,7 +448,7 @@ function getClaudeUserAgentsFileSourcePath(): string {
 }
 
 function getUserZcodeAgentsFilePath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "AGENTS.md");
+  return join(resolveUserHomeDir(), ".zcode-next", "AGENTS.md");
 }
 
 function resolveTargetRootForScope(

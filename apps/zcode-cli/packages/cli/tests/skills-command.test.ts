@@ -109,7 +109,7 @@ test("rejects inspect without a skill name", async () => {
   });
 
   assert.equal(exitCode, 1);
-  assert.match(ctx.stderr.output(), /Usage: zcode skills \[list\|inspect <name>\]/);
+  assert.match(ctx.stderr.output(), /Usage: zcode-next skills \[list\|inspect <name>\]/);
   assert.equal(ctx.stdout.output(), "");
 });
 
@@ -119,22 +119,22 @@ function createSkillInspection() {
       {
         code: "skill_scan_failed",
         message: "Failed to scan skill directory: demo",
-        path: "/workspace/project/.zcode/skills/demo/SKILL.md",
+        path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
         severity: "warning",
         skillName: "demo",
       },
     ],
     skill: {
-      baseDirectory: "/workspace/project/.zcode/skills/demo",
+      baseDirectory: "/workspace/project/.zcode-next/skills/demo",
       bytesRead: 34,
       content: "# Demo Skill\nFollow this workflow.",
       metadata: {
         description: "Use for demo tasks.",
-        directory: "/workspace/project/.zcode/skills/demo",
+        directory: "/workspace/project/.zcode-next/skills/demo",
         frontmatterKeys: ["name", "description", "version"],
         name: "demo",
-        path: "/workspace/project/.zcode/skills/demo/SKILL.md",
-        rootPath: "/workspace/project/.zcode/skills",
+        path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
+        rootPath: "/workspace/project/.zcode-next/skills",
         safeToAutoLoad: false,
         scope: "project",
         source: "zcode",

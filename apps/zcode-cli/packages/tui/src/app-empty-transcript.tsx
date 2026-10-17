@@ -17,7 +17,8 @@ export const ZCODE_LOGO_LINES = [
   "╚══════╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝",
 ] as const;
 
-const EMPTY_TRANSCRIPT_LOGO_MIN_HEIGHT = ZCODE_LOGO_LINES.length;
+const PRODUCT_NAME = "ZCode Next";
+const EMPTY_TRANSCRIPT_LOGO_MIN_HEIGHT = ZCODE_LOGO_LINES.length + 1;
 
 export function EmptyTranscriptLogo({
   animated = false,
@@ -57,6 +58,13 @@ function renderLogoContent(input: { animated: boolean; frameMs?: number }): Reac
         text: line,
       }),
     ),
+    renderLogoText({
+      animated: input.animated,
+      baseColor: palette.accent,
+      frameMs: input.frameMs,
+      key: "product-name",
+      text: PRODUCT_NAME,
+    }),
   );
 }
 

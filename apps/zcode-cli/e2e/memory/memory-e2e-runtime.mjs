@@ -35,7 +35,7 @@ export async function createScenarioPaths(runRoot, modules) {
   await writeFile(project.indexFile, initialProjectMemoryIndex(), "utf8");
   await writeFile(project.existingFile, existingMemoryFile(), "utf8");
 
-  custom.memoryRoot = join(custom.workspace, ".zcode", "agent-memory", "memory-curator");
+  custom.memoryRoot = join(custom.workspace, ".zcode-next", "agent-memory", "memory-curator");
   custom.memoryFile = join(custom.memoryRoot, "review-convention.md");
   await mkdir(custom.memoryRoot, { recursive: true });
   await writeFile(

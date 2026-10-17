@@ -1,4 +1,4 @@
-# ZCode CLI 架构设计 v2
+# ZCode Next CLI 架构设计 v2
 
 ## 文档定位
 
@@ -28,7 +28,7 @@
 
 ## 一、总体架构
 
-ZCode CLI 按四层组织：
+ZCode Next CLI 按四层组织：
 
 - `app/bootstrap`
 - `application/core`
@@ -160,7 +160,7 @@ adapters/
 
 ### 1.5 CLI/TUI 默认入口契约
 
-面向人工交互时，`zcode` 不带命令和参数应默认进入本地 TUI，而不是打印 help。`zcode tui` 是同一入口的显式别名；`zcode --prompt <text>` 继续作为脚本友好的单轮非交互入口。
+面向人工交互时，`zcode-next` 不带命令和参数应默认进入本地 TUI，而不是打印 help。`zcode tui` 是同一入口的显式别名；`zcode-next --prompt <text>` 继续作为脚本友好的单轮非交互入口。
 
 TUI 默认占用整个终端屏幕，底部保留输入框，回车提交当前问题；上方按时间顺序展示用户消息和 agent 回复。TUI 只负责输入采集、布局渲染、状态提示和退出清理，不直接持有 provider、tool、permission 或 event store 的内部实现。
 
@@ -756,7 +756,7 @@ artifact 用于承载大体积结果、附件、下载文件、模型流片段�
 
 ## 八、多 Session 并行执行
 
-ZCode CLI 需要把 session、message、tool call、permission、checkpoint、队列和 pending 状态视为一等对象。
+ZCode Next CLI 需要把 session、message、tool call、permission、checkpoint、队列和 pending 状态视为一等对象。
 
 ### 8.1 Session 隔离
 

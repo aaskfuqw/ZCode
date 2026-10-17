@@ -3,7 +3,7 @@
 ## 状态
 
 - 本文是 zcode-cli Anthropic 模型请求 `metadata.user_id` 的事实规范。
-- 设备身份沿用 `{dataBaseDir}/.zcode/v2/device-identity.json` 的 `deviceMid`。
+- 设备身份沿用 `{dataBaseDir}/.zcode-next/v2/device-identity.json` 的 `deviceMid`。
 - metadata 的拼装与注入只发生在 zcode-cli，不修改 Desktop、Host、Web 或 app-agent 协议。
 
 ## 请求契约
@@ -35,7 +35,7 @@ Desktop、远端 zcode-server 和 zcode-cli 拥有彼此独立的“确保 devic
 
 ```text
 Desktop ensure（同步） ─────────┐
-远端 server ensure（启动时异步）├─> {dataBaseDir}/.zcode/v2/device-identity.json.deviceMid
+远端 server ensure（启动时异步）├─> {dataBaseDir}/.zcode-next/v2/device-identity.json.deviceMid
 CLI ensure（异步） ─────────────┘                          │
                                                   v
                                   zcode-cli Anthropic metadata.device_id

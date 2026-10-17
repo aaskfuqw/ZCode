@@ -1094,14 +1094,14 @@ describe("workflow observation tool displays", () => {
           name: "nightly-sync",
           description: "d".repeat(5_000),
           scope: "project",
-          path: ".zcode/workflows/nightly-sync.dwf.ts",
+          path: ".zcode-next/workflows/nightly-sync.dwf.ts",
           args: {
             question: { type: "string", description: "what to research", required: true },
             depth: { type: "number" },
           },
         },
       ],
-      invalid: [{ path: ".zcode/workflows/broken.dwf.ts", reason: "bad frontmatter" }],
+      invalid: [{ path: ".zcode-next/workflows/broken.dwf.ts", reason: "bad frontmatter" }],
     });
     if (display?.kind !== "saved_workflow_list") {
       throw new Error("Expected saved_workflow_list display payload");
@@ -1109,7 +1109,7 @@ describe("workflow observation tool displays", () => {
     expect(display.workflows[0]?.argNames).toEqual(["question", "depth"]);
     expect(display.workflows[0]?.description!.length).toBeLessThanOrEqual(2_048);
     expect(display.invalid).toEqual([
-      { path: ".zcode/workflows/broken.dwf.ts", reason: "bad frontmatter" },
+      { path: ".zcode-next/workflows/broken.dwf.ts", reason: "bad frontmatter" },
     ]);
     expect(display.truncated).toBe(true);
     expect(parseToolResultDisplayPayload(display)).toEqual(display);

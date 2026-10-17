@@ -99,14 +99,14 @@ describe("ContextBuilder meta user context", () => {
       false,
       false,
     ]);
-    expect(result.systemMessages[0]?.content).toBe("You are ZCode, an interactive coding agent");
+    expect(result.systemMessages[0]?.content).toBe("You are ZCode Next, an interactive coding agent");
     expect(result.systemMessages[0]?.content).not.toContain("# Agent Identity");
     expect(result.systemMessages[0]?.content).not.toContain("# Task Behavior");
 
     const stableBody = String(result.systemMessages[1]?.content ?? "");
     expect(stableBody).toMatch(/^\n?You are an interactive ZCode agent/);
     expect(stableBody).not.toContain("# Agent Identity");
-    expect(stableBody).not.toContain("You are ZCode, an interactive coding agent");
+    expect(stableBody).not.toContain("You are ZCode Next, an interactive coding agent");
     expect(stableBody).toContain("# Harness");
     expect(stableBody).not.toContain("# Session-specific guidance");
     expect(stableBody).not.toContain("# Environment");
@@ -264,7 +264,7 @@ describe("ContextBuilder meta user context", () => {
       cliPrefixPrompt: "legacy override",
     } as any).build();
 
-    expect(result.systemMessages[0]?.content).toBe("You are ZCode, an interactive coding agent");
+    expect(result.systemMessages[0]?.content).toBe("You are ZCode Next, an interactive coding agent");
   });
 
   it("covers default body safety, runtime, and tool-guidance semantic anchors", () => {
@@ -384,7 +384,7 @@ describe("ContextBuilder meta user context", () => {
     expect(result.metaUserAttachments.map((attachment) => attachment.source)).toEqual([
       "context_prefix",
     ]);
-    expect(result.systemMessages[0]?.content).toBe("You are ZCode, an interactive coding agent");
+    expect(result.systemMessages[0]?.content).toBe("You are ZCode Next, an interactive coding agent");
     expect(result.systemMessages[0]?.content).not.toContain("# Agent Identity");
     expect(result.systemMessages[1]?.content).toBe("\nYou are concise for this task.");
     expect(result.systemMessages[1]?.content).not.toContain("# Task Behavior");
@@ -443,7 +443,7 @@ describe("ContextBuilder meta user context", () => {
           keepRecentToolResults: 3,
         },
       },
-      memoryRoot: "/workspace/.zcode/memory",
+      memoryRoot: "/workspace/.zcode-next/memory",
       guidanceToolNames: ["AskUserQuestion", "Agent", "Skill", "TodoWrite", "Read", "Edit", "Bash"],
     }).build();
 
@@ -822,12 +822,12 @@ describe("ContextBuilder meta user context", () => {
     const stableBody = result.systemMessages[1]?.content ?? "";
     const dynamicSystem = result.systemMessages[2]?.content ?? "";
     const meta = metaAttachment(result, "context_prefix");
-    expect(cliPrefix).toBe("You are ZCode, an interactive coding agent");
+    expect(cliPrefix).toBe("You are ZCode Next, an interactive coding agent");
     expect(cliPrefix).not.toContain("# Agent Identity");
     expect(cliPrefix).not.toContain("# Task Behavior");
     expect(stableBody).not.toContain("# Agent Identity");
     expect(stableBody).toMatch(/^\n?You are an interactive ZCode agent/);
-    expect(stableBody).not.toContain("You are ZCode, an interactive coding agent");
+    expect(stableBody).not.toContain("You are ZCode Next, an interactive coding agent");
     expect(stableBody).toContain("# Harness");
     expect(stableBody).not.toContain("# Session-specific guidance");
     expect(stableBody).not.toContain("# Environment");
@@ -903,7 +903,7 @@ describe("ContextBuilder meta user context", () => {
         sources: [
           {
             scope: "user",
-            filePath: "/Users/test/.zcode/AGENTS.md",
+            filePath: "/Users/test/.zcode-next/AGENTS.md",
             fileName: "AGENTS.md",
             content: "default instructions",
             bytesRead: 20,
@@ -927,7 +927,7 @@ describe("ContextBuilder meta user context", () => {
     expect(meta).toContain("Codebase and user instructions are shown below.");
     expect(meta.match(/# agentsMd/gu)).toHaveLength(1);
     expect(meta).not.toContain("# claudeMd");
-    expect(meta).toContain("Contents of /Users/test/.zcode/AGENTS.md (user default instructions):");
+    expect(meta).toContain("Contents of /Users/test/.zcode-next/AGENTS.md (user default instructions):");
     expect(meta).toContain("Contents of /workspace/AGENTS.md (workspace instructions):");
     expect(meta.indexOf("default instructions")).toBeLessThan(
       meta.indexOf("workspace instructions"),
@@ -1058,7 +1058,7 @@ describe("ContextBuilder meta user context", () => {
       "system",
     ]);
     expect(result.metaUserAttachments).toEqual([]);
-    expect(result.systemMessages[0]?.content).toBe("You are ZCode, an interactive coding agent");
+    expect(result.systemMessages[0]?.content).toBe("You are ZCode Next, an interactive coding agent");
     expect(result.systemMessages[0]?.content).not.toContain("# Agent Identity");
     expect(result.systemMessages[1]?.content).not.toContain("# Agent Identity");
     expect(result.systemMessages[1]?.content).toMatch(/^\n?You are an interactive ZCode agent/);
@@ -1131,9 +1131,9 @@ describe("ContextBuilder meta user context", () => {
           {
             name: "demo-skill",
             description: "Use this for demos",
-            path: "/workspace/.zcode/skills/demo/SKILL.md",
-            directory: "/workspace/.zcode/skills/demo",
-            rootPath: "/workspace/.zcode/skills",
+            path: "/workspace/.zcode-next/skills/demo/SKILL.md",
+            directory: "/workspace/.zcode-next/skills/demo",
+            rootPath: "/workspace/.zcode-next/skills",
             scope: "project",
             source: "zcode",
             safeToAutoLoad: true,
@@ -1333,10 +1333,10 @@ describe("ContextBuilder meta user context", () => {
     const prefixSection = buildCliPrefixSection();
     const identitySection = buildIdentitySection();
 
-    expect(prefixSection.content).toBe("You are ZCode, an interactive coding agent");
+    expect(prefixSection.content).toBe("You are ZCode Next, an interactive coding agent");
     expect(identitySection.content).toMatch(/^\n?You are an interactive ZCode agent/);
     expect(identitySection.content).not.toContain("# Agent Identity");
-    expect(identitySection.content).not.toContain("You are ZCode, an interactive coding agent");
+    expect(identitySection.content).not.toContain("You are ZCode Next, an interactive coding agent");
     expect(`${prefixSection.content}\n${identitySection.content}`).not.toContain("${");
     expect(`${prefixSection.content}\n${identitySection.content}`).not.toContain("an AI assistant");
   });
@@ -1376,9 +1376,9 @@ describe("ContextBuilder meta user context", () => {
           {
             name: "demo-skill",
             description: "Use this for demos",
-            path: "/workspace/.zcode/skills/demo/SKILL.md",
-            directory: "/workspace/.zcode/skills/demo",
-            rootPath: "/workspace/.zcode/skills",
+            path: "/workspace/.zcode-next/skills/demo/SKILL.md",
+            directory: "/workspace/.zcode-next/skills/demo",
+            rootPath: "/workspace/.zcode-next/skills",
             scope: "project",
             source: "zcode",
             safeToAutoLoad: true,
@@ -1527,7 +1527,7 @@ describe("context builder — workflow actor identity", () => {
     ).toBe(true);
     expect(result.sections.map((section) => section.source)).not.toContain("cli_prefix");
     expect(result.systemMessages.map((m) => String(m.content)).join("\n")).not.toContain(
-      "You are ZCode, an interactive coding agent",
+      "You are ZCode Next, an interactive coding agent",
     );
   });
 
@@ -1552,9 +1552,9 @@ describe("context builder — workflow actor identity", () => {
         {
           name: "demo-skill",
           description: "Demo skill",
-          path: "/workspace/.zcode/skills/demo/SKILL.md",
-          directory: "/workspace/.zcode/skills/demo",
-          rootPath: "/workspace/.zcode/skills",
+          path: "/workspace/.zcode-next/skills/demo/SKILL.md",
+          directory: "/workspace/.zcode-next/skills/demo",
+          rootPath: "/workspace/.zcode-next/skills",
           scope: "project" as const,
           source: "zcode" as const,
           safeToAutoLoad: true,

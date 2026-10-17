@@ -52,8 +52,8 @@ const CODEX_PLUGIN_MANIFEST_PATH = join(".codex-plugin", "plugin.json");
 const ZCODE_COMMAND_DESCRIPTOR: CommandAgentSourceDescriptor = {
   agentSource: "zcodeAgent",
   directorySource: "zcode",
-  userDirectorySegments: [".zcode", "commands"],
-  workspaceDirectorySegments: [".zcode", "commands"],
+  userDirectorySegments: [".zcode-next", "commands"],
+  workspaceDirectorySegments: [".zcode-next", "commands"],
   fileExtension: ".md",
   format: "markdown",
   namespaceSeparator: "/",
@@ -86,7 +86,7 @@ function getUserCommandsRoot(agentSource?: CommandAgentSource): string {
 }
 
 function getUserCliConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+  return join(resolveUserHomeDir(), ".zcode-next", "cli", "config.json");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -203,7 +203,7 @@ function readStorageDirFromConfig(config: Record<string, unknown>): string {
   const storage = isRecord(config.storage) ? config.storage : {};
   return typeof storage.dir === "string" && storage.dir.trim().length > 0
     ? storage.dir
-    : "~/.zcode";
+    : "~/.zcode-next";
 }
 
 function readPluginConfigFromConfig(config: Record<string, unknown>): PluginConfigSummary {
@@ -524,7 +524,7 @@ export function createCommandsService(_options?: CommandsServiceOptions): IComma
     const enabledOverrides = await readCommandEnabledOverridesFromUserConfig();
 
     // ZCode Agent 需要先合并所有 workspace 目录，再合并所有 user 目录；
-    // 按每个目录交错读取 project/user 会让 user .zcode 抢在 workspace .agents 前面。
+    // 按每个目录交错读取 project/user 会让 user .zcode-next 抢在 workspace .agents 前面。
     for (const agentSource of agentSources) {
       const descriptors =
         agentSource === ZCODE_COMMAND_AGENT_SOURCE
@@ -996,7 +996,7 @@ async function discoverCommandsFromDirectorySources(params: {
       scope: params.scope,
       ...(params.projectPath ? { projectPath: params.projectPath } : {}),
     });
-    // `.zcode` 是强优先级来源；只要读到有效命令，同 scope 的 `.agents` 就不再参与。
+    // `.zcode-next` 是强优先级来源；只要读到有效命令，同 scope 的 `.agents` 就不再参与。
     if (descriptor.directorySource === "zcode" && discoveredCount > 0) {
       break;
     }

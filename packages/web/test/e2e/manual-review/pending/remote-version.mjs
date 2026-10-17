@@ -20,7 +20,7 @@ async function scenario({ width, theme, locale, missingVersion = false, oldDeskt
   // 保留显式输出，其他浏览器异常仍使本用例失败。
   const knownHomeOnlyError = "agentService.onDynamicSessionsIndexFrame(...) is not a function";
   page.on("pageerror", (error) => errors.push(error.message));
-  await context.addInitScript((value) => localStorage.setItem("zcode-theme", value), theme);
+  await context.addInitScript((value) => localStorage.setItem("zcode-next-theme", value), theme);
   const waitForHome = async () => {
     const home = page.getByText("E2E_REMOTE_VERSION", { exact: true }).first();
     const onboarding = page.getByTestId("onboarding-page");

@@ -9,10 +9,23 @@ import {
 const WORKING_DIRECTORY = "/ws/project";
 
 describe("isWorkflowDraftPath", () => {
+  it.each([path.posix, path.win32])(
+    "does not preapprove upstream workflow drafts",
+    (pathModule) => {
+      expect(
+        isWorkflowDraftPath({
+          filePath: ".zcode/workflow-drafts/report.dwf.ts",
+          pathModule,
+          workingDirectory: WORKING_DIRECTORY,
+        }),
+      ).toBe(false);
+    },
+  );
+
   it("accepts a relative path resolved against the working directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts/report.dwf.ts",
+        filePath: ".zcode-next/workflow-drafts/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -22,7 +35,7 @@ describe("isWorkflowDraftPath", () => {
   it("accepts an absolute path inside the drafts directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: "/ws/project/.zcode/workflow-drafts/report.dwf.ts",
+        filePath: "/ws/project/.zcode-next/workflow-drafts/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -32,7 +45,7 @@ describe("isWorkflowDraftPath", () => {
   it("accepts a file nested below the drafts directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts/nested/report.dwf.ts",
+        filePath: ".zcode-next/workflow-drafts/nested/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -42,7 +55,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects the drafts directory itself", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts",
+        filePath: ".zcode-next/workflow-drafts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -52,7 +65,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects a traversal that climbs back out of the drafts directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts/../../secrets.env",
+        filePath: ".zcode-next/workflow-drafts/../../secrets.env",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -64,7 +77,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects a sibling directory that merely shares the name prefix", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts-other/report.dwf.ts",
+        filePath: ".zcode-next/workflow-drafts-other/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -74,7 +87,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects the sibling definitions directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflows/report.dwf.ts",
+        filePath: ".zcode-next/workflows/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -84,7 +97,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects another project's drafts directory", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: "/ws/other/.zcode/workflow-drafts/report.dwf.ts",
+        filePath: "/ws/other/.zcode-next/workflow-drafts/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: WORKING_DIRECTORY,
       }),
@@ -94,7 +107,7 @@ describe("isWorkflowDraftPath", () => {
   it("rejects an empty working directory and an empty file path", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: ".zcode/workflow-drafts/report.dwf.ts",
+        filePath: ".zcode-next/workflow-drafts/report.dwf.ts",
         pathModule: path.posix,
         workingDirectory: "",
       }),
@@ -111,7 +124,7 @@ describe("isWorkflowDraftPath", () => {
   it("uses the current platform's path module by default", () => {
     expect(
       isWorkflowDraftPath({
-        filePath: path.join(".zcode", "workflow-drafts", "report.dwf.ts"),
+        filePath: path.join(".zcode-next", "workflow-drafts", "report.dwf.ts"),
         workingDirectory: path.resolve("ws", "project"),
       }),
     ).toBe(true);
@@ -125,7 +138,7 @@ describe("isWorkflowDraftPath", () => {
     it("accepts a backslash-separated path inside the drafts directory", () => {
       expect(
         isWorkflowDraftPath({
-          filePath: ".zcode\\workflow-drafts\\report.dwf.ts",
+          filePath: ".zcode-next\\workflow-drafts\\report.dwf.ts",
           pathModule: path.win32,
           workingDirectory: windowsWorkingDirectory,
         }),
@@ -135,7 +148,7 @@ describe("isWorkflowDraftPath", () => {
     it("accepts a drive-qualified absolute path inside the drafts directory", () => {
       expect(
         isWorkflowDraftPath({
-          filePath: "C:\\ws\\project\\.zcode\\workflow-drafts\\report.dwf.ts",
+          filePath: "C:\\ws\\project\\.zcode-next\\workflow-drafts\\report.dwf.ts",
           pathModule: path.win32,
           workingDirectory: windowsWorkingDirectory,
         }),
@@ -145,7 +158,7 @@ describe("isWorkflowDraftPath", () => {
     it("rejects a path on another drive", () => {
       expect(
         isWorkflowDraftPath({
-          filePath: "D:\\ws\\project\\.zcode\\workflow-drafts\\report.dwf.ts",
+          filePath: "D:\\ws\\project\\.zcode-next\\workflow-drafts\\report.dwf.ts",
           pathModule: path.win32,
           workingDirectory: windowsWorkingDirectory,
         }),
@@ -155,7 +168,7 @@ describe("isWorkflowDraftPath", () => {
     it("rejects a backslash traversal out of the drafts directory", () => {
       expect(
         isWorkflowDraftPath({
-          filePath: ".zcode\\workflow-drafts\\..\\..\\secrets.env",
+          filePath: ".zcode-next\\workflow-drafts\\..\\..\\secrets.env",
           pathModule: path.win32,
           workingDirectory: windowsWorkingDirectory,
         }),
@@ -165,7 +178,7 @@ describe("isWorkflowDraftPath", () => {
     it("rejects a sibling directory that merely shares the name prefix", () => {
       expect(
         isWorkflowDraftPath({
-          filePath: ".zcode\\workflow-drafts-other\\report.dwf.ts",
+          filePath: ".zcode-next\\workflow-drafts-other\\report.dwf.ts",
           pathModule: path.win32,
           workingDirectory: windowsWorkingDirectory,
         }),
@@ -176,7 +189,7 @@ describe("isWorkflowDraftPath", () => {
 
 describe("isPreapprovedWorkflowDraftWrite", () => {
   const draftWrite = {
-    input: { file_path: ".zcode/workflow-drafts/report.dwf.ts" },
+    input: { file_path: ".zcode-next/workflow-drafts/report.dwf.ts" },
     pathModule: path.posix,
     workingDirectory: WORKING_DIRECTORY,
   };

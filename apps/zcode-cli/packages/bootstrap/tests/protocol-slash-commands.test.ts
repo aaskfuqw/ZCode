@@ -12,8 +12,8 @@ describe("protocol slash command surface", () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-protocol-slash-"));
     const workspace = join(tempRoot, "workspace");
     const home = join(tempRoot, "home");
-    const projectCommands = join(workspace, ".zcode", "commands");
-    const userCommands = join(home, ".zcode", "commands");
+    const projectCommands = join(workspace, ".zcode-next", "commands");
+    const userCommands = join(home, ".zcode-next", "commands");
 
     try {
       await mkdir(projectCommands, { recursive: true });
@@ -75,7 +75,7 @@ describe("protocol slash command surface", () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-custom-command-prompt-"));
     const workspace = join(tempRoot, "workspace");
     const home = join(tempRoot, "home");
-    const userCommands = join(home, ".zcode", "commands");
+    const userCommands = join(home, ".zcode-next", "commands");
 
     try {
       await mkdir(workspace, { recursive: true });
@@ -114,7 +114,7 @@ describe("protocol slash command surface", () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-builtin-workflow-"));
     const workspace = join(tempRoot, "workspace");
     const home = join(tempRoot, "home");
-    const userCommands = join(home, ".zcode", "commands");
+    const userCommands = join(home, ".zcode-next", "commands");
     try {
       await mkdir(workspace, { recursive: true });
       await mkdir(userCommands, { recursive: true });
@@ -164,7 +164,7 @@ describe("protocol slash command surface", () => {
       expect(prompt).toContain("built-in /init command");
       expect(prompt).toContain("AGENTS.md");
       expect(prompt).toContain(join(workspace, "AGENTS.md"));
-      expect(prompt).toContain(join(workspace, ".zcode", "AGENTS.md"));
+      expect(prompt).toContain(join(workspace, ".zcode-next", "AGENTS.md"));
       expect(prompt).toContain(join(workspace, ".agents", "AGENTS.md"));
       expect(prompt).toContain("they already have an instructions file");
       expect(prompt).not.toContain("Do not create CLAUDE.md or AGNENTS.md");
@@ -262,7 +262,7 @@ describe("protocol slash command surface", () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-command-shell-missing-context-"));
     const workspace = join(tempRoot, "workspace");
     const home = join(tempRoot, "home");
-    const userCommands = join(home, ".zcode", "commands");
+    const userCommands = join(home, ".zcode-next", "commands");
     let executionCalled = false;
     const executionPort: ExecutionPort = {
       async run() {
@@ -277,13 +277,13 @@ describe("protocol slash command surface", () => {
         userCommands,
         "skill-context",
         "Needs skill context",
-        ['```!', 'echo "${CLAUDE_SKILL_DIR}"', "```"].join("\n"),
+        ["```!", 'echo "${CLAUDE_SKILL_DIR}"', "```"].join("\n"),
       );
       await writeCommand(
         userCommands,
         "session-context",
         "Needs session context",
-        ['```!', 'echo "${CLAUDE_SESSION_ID}"', "```"].join("\n"),
+        ["```!", 'echo "${CLAUDE_SESSION_ID}"', "```"].join("\n"),
       );
 
       const options = {

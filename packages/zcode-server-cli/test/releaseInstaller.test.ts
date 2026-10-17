@@ -30,7 +30,7 @@ describe("release installer", () => {
     const installed = await new ReleaseInstaller(layout).installArchive({ archivePath, target: "linux-x64", version: "1.2.3" });
     expect(installed.target).toBe("linux-x64");
     expect(JSON.parse(await readFile(layout.pendingFile, "utf8"))).toMatchObject({ version: "1.2.3" });
-    const launcher = await readFile(join(layout.stableBinDir, "zcode"), "utf8");
+    const launcher = await readFile(join(layout.stableBinDir, "zcode-next"), "utf8");
     expect(launcher).toContain("current.json");
     expect(launcher).toContain('"$ROOT/releases"/*)');
   });
@@ -58,9 +58,9 @@ describe("release installer", () => {
       (error) => error ? reject(error) : resolve(),
     ));
     await new ReleaseInstaller(layout).installArchive({ archivePath, target: "win32-x64", version: "1.2.4" });
-    const launcher = await readFile(join(layout.stableBinDir, "zcode.cmd"), "utf8");
+    const launcher = await readFile(join(layout.stableBinDir, "zcode-next.cmd"), "utf8");
     expect(launcher).toContain("ZCODE_SERVER_ROOT");
-    expect(launcher).toContain("Invalid current ZCode Server release");
+    expect(launcher).toContain("Invalid current ZCode Next Server release");
   });
 
   // Bugfix: 该用例验证 POSIX shell 版 stable launcher 的 fail-closed 输出，靠 shebang
@@ -72,11 +72,11 @@ describe("release installer", () => {
     await writeFile(layout.currentFile, JSON.stringify({ version: "1.0.0", releaseDir: join(root, "outside") }), "utf8");
     const { execFile } = await import("node:child_process");
     await expect(new Promise<void>((resolve, reject) => {
-      execFile(join(layout.stableBinDir, "zcode"), [], (error, _stdout, stderr) => {
+      execFile(join(layout.stableBinDir, "zcode-next"), [], (error, _stdout, stderr) => {
         if (error) reject(new Error(`${error.message}: ${stderr}`));
         else resolve();
       });
-    })).rejects.toThrow(/Invalid current ZCode Server release/);
+    })).rejects.toThrow(/Invalid current ZCode Next Server release/);
   });
 
   it("reuses an identical immutable release without deleting or replacing its live directory", async () => {

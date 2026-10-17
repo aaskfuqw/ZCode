@@ -1,6 +1,6 @@
 ---
 name: restore-legacy-sessions
-description: Use when ZCode needs to inspect, plan, or execute restoration of old ACP-era ZCode sessions from ~/.zcode/v2/sessions into the new ZCode task/session stores. Trigger when the user wants to choose a previous agent, select a workspace to restore, pick a specific historical conversation, dry-run legacy session migration, or reason about tasks-index.sqlite and ~/.zcode/cli/db/db.sqlite consistency.
+description: Use when ZCode needs to inspect, plan, or execute restoration of old ACP-era ZCode sessions from ~/.zcode-next/v2/sessions into the new ZCode task/session stores. Trigger when the user wants to choose a previous agent, select a workspace to restore, pick a specific historical conversation, dry-run legacy session migration, or reason about tasks-index.sqlite and ~/.zcode-next/cli/db/db.sqlite consistency.
 ---
 
 # Restore Legacy Sessions
@@ -11,13 +11,13 @@ Use this skill to guide old ACP-era ZCode session restoration. The first job is 
 
 ## Stores
 
-- Legacy snapshots: `~/.zcode/v2/sessions/{workspaceHash}/{legacyTaskId}.json`
-- Task index: `~/.zcode/v2/tasks-index.sqlite`
-- New ZCode session DB: `~/.zcode/cli/db/db.sqlite`
+- Legacy snapshots: `~/.zcode-next/v2/sessions/{workspaceHash}/{legacyTaskId}.json`
+- Task index: `~/.zcode-next/v2/tasks-index.sqlite`
+- New ZCode session DB: `~/.zcode-next/cli/db/db.sqlite`
 
 Use `restoredTaskId = meta.acpSessionId || meta.taskId`. The legacy snapshot filename and `meta.taskId` are historical IDs; the app task list often uses `meta.acpSessionId` as the real task/session ID.
 
-The scan script defaults to the live legacy source `~/.zcode/v2/sessions`; pass `--legacy-dir <path>` only when the user explicitly asks to inspect another source directory.
+The scan script defaults to the live legacy source `~/.zcode-next/v2/sessions`; pass `--legacy-dir <path>` only when the user explicitly asks to inspect another source directory.
 
 Restored ACP-era conversations are normal ZCode Agent history, so persisted provider fields must be `glm`. Treat the snapshot provider as legacy source context only; do not write task-index `migration_source` or `meta_json.migrationSource` for these restores. The `migrationSource` enum is reserved for the existing Claude Code native import path (`claudeCode`).
 
@@ -58,19 +58,19 @@ Show compact numbered options with title, updated time, message count, `restored
 After the user chooses an exact conversation, run a dry run first:
 
 ```bash
-node scripts/restore-conversation.mjs --snapshot ~/.zcode/v2/sessions/<workspaceHash>/<legacyTaskId>.json --dry-run
+node scripts/restore-conversation.mjs --snapshot ~/.zcode-next/v2/sessions/<workspaceHash>/<legacyTaskId>.json --dry-run
 ```
 
 Then apply the restore:
 
 ```bash
-node scripts/restore-conversation.mjs --snapshot ~/.zcode/v2/sessions/<workspaceHash>/<legacyTaskId>.json
+node scripts/restore-conversation.mjs --snapshot ~/.zcode-next/v2/sessions/<workspaceHash>/<legacyTaskId>.json
 ```
 
 ## Restore States
 
 - `ready`: CLI DB and task-index both already contain the restored task id.
-- `needs-cli-db`: task-index exists, but `~/.zcode/cli/db/db.sqlite` has no session row; rebuild the real session from the legacy snapshot.
+- `needs-cli-db`: task-index exists, but `~/.zcode-next/cli/db/db.sqlite` has no session row; rebuild the real session from the legacy snapshot.
 - `needs-task-index`: CLI DB exists, but task-index is missing; backfill task-index only.
 - `needs-full-import`: both stores are missing; import session history and then index it.
 

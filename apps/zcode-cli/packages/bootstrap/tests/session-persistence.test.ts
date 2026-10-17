@@ -408,14 +408,14 @@ describe("session persistence", () => {
     const configPath = join(tempRoot, "config.json");
     const enabledSkillPath = join(
       tempRoot,
-      ".zcode",
+      ".zcode-next",
       "skills",
       "enabled-runtime-skill",
       "SKILL.md",
     );
     const disabledSkillPath = join(
       tempRoot,
-      ".zcode",
+      ".zcode-next",
       "skills",
       "disabled-runtime-skill",
       "SKILL.md",

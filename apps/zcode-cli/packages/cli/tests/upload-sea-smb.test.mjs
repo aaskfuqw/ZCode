@@ -125,16 +125,16 @@ test("collects all SEA upload binaries and reports missing files", async (t) => 
   assert.deepEqual(
     files.map((file) => file.fileName),
     [
-      "zcode-darwin-arm64",
-      "zcode-darwin-x64",
-      "zcode-linux-arm64",
-      "zcode-linux-x64",
-      "zcode-windows-arm64.exe",
-      "zcode-windows-x64.exe",
+      "zcode-next-darwin-arm64",
+      "zcode-next-darwin-x64",
+      "zcode-next-linux-arm64",
+      "zcode-next-linux-x64",
+      "zcode-next-windows-arm64.exe",
+      "zcode-next-windows-x64.exe",
     ],
   );
 
-  await rm(join(directory, "zcode-linux-x64"));
+  await rm(join(directory, "zcode-next-linux-x64"));
   await assert.rejects(
     () =>
       collectSeaUploadFiles({
@@ -232,7 +232,7 @@ test("force replaces an existing release directory", async (t) => {
   assert.equal(result.status, "uploaded");
   await assert.rejects(() => stat(join(destination, "stale.txt")), /ENOENT/);
   assert.equal(
-    await readFile(join(destination, "zcode-darwin-arm64"), "utf8"),
-    "binary:zcode-darwin-arm64",
+    await readFile(join(destination, "zcode-next-darwin-arm64"), "utf8"),
+    "binary:zcode-next-darwin-arm64",
   );
 });

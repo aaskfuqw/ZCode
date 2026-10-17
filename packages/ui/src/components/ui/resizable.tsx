@@ -31,7 +31,7 @@ function ResizablePanelGroup({
   panelIds?: string[];
 }) {
   const { defaultLayout, onLayoutChange } = useDefaultLayout({
-    id: layoutId,
+    id: `zcode-next:${layoutId}`,
     panelIds,
   });
 

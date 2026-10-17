@@ -101,23 +101,18 @@ describe("会话区 ReadSessionContext 超时边界 E2E", () => {
       120000,
     );
 
-    const toolBlock = await waitForToolCallBlockByToolName(
-      READ_SESSION_CONTEXT_TOOL_NAME,
-      30000,
-    );
+    const toolBlock = await waitForToolCallBlockByToolName(READ_SESSION_CONTEXT_TOOL_NAME, 30000);
     expect(toolBlock.exists).toBe(true);
 
     const liteRecord = await waitForReplayRecordByFixtureId(LITE_FIXTURE_ID);
     expect(liteRecord.status).toBe("complete");
-    expect(liteRecord.durationMs ?? 0).toBeGreaterThanOrEqual(
-      LITE_DELAY_MS - 1000,
-    );
+    expect(liteRecord.durationMs ?? 0).toBeGreaterThanOrEqual(LITE_DELAY_MS - 1000);
   });
 });
 
 async function seedReadSessionContextSourceSession() {
   await mkdir(DEFAULT_WORKSPACE, { recursive: true });
-  const dbPath = join(homedir(), ".zcode", "cli", "db", "db.sqlite");
+  const dbPath = join(homedir(), ".zcode-next", "cli", "db", "db.sqlite");
   await mkdir(dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
   const now = Date.now() - 10_000;
@@ -272,9 +267,8 @@ async function waitForReplayRecordByFixtureId(fixtureId: string) {
   await browser.waitUntil(
     async () => {
       latest =
-        (await readReplayRecords()).find(
-          (record) => record.replay?.fixtureId === fixtureId,
-        ) ?? null;
+        (await readReplayRecords()).find((record) => record.replay?.fixtureId === fixtureId) ??
+        null;
       return latest?.status === "complete";
     },
     {

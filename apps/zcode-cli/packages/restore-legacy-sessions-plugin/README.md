@@ -7,7 +7,7 @@ This plugin is bundled as `restore-legacy-sessions@zcode-plugins-official` and i
 ## Enable
 
 ```sh
-zcode plugins enable restore-legacy-sessions
+zcode-next plugins enable restore-legacy-sessions
 ```
 
 Or inside a ZCode session:
@@ -24,9 +24,9 @@ Changes apply to new sessions. After enabling, use:
 
 ## Data Boundaries
 
-- Default source: `~/.zcode/v2/sessions`
-- Task index destination: `~/.zcode/v2/tasks-index.sqlite`
-- CLI session DB destination: `~/.zcode/cli/db/db.sqlite`
+- Default source: `~/.zcode-next/v2/sessions`
+- Task index destination: `~/.zcode-next/v2/tasks-index.sqlite`
+- CLI session DB destination: `~/.zcode-next/cli/db/db.sqlite`
 
 The restore scripts create timestamped DB backups before writing. Restored ACP-era conversations are persisted as normal `glm` ZCode Agent history and do not write `migration_source`.
 

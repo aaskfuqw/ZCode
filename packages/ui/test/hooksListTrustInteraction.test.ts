@@ -25,7 +25,7 @@ function untrustedWorkspaceHook(): Hook {
       declarationEnabled: true,
       runtimeHooksEnabled: true,
       configuredEnabled: true,
-      sourcePath: ".zcode/config.json",
+      sourcePath: ".zcode-next/config.json",
       trustState: "pending_trust",
     },
   };

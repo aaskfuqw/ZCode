@@ -110,15 +110,15 @@ import type { ComposerMentionPrefill } from "@/store/zcodeSessionStoreTypes.js";
 
 const WEB_REMOTE_CONTROL_MOBILE_QUERY = "(max-width: 767px)";
 const WEB_REMOTE_CONTROL_COLLAPSE_ONCE_SESSION_KEY =
-  "zcode:web-remote-control:collapse-navigation-once";
+  "zcode-next:web-remote-control:collapse-navigation-once";
 const WEB_REMOTE_CONTROL_VIEWPORT_HEIGHT_FALLBACK_PX = 800;
 const WEB_REMOTE_CONTROL_DRAG_CLICK_THRESHOLD_PX = 4;
 const WORKSPACE_SIDEBAR_DEFAULT_WIDTH_PX = 264;
 const WORKSPACE_SIDEBAR_MIN_WIDTH_PX = 264;
 const WORKSPACE_SIDEBAR_MAX_WIDTH_RATIO = 0.5;
-const WORKSPACE_SIDEBAR_WIDTH_STORAGE_KEY = "zcode:workspace-shell:sidebar-width-px";
+const WORKSPACE_SIDEBAR_WIDTH_STORAGE_KEY = "zcode-next:workspace-shell:sidebar-width-px";
 const LEGACY_WORKSPACE_SHELL_LAYOUT_STORAGE_KEY =
-  "react-resizable-panels:workspace-shell-layout:sidebar:content";
+  "react-resizable-panels:zcode-next:workspace-shell-layout:sidebar:content";
 const WORKSPACE_SIDEBAR_RESIZE_KEYBOARD_STEP_PX = 16;
 const WORKSPACE_SIDEBAR_PANEL_WIDTH_CSS_VAR = "--workspace-sidebar-panel-width";
 const WORKSPACE_SIDEBAR_WIDTH_CSS_VAR = "--workspace-sidebar-width";
@@ -1839,7 +1839,7 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
   ) {
     return (
       <DesktopWindowFrame
-        title={`ZCode / ${getPathLeaf(workspaceAbsPath)}`}
+        title={`ZCode Next / ${getPathLeaf(workspaceAbsPath)}`}
         showHeader
         isDesktop={isDesktop}
         isMacDesktop={isMacDesktop}
@@ -2076,7 +2076,7 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
       navigateToRun={handleNavigateToLaunchedRun}
     >
       <DesktopWindowFrame
-        title={`ZCode / ${getPathLeaf(workspaceAbsPath)}`}
+        title={`ZCode Next / ${getPathLeaf(workspaceAbsPath)}`}
         showHeader
         isDesktop={isDesktop}
         isMacDesktop={isMacDesktop}

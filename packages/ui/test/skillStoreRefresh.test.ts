@@ -14,7 +14,7 @@ function createSkill(name: string): SkillSummary {
     name,
     description: `${name} description`,
     body: "",
-    path: `/root/.zcode/skills/${name}/SKILL.md`,
+    path: `/root/.zcode-next/skills/${name}/SKILL.md`,
     scope: "user",
     enabled: true,
   };

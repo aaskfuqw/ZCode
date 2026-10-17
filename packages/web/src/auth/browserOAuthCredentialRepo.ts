@@ -9,14 +9,14 @@ import {
 } from "@zcode/shared";
 import { toUserInfo } from "./zaiWebOAuthProvider.js";
 
-const ACTIVE_PROVIDER_KEY = "oauth:active_provider";
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
-const ZAI_ACCESS_TOKEN_KEY = "oauth:zai:access_token";
-const ZAI_USER_INFO_KEY = "oauth:zai:user_info";
-const BIGMODEL_ACCESS_TOKEN_KEY = "oauth:bigmodel:access_token";
-const BIGMODEL_USER_INFO_KEY = "oauth:bigmodel:user_info";
-const OAUTH_PENDING_NONCE_KEY = "oauth_pending_nonce";
-const OAUTH_PENDING_PROVIDER_KEY = "oauth_pending_provider";
+const ACTIVE_PROVIDER_KEY = "zcode-next:oauth:active_provider";
+const ZCODE_JWT_TOKEN_KEY = "zcode-next:zcodejwttoken";
+const ZAI_ACCESS_TOKEN_KEY = "zcode-next:oauth:zai:access_token";
+const ZAI_USER_INFO_KEY = "zcode-next:oauth:zai:user_info";
+const BIGMODEL_ACCESS_TOKEN_KEY = "zcode-next:oauth:bigmodel:access_token";
+const BIGMODEL_USER_INFO_KEY = "zcode-next:oauth:bigmodel:user_info";
+const OAUTH_PENDING_NONCE_KEY = "zcode-next:oauth_pending_nonce";
+const OAUTH_PENDING_PROVIDER_KEY = "zcode-next:oauth_pending_provider";
 
 /** 本仓支持的登录 provider。private 分享的 owner 身份是 provider 特定的，两边都要能登。 */
 export type WebOAuthProviderId = typeof ZAI_PROVIDER_ID | typeof BIGMODEL_PROVIDER_ID;
@@ -25,12 +25,7 @@ export function isWebOAuthProviderId(value: unknown): value is WebOAuthProviderI
   return value === ZAI_PROVIDER_ID || value === BIGMODEL_PROVIDER_ID;
 }
 
-/**
- * 每个 provider 用独立的 key 段。
- *
- * 刻意不复用一套「中性」key：zai 的两个 key 已经在线上承载着 /remote 的登录态，换 key 会
- * 让所有已登录用户在发版当天掉线。加一段 bigmodel 前缀是零风险的做法，代价只是多一个映射。
- */
+/** Browser storage is isolated from upstream; provider and token fields keep their service contract. */
 function providerKeys(provider: WebOAuthProviderId): { accessToken: string; userInfo: string } {
   return provider === BIGMODEL_PROVIDER_ID
     ? { accessToken: BIGMODEL_ACCESS_TOKEN_KEY, userInfo: BIGMODEL_USER_INFO_KEY }

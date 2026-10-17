@@ -234,10 +234,10 @@ test("rejects empty SEA target selectors", () => {
 });
 
 test("maps SEA targets to output binary names", () => {
-  assert.equal(outputBinaryName("darwin-arm64"), "zcode-darwin-arm64");
-  assert.equal(outputBinaryName("linux-x64"), "zcode-linux-x64");
-  assert.equal(outputBinaryName("win-arm64"), "zcode-windows-arm64.exe");
-  assert.equal(outputBinaryName("win-x64"), "zcode-windows-x64.exe");
+  assert.equal(outputBinaryName("darwin-arm64"), "zcode-next-darwin-arm64");
+  assert.equal(outputBinaryName("linux-x64"), "zcode-next-linux-x64");
+  assert.equal(outputBinaryName("win-arm64"), "zcode-next-windows-arm64.exe");
+  assert.equal(outputBinaryName("win-x64"), "zcode-next-windows-x64.exe");
 });
 
 test("prepares every SEA target in the desktop bundled-tools layout", () => {
@@ -1051,13 +1051,13 @@ async function writeTestFile(root, relativePath, contents) {
 test("adds the Mach-O segment argument only for macOS targets", () => {
   assert.deepEqual(
     postjectArgsForTarget({
-      binaryPath: "/tmp/zcode-darwin-arm64",
+      binaryPath: "/tmp/zcode-next-darwin-arm64",
       seaBlob: "/tmp/zcode.sea.blob",
       sentinelFuse: "NODE_SEA_FUSE_test",
       target: "darwin-arm64",
     }),
     [
-      "/tmp/zcode-darwin-arm64",
+      "/tmp/zcode-next-darwin-arm64",
       "NODE_SEA_BLOB",
       "/tmp/zcode.sea.blob",
       "--sentinel-fuse",
@@ -1069,13 +1069,13 @@ test("adds the Mach-O segment argument only for macOS targets", () => {
 
   assert.deepEqual(
     postjectArgsForTarget({
-      binaryPath: "/tmp/zcode-linux-x64",
+      binaryPath: "/tmp/zcode-next-linux-x64",
       seaBlob: "/tmp/zcode.sea.blob",
       sentinelFuse: "NODE_SEA_FUSE_test",
       target: "linux-x64",
     }),
     [
-      "/tmp/zcode-linux-x64",
+      "/tmp/zcode-next-linux-x64",
       "NODE_SEA_BLOB",
       "/tmp/zcode.sea.blob",
       "--sentinel-fuse",
@@ -1085,11 +1085,11 @@ test("adds the Mach-O segment argument only for macOS targets", () => {
 });
 
 test("ad-hoc signs only macOS targets built on macOS hosts", () => {
-  assert.deepEqual(adHocCodesignArgs("/tmp/zcode-darwin-arm64"), [
+  assert.deepEqual(adHocCodesignArgs("/tmp/zcode-next-darwin-arm64"), [
     "--force",
     "--sign",
     "-",
-    "/tmp/zcode-darwin-arm64",
+    "/tmp/zcode-next-darwin-arm64",
   ]);
 
   assert.equal(shouldAdHocSignMacTarget("darwin-arm64", { platform: "darwin" }), true);
@@ -1182,7 +1182,7 @@ test("rejects Windows Authenticode directories outside the file range", () => {
 
 test("removes Windows Authenticode signatures from files", async () => {
   const directory = await mkdtemp(join(tmpdir(), "zcode-sea-authenticode-"));
-  const binaryPath = join(directory, "zcode-windows-x64.exe");
+  const binaryPath = join(directory, "zcode-next-windows-x64.exe");
   const { contents, securityDirectoryEntryOffset } = createPeFixture();
 
   try {
@@ -1288,7 +1288,7 @@ test("can be dynamically imported when argv[1] is missing", () => {
   );
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "zcode-windows-x64.exe");
+  assert.equal(result.stdout.trim(), "zcode-next-windows-x64.exe");
 });
 
 async function writeDocumentPluginFixtures(root) {

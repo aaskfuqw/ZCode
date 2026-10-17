@@ -70,7 +70,7 @@ function parseCsvEnv(value: string | undefined): string[] {
 
 export function resolveBuildRemoteCdnReleaseRoots(runtimeEnv: Record<string, string | undefined>) {
   const domains = parseCsvEnv(runtimeEnv.CDN_DOMAIN);
-  const pathPrefixes = parseCsvEnv(runtimeEnv.OSS_PATH_PREFIX || "zcode/electron/releases");
+  const pathPrefixes = parseCsvEnv(runtimeEnv.OSS_PATH_PREFIX || "zcode-next/electron/releases");
   if (domains.length === 0) {
     return [];
   }
@@ -130,7 +130,7 @@ function createSharedDefines() {
       process.env.ZCODE_CUA_HELPER_BUILD_ID?.trim() ?? "",
     ),
     // Bugfix: remote runtime CDN 根之前硬编码在 main bundle 里，OSS/CDN 切换必须改代码。
-    // 这里改成构建期从 CI 的 CDN_DOMAIN/OSS_PATH_PREFIX 注入；没有配置时保留旧默认。
+    // 构建期从 CI 的 CDN_DOMAIN/OSS_PATH_PREFIX 注入；未配置时不回退上游运行时。
     __ZCODE_REMOTE_CDN_RELEASE_ROOTS__: JSON.stringify(resolveBuildRemoteCdnReleaseRoots(env)),
   };
 }

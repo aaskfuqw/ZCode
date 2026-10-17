@@ -18,6 +18,7 @@ import {
 import { cleanupPackagedSourcemaps } from "./scripts/packaged-sourcemap-cleanup.mjs";
 import { getTargetPlatform } from "./scripts/target-platform.mjs";
 import {
+  DESKTOP_DEEP_LINK_SCHEME,
   resolveDesktopArtifactSuffix,
   resolveDesktopProductIdentity,
 } from "./scripts/desktop-product-identity.mjs";
@@ -193,7 +194,7 @@ function assertPackagedCuaHelper(context) {
     HELPER_APP_NAME,
   );
   if (!existsSync(appPath)) {
-    throw new Error(`Packaged ZCode is missing bundled Computer Use Helper: ${appPath}`);
+    throw new Error(`Packaged ZCode Next is missing bundled Computer Use Helper: ${appPath}`);
   }
 }
 const shouldEnableWindowsVsign =
@@ -210,7 +211,7 @@ if (
   !macSigningIdentity
 ) {
   throw new Error(
-    "ZCode Preview macOS packaging requires APPLE_SIGNING_IDENTITY or CSC_NAME when ZCODE_ENABLE_MAC_SIGN=1",
+    "ZCode Next Preview macOS packaging requires APPLE_SIGNING_IDENTITY or CSC_NAME when ZCODE_ENABLE_MAC_SIGN=1",
   );
 }
 
@@ -274,7 +275,7 @@ async function runTimedAsync(label, fn) {
 
 function resolveAppAsarPath(context) {
   if (context.electronPlatformName === "darwin") {
-    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode"}.app`;
+    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode Next"}.app`;
     return resolve(context.appOutDir, appName, "Contents", "Resources", "app.asar");
   }
 
@@ -283,7 +284,7 @@ function resolveAppAsarPath(context) {
 
 function resolvePackagedResourcesDir(context) {
   if (context.electronPlatformName === "darwin") {
-    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode"}.app`;
+    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode Next"}.app`;
     return resolve(context.appOutDir, appName, "Contents", "Resources");
   }
 
@@ -794,9 +795,9 @@ export default {
   protocols: [
     {
       // 协议处理器的展示名之前使用小写 scheme，打包产物里的协议描述无法体现产品名。
-      // 展示名跟随安装包身份；scheme 仍保持 zcode，因此两个应用中最后注册者会成为默认 handler。
+      // 正式/Preview 沿用同一 Next scheme，与上游 ZCode 的 handler 分离。
       name: desktopProductIdentity.productName,
-      schemes: ["zcode"],
+      schemes: [DESKTOP_DEEP_LINK_SCHEME],
     },
   ],
   mac: {
@@ -857,8 +858,8 @@ export default {
     artifactName: buildDesktopArtifactName("linux"),
     // desktop 包名是 scoped package（@zcode/desktop），electron-builder 默认会把
     // Linux executable/Icon 推成 @zcodedesktop。部分桌面环境无法按这个 icon name 命中
-    // hicolor 图标，最终回退成系统齿轮。这里固定成稳定的小写名称，让 Icon=zcode
-    // 与 /usr/share/icons/hicolor/*/apps/zcode.png 保持一致。
+    // hicolor 图标，最终回退成系统齿轮。这里固定成稳定的小写名称，让 Icon=zcode-next
+    // 与 /usr/share/icons/hicolor/*/apps/zcode-next.png 保持一致。
     executableName: desktopProductIdentity.linuxExecutableName,
     category: "Development",
     maintainer: "ZCode <dev@zcode.z.ai>",

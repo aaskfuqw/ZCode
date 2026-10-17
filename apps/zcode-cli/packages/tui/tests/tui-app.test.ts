@@ -55,6 +55,7 @@ test("starts without a runtime readiness system message", async () => {
     assert.equal(frame.includes("OpenTUI Node runtime loaded."), false);
     assert.notEqual(firstLogoRow, -1);
     assert.notEqual(lastLogoRow, -1);
+    assert.match(frame, /ZCode Next/);
     assert.notEqual(composerTopRow, -1);
     assert.ok(Math.abs(logoCenterRow - transcriptCenterRow) <= 1);
   } finally {
@@ -526,7 +527,9 @@ test("mode composer popup can submit edit mode command", async () => {
   }
 });
 
-function reactElementChildren(node: unknown): Array<{ props?: Record<string, unknown>; type?: unknown }> {
+function reactElementChildren(
+  node: unknown,
+): Array<{ props?: Record<string, unknown>; type?: unknown }> {
   if (typeof node !== "object" || node === null || !("props" in node)) return [];
   const element = node as { props?: { children?: unknown } };
   const children = element.props?.children;

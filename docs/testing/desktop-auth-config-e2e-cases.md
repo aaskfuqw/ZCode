@@ -49,7 +49,7 @@ Electron 用例不声称覆盖这些微观竞态。AUTH-06 保持 pending，Pro 
 ### 操作步骤
 
 1. WDIO `beforeSession` 清理隔离 HOME。
-2. `wdio.conf.ts` 识别 `oauth-credential-recovery.test.ts` 后，在 `~/.zcode/v2/credentials.json` 写入损坏 OAuth seed。
+2. `wdio.conf.ts` 识别 `oauth-credential-recovery.test.ts` 后，在 `~/.zcode-next/v2/credentials.json` 写入损坏 OAuth seed。
 3. 启动桌面端本地默认窗口。
 4. 等待登录入口渲染。
 5. 检查 Z.ai 与 BigModel 登录渠道均可见。
@@ -68,7 +68,7 @@ Electron 用例不声称覆盖这些微观竞态。AUTH-06 保持 pending，Pro 
 ### Fixture 合同
 
 - 本 case 不触发 provider 请求，manifest 使用 `providerRequestPolicy: "none"` 和空 `requests`。
-- 本 case 的输入 fixture 是 WDIO 冷启动 seed：`~/.zcode/v2/credentials.json`。
+- 本 case 的输入 fixture 是 WDIO 冷启动 seed：`~/.zcode-next/v2/credentials.json`。
 - 需要清理的 key 包含 `oauth:active_provider`、Z.ai/BigModel access token、refresh token、user info，以及旧 `zcodejwttoken`。
 
 ### 转正说明
@@ -112,7 +112,7 @@ desktop local 使用隔离 HOME 冷启动；CLI session DB 预置一条 interact
 | AUTH-02-C | 未配置时点击发送被 UI admission 拒绝            | composer 原文保留；没有 `createSession` pending 记录或 unknown/discarded 恢复横幅                                                                                   |
 | AUTH-02-D | 未配置时历史可见且可读                          | 预置 interactive CLI session 的侧栏 row、用户正文与助手正文均可见，证明真实 sessions-index/conversation topic 已工作                                                |
 | AUTH-02-E | 未配置时没有 deferred draft/retry               | service/UI focused tests 断言 `provider_not_ready` 保持 idle 且投影 banner                                                                                          |
-| AUTH-02-F | 未配置时目标 workspace 只读 Agent 数为 1        | 资源管理器快照按 `ZCodeProject` workspace tag 断言为 1；系统 conversation sibling 不计入，只允许 sessions-index/history 读取，不产生 session create/model command |
+| AUTH-02-F | 未配置时目标 workspace 只读 Agent 数为 1        | 资源管理器快照按 `ZCodeNextProject` workspace tag 断言为 1；系统 conversation sibling 不计入，只允许 sessions-index/history 读取，不产生 session create/model command |
 | AUTH-02-G | 保存 provider 后仍复用目标 workspace 唯一 Agent | 资源管理器对同一 workspace 的 Agent 行数保持 1，稳定窗口后二次断言仍为 1，read→write 不重复启动                                                                      |
 | AUTH-02-H | 草稿模型水合且缺模型 banner 清除                | 模型 trigger 回显首个未禁用模型，`TID_CHAT_ERROR_BANNER` 不再存在                                                                                                   |
 
@@ -187,7 +187,7 @@ Welcome 展示 Z.ai + BigModel 登录入口
 ### Fixture 合同
 
 - manifest 使用 `providerRequestPolicy: "none"`、`noProviderRequests: true` 和空 `requests`。
-- 输入 fixture 是 WDIO 在 App 启动前写入隔离 HOME 的 `~/.zcode/v2/credentials.json`。
+- 输入 fixture 是 WDIO 在 App 启动前写入隔离 HOME 的 `~/.zcode-next/v2/credentials.json`。
 - JWT 只包含测试用 header/payload/signature；payload 的 `exp` 固定在过去，不依赖签名有效性。
 - 需要清理的 key 包含 `oauth:active_provider`、Z.ai access token、refresh token、user info 和 `zcodejwttoken`。
 - 当前位于 `manual-review/pending`；人工确认可视交互后才能移动到正式路径并更新本节状态。

@@ -27,7 +27,7 @@ Desktop UI
 
 Web preview
   -> https://zcode.z.ai/cn/share/<share_code>
-  -> zcode://share/import?code=<share_code>
+  -> zcode-next://share/import?code=<share_code>
   -> Desktop continuation
   -> 当前本地 workspace 新 task/session + shared_context + 全部产物
 ```
@@ -113,7 +113,7 @@ citation 清理组成：本地 citation 不泄漏路径，无法匹配公开 art
 CTA；该响应式策略只影响 Web landing page 的展示，不改变 Deep Link、权限或 Desktop/remote 行为。
 
 当分享可继续导入时，正文时间线末尾还显示一个与顶部 CTA 样式和行为一致的“去 ZCode 继续”按钮，
-按钮在正文内容栏内水平居中并复用同一个 `zcode://share/import` deep link。点击顶部或底部任一入口
+按钮在正文内容栏内水平居中并复用同一个 `zcode-next://share/import` deep link。点击顶部或底部任一入口
 都进入相同的自动打开提示流程；`public_readonly` 仍不显示任何继续入口。底部按钮属于正文流，
 不能遮挡最后一条分享内容，也不改变分享内容的只读语义。
 
@@ -264,7 +264,7 @@ PDF、Office、Markdown/HTML、视频和音频都可以成为预览候选，但 
 
 `userInput.attachments` 通过当前 Agent connection scope 按 `rowId + entityId + attachmentIndex`
 授权读取，不允许 Renderer 直接把附件路径作为读取目标。长文本粘贴保持现有
-`~/.zcode/tmp/paste-attachments/<date>/<uuid>.txt` 路径处理，不在发送时重新内联正文；分享时
+`~/.zcode-next/tmp/paste-attachments/<date>/<uuid>.txt` 路径处理，不在发送时重新内联正文；分享时
 复用同一读取链路。文件已被清理、读取失败或字节发生变化时，只跳过该附件并在发布成功态展示
 `input_attachment_unavailable` warning，不把失效路径写入公开 projection。可用附件统一改写为
 `zcode-artifact://share/<artifact_id>`，不额外插入 `artifact` Row，直接通过 manifest 闭合。
@@ -496,7 +496,7 @@ reopen tab 恢复；该操作只改变 `view`，不清空选择、标题、权�
 
 ## 导入与继续工作
 
-Web CTA 使用 `zcode://share/import?code=<share_code>`，deep link 只能携带 share code。main process
+Web CTA 使用 `zcode-next://share/import?code=<share_code>`，deep link 只能携带 share code。main process
 只解析、缓存和投递 intent；Renderer 不按本地登录态前置拦截，统一调用 Host import service，
 由 continuation API 返回最终访问判定。share deep link 的目标窗口解析与其他 deep link 一致，
 必须走调用方注入的 `resolveApplicationWindow`（排除 CUA indicator 等辅助窗口）；窗口未就绪时

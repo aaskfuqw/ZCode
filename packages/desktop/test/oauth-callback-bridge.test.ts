@@ -6,9 +6,9 @@ describe("oauth callback bridge", () => {
     const callback = vi.fn(async (_url: string) => {});
     const handler = createOAuthCallbackHandler(callback);
 
-    await handler({}, "zcode://oauth/callback?code=123");
+    await handler({}, "zcode-next://oauth/callback?code=123");
 
-    expect(callback).toHaveBeenCalledWith("zcode://oauth/callback?code=123");
+    expect(callback).toHaveBeenCalledWith("zcode-next://oauth/callback?code=123");
   });
 
   it("isolates a rejected renderer callback", async () => {
@@ -18,6 +18,6 @@ describe("oauth callback bridge", () => {
     });
     const handler = createOAuthCallbackHandler(callback);
 
-    await expect(handler({}, "zcode://oauth/callback?code=123")).resolves.toBeUndefined();
+    await expect(handler({}, "zcode-next://oauth/callback?code=123")).resolves.toBeUndefined();
   });
 });

@@ -171,10 +171,10 @@ describe("config adapters", () => {
   it("deep merges Workspace Plugin enablement and options over User config", async () => {
     const dir = await mkdtemp(join(tmpdir(), "zcode-config-workspace-plugins-"));
     const userPath = join(dir, "user.json");
-    const workspacePath = join(dir, ".zcode", "config.json");
+    const workspacePath = join(dir, ".zcode-next", "config.json");
 
     try {
-      await mkdir(join(dir, ".zcode"), { recursive: true });
+      await mkdir(join(dir, ".zcode-next"), { recursive: true });
       await writeFile(
         userPath,
         JSON.stringify({
@@ -341,8 +341,8 @@ describe("config adapters", () => {
     const result = createConfig({ env: {}, skipUserConfig: true });
 
     expect(result.config.model).toBeUndefined();
-    expect(DefaultRuntimeConfig.storage.sessionDbPath).toBe("~/.zcode/cli/db/db.sqlite");
-    expect(result.config.storage.sessionDbPath).toBe("~/.zcode/cli/db/db.sqlite");
+    expect(DefaultRuntimeConfig.storage.sessionDbPath).toBe("~/.zcode-next/cli/db/db.sqlite");
+    expect(result.config.storage.sessionDbPath).toBe("~/.zcode-next/cli/db/db.sqlite");
   });
 
   it("defaults model stream idle timeout to ten minutes", () => {
@@ -1225,7 +1225,7 @@ describe("config adapters", () => {
   it("reports invalid discovered project config diagnostics", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-project-config-"));
     const logDir = join(root, "log");
-    const projectConfigPath = join(root, "zcode.json");
+    const projectConfigPath = join(root, "zcode-next.json");
 
     try {
       await mkdir(join(root, ".git"));
@@ -1278,7 +1278,7 @@ describe("config adapters", () => {
       await mkdir(join(root, ".git"));
       await mkdir(cwd, { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -1300,7 +1300,7 @@ describe("config adapters", () => {
       });
 
       expect(result.sources.project.loaded).toBe(true);
-      expect(result.sources.project.paths).toEqual([join(root, "zcode.json")]);
+      expect(result.sources.project.paths).toEqual([join(root, "zcode-next.json")]);
       expect(result.sources.project.mcpServerNames).toEqual(["project"]);
       expect(result.config.mcp.servers.project).toMatchObject({
         type: "stdio",
@@ -1315,13 +1315,13 @@ describe("config adapters", () => {
   it("merges project configs from root to cwd with nearest config winning", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-project-config-"));
     const cwd = join(root, "packages", "app");
-    const cwdConfigDir = join(cwd, ".zcode");
+    const cwdConfigDir = join(cwd, ".zcode-next");
 
     try {
       await mkdir(join(root, ".git"));
       await mkdir(cwdConfigDir, { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -1354,7 +1354,7 @@ describe("config adapters", () => {
       });
 
       expect(result.sources.project.paths).toEqual([
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         join(cwdConfigDir, "config.json"),
       ]);
       expect(result.config.mcp.servers.project).toMatchObject({
@@ -1375,7 +1375,7 @@ describe("config adapters", () => {
       await mkdir(join(root, ".git"));
       await mkdir(join(root, "home"), { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -1446,7 +1446,7 @@ describe("config adapters", () => {
       await mkdir(join(root, ".git"), { recursive: true });
       await mkdir(cwd, { recursive: true });
       await writeFile(
-        join(parent, "zcode.json"),
+        join(parent, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -1478,7 +1478,7 @@ describe("config adapters", () => {
     try {
       await mkdir(join(root, ".git"));
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           features: {
             mcp: true,
@@ -1560,9 +1560,9 @@ describe("config adapters", () => {
 
     try {
       await mkdir(join(root, ".git"));
-      await mkdir(join(root, ".zcode"), { recursive: true });
+      await mkdir(join(root, ".zcode-next"), { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           hooks: {
             enabled: true,
@@ -1578,7 +1578,7 @@ describe("config adapters", () => {
         }),
       );
       await writeFile(
-        join(root, ".zcode", "config.json"),
+        join(root, ".zcode-next", "config.json"),
         JSON.stringify({
           hooks: {
             enabled: true,
@@ -1606,7 +1606,7 @@ describe("config adapters", () => {
           (diagnostic) => diagnostic.code === "config_project_hooks_pending_trust",
         ),
       ).toHaveLength(2);
-      for (const configPath of [join(root, "zcode.json"), join(root, ".zcode", "config.json")]) {
+      for (const configPath of [join(root, "zcode-next.json"), join(root, ".zcode-next", "config.json")]) {
         expect(result.sources.project.diagnostics).toContainEqual(
           expect.objectContaining({
             code: "config_project_hooks_pending_trust",
@@ -1630,7 +1630,7 @@ describe("config adapters", () => {
 
     try {
       await mkdir(join(root, ".git"));
-      await mkdir(join(root, ".zcode"), { recursive: true });
+      await mkdir(join(root, ".zcode-next"), { recursive: true });
       await writeFile(
         userConfigPath,
         JSON.stringify({
@@ -1648,7 +1648,7 @@ describe("config adapters", () => {
         }),
       );
       await writeFile(
-        join(root, ".zcode", "config.json"),
+        join(root, ".zcode-next", "config.json"),
         JSON.stringify({
           hooks: {
             enabled: true,

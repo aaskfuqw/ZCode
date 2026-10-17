@@ -1,9 +1,10 @@
 import { access, cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, posix } from "node:path";
+import { DESKTOP_DEEP_LINK_SCHEME } from "./desktop-product-identity.mjs";
 
-export const DEV_ELECTRON_PROTOCOL_SCHEME = "zcode";
-export const DEV_ELECTRON_APP_NAME = "ZCode Dev";
-export const DEV_ELECTRON_APP_BUNDLE_ID = "dev.zcode.app.development";
+export const DEV_ELECTRON_PROTOCOL_SCHEME = DESKTOP_DEEP_LINK_SCHEME;
+export const DEV_ELECTRON_APP_NAME = "ZCode Next Dev";
+export const DEV_ELECTRON_APP_BUNDLE_ID = "dev.zcode.next.development";
 // 副本布局版本，见 prepareDevElectronAppBundle 中的指纹说明。
 export const DEV_ELECTRON_BUNDLE_FORMAT = 2;
 
@@ -37,8 +38,8 @@ function appendProtocolDeclaration(plist) {
 }
 
 /**
- * 为 macOS 本地 Dev runtime 写入产品身份和 zcode URL scheme。
- * raw Electron 的 Info.plist 没有 CFBundleURLTypes，系统只能把 zcode 交给
+ * 为 macOS 本地 Dev runtime 写入产品身份和 zcode-next URL scheme。
+ * raw Electron 的 Info.plist 没有 CFBundleURLTypes，系统只能把 zcode-next 交给
  * com.github.Electron；这里仅修改启动副本，避免污染 node_modules 中的 Electron。
  */
 export function patchDevElectronInfoPlist(plist) {

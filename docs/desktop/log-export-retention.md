@@ -7,7 +7,7 @@ Desktop log export keeps recent runtime evidence while avoiding oversized suppor
 Runtime log-like files are filtered by file `mtime` and only exported when they were modified in the last 3 days. This applies to:
 
 - `logs/**`
-- `.zcode/cli/log/**`
+- `.zcode-next/cli/log/**`
 
 Retired proxy traffic capture and provider config directories are not current ZCode runtime log sources. If they still exist on a user's machine, they are treated as legacy data rather than first-class export targets.
 
@@ -33,7 +33,7 @@ Skipped file names:
 ## Excluded Agent Runtime and Certificate State
 
 Agent workspace configuration and application CA certificate state are skipped at the
-`~/.zcode/v2` top level before traversal. These directories are runtime state rather than
+`~/.zcode-next/v2` top level before traversal. These directories are runtime state rather than
 diagnostic logs; they may contain sensitive provider configuration, certificate material,
 or large generated files that should not be present in support bundles.
 
@@ -43,7 +43,7 @@ Skipped directories:
 - `certs/**`
 
 This boundary applies to both manual desktop log export and feedback full-log archives.
-Only these top-level `~/.zcode/v2` directories are matched; an unrelated nested directory
+Only these top-level `~/.zcode-next/v2` directories are matched; an unrelated nested directory
 with the same name in another log source is not excluded by this rule.
 
 ## Excluded Debug Directories
@@ -54,7 +54,7 @@ Examples:
 
 - `debug/**`
 - `**/debug/**`
-- `.zcode/cli/debug/**`
+- `.zcode-next/cli/debug/**`
 
 ## Retired Runtime Directories
 
@@ -74,11 +74,11 @@ Generated assets, dependency installs, and runtime caches are skipped entirely b
 Examples:
 
 - `Library/Caches/**`
-- `.zcode/cli/node_modules/**`
-- `.zcode/cli/.tmp/**`
-- `.zcode/cli/tmp/**`
-- `.zcode/cli/skills/**`
-- `.zcode/cli/plugins/**`
+- `.zcode-next/cli/node_modules/**`
+- `.zcode-next/cli/.tmp/**`
+- `.zcode-next/cli/tmp/**`
+- `.zcode-next/cli/skills/**`
+- `.zcode-next/cli/plugins/**`
 
 ## Preserved Files
 
@@ -87,7 +87,7 @@ Configuration and binding files are not filtered by this retention window becaus
 Examples:
 
 - `.claude.json`
-- `.zcode/cli/settings.json`
+- `.zcode-next/cli/settings.json`
 
 ## Redaction Allowlist
 

@@ -581,7 +581,8 @@ describe("SSHBackend", () => {
         }
 
         if (
-          command === `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server'")}`
+          command ===
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server'")}`
         ) {
           const channel = new FakeExecChannel();
           callback(null, channel);
@@ -591,7 +592,7 @@ describe("SSHBackend", () => {
 
         if (
           command ===
-          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server' && cat > '/root/.zcode/server/node.new'")}`
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server' && cat > '/root/.zcode-next/server/node.new'")}`
         ) {
           callback(
             null,
@@ -631,14 +632,14 @@ describe("SSHBackend", () => {
     mutableBackend.connected = true;
 
     await expect(
-      backend.upload(localFilePath, "~/.zcode/server/node.new"),
+      backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
     ).resolves.toBeUndefined();
     await expect(
-      backend.upload(localFilePath, "~/.zcode/server/node.new", {
+      backend.upload(localFilePath, "~/.zcode-next/server/node.new", {
         onProgress: (event) => secondUploadProgress.push(event),
       }),
     ).resolves.toBeUndefined();
-    expect(attemptedSftpPaths).toEqual(["/root/.zcode/server/node.new"]);
+    expect(attemptedSftpPaths).toEqual(["/root/.zcode-next/server/node.new"]);
     expect(execUploadedContents).toEqual([localContent, localContent]);
     expect(secondUploadProgress.at(-1)).toEqual({
       uploadedBytes: Buffer.byteLength(localContent),
@@ -647,14 +648,14 @@ describe("SSHBackend", () => {
     const abortedUpload = new AbortController();
     abortedUpload.abort();
     await expect(
-      backend.upload(localFilePath, "~/.zcode/server/node.new", {
+      backend.upload(localFilePath, "~/.zcode-next/server/node.new", {
         signal: abortedUpload.signal,
       }),
     ).rejects.toThrow("Remote upload canceled");
     expect(execUploadedContents).toEqual([localContent, localContent]);
     expect(
       executedCommands.includes(
-        `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server' && cat > '/root/.zcode/server/node.new'")}`,
+        `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server' && cat > '/root/.zcode-next/server/node.new'")}`,
       ),
     ).toBe(true);
   });
@@ -685,7 +686,8 @@ describe("SSHBackend", () => {
           return;
         }
         if (
-          command === `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server'")}`
+          command ===
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server'")}`
         ) {
           const channel = new FakeExecChannel();
           callback(null, channel);
@@ -694,7 +696,7 @@ describe("SSHBackend", () => {
         }
         if (
           command ===
-          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server' && cat > '/root/.zcode/server/node.new'")}`
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server' && cat > '/root/.zcode-next/server/node.new'")}`
         ) {
           callback(
             null,
@@ -721,10 +723,10 @@ describe("SSHBackend", () => {
 
     try {
       await expect(
-        backend.upload(localFilePath, "~/.zcode/server/node.new"),
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
       ).resolves.toBeUndefined();
       await expect(
-        backend.upload(localFilePath, "~/.zcode/server/node.new"),
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
       ).resolves.toBeUndefined();
 
       expect(sftpAttempts).toBe(1);
@@ -765,7 +767,8 @@ describe("SSHBackend", () => {
           return;
         }
         if (
-          command === `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server'")}`
+          command ===
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server'")}`
         ) {
           emitExecResult(channel, { exitCode: 0 });
           return;
@@ -796,10 +799,12 @@ describe("SSHBackend", () => {
     mutableBackend.connected = true;
 
     try {
-      await expect(backend.upload(localFilePath, "~/.zcode/server/node.new")).rejects.toThrow();
+      await expect(
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
+      ).rejects.toThrow();
       await writeFile(localFilePath, "second", "utf8");
       await expect(
-        backend.upload(localFilePath, "~/.zcode/server/node.new"),
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
       ).resolves.toBeUndefined();
 
       expect(sftpAttempts).toBe(2);
@@ -838,7 +843,8 @@ describe("SSHBackend", () => {
         }
 
         if (
-          command === `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server'")}`
+          command ===
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server'")}`
         ) {
           emitExecResult(channel, { exitCode: 0 });
           return;
@@ -857,7 +863,7 @@ describe("SSHBackend", () => {
       ) => {
         callback(null, {
           createWriteStream: (remotePath) => {
-            expect(remotePath).toBe("/root/.zcode/server/node.new");
+            expect(remotePath).toBe("/root/.zcode-next/server/node.new");
             return new SuccessfulSftpWriteStream();
           },
           end: () => {},
@@ -875,7 +881,7 @@ describe("SSHBackend", () => {
     try {
       const progress: Array<{ uploadedBytes: number; totalBytes: number }> = [];
       await expect(
-        backend.upload(localFilePath, "~/.zcode/server/node.new", {
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new", {
           onProgress: (event) => progress.push(event),
         }),
       ).resolves.toBeUndefined();
@@ -928,7 +934,8 @@ describe("SSHBackend", () => {
         }
 
         if (
-          command === `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server'")}`
+          command ===
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server'")}`
         ) {
           const channel = new FakeExecChannel();
           callback(null, channel);
@@ -938,7 +945,7 @@ describe("SSHBackend", () => {
 
         if (
           command ===
-          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode/server' && cat > '/root/.zcode/server/node.new'")}`
+          `/bin/sh -c ${quotePosixShellArgForTest("mkdir -p '/root/.zcode-next/server' && cat > '/root/.zcode-next/server/node.new'")}`
         ) {
           callback(null, new FakeUploadExecChannel((_content) => {}));
           return;
@@ -971,7 +978,7 @@ describe("SSHBackend", () => {
 
     try {
       await expect(
-        backend.upload(localFilePath, "~/.zcode/server/node.new"),
+        backend.upload(localFilePath, "~/.zcode-next/server/node.new"),
       ).resolves.toBeUndefined();
       const warnLines = consoleWarnSpy.mock.calls.map((call) => String(call[0] ?? ""));
       const logLines = consoleLogSpy.mock.calls.map((call) => String(call[0] ?? ""));

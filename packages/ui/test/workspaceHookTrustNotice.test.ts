@@ -29,7 +29,7 @@ function workspaceHook(trustState: WorkspaceHookReviewTrustState): Hook {
       declarationEnabled: true,
       runtimeHooksEnabled: true,
       configuredEnabled: true,
-      sourcePath: "/workspace/.zcode/config.json",
+      sourcePath: "/workspace/.zcode-next/config.json",
       reviewItemId: `review-${trustState}`,
       workspaceIdentity: "/workspace",
       bundleDigest: "a".repeat(64),

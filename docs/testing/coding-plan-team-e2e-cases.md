@@ -47,7 +47,7 @@ pnpm --filter @zcode/desktop test:e2e -- --spec './test/e2e/provider-family-resp
 ### 通用约束
 
 - 本组 case 不生成 DeepSeek provider replay fixture，因为测试不发送模型请求。
-- 每次 mock scenario 重启前显式把 `lastWorkspaceSession` 固定到隔离 HOME 的 `ZCodeProject`；不能继承上一条 case 留下的 conversation workspace，否则 workspace 就绪断言和 model-resolution seed 会落到不同 bucket。
+- 每次 mock scenario 重启前显式把 `lastWorkspaceSession` 固定到隔离 HOME 的 `ZCodeNextProject`；不能继承上一条 case 留下的 conversation workspace，否则 workspace 就绪断言和 model-resolution seed 会落到不同 bucket。
 - WDIO mock server 负责业务接口：
   - `/api/biz/subscription/enterprise/v2/pricing`
   - `/api/biz/customer/getCustomerInfo`

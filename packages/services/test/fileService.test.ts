@@ -296,7 +296,7 @@ describe("fileService", () => {
       const dataBaseDir = makeTempDir("zcode-conversation-workspace-");
       setDataBaseDir(dataBaseDir);
       const service = createFileService();
-      const workspacePath = join(dataBaseDir, ".zcode", "workspace", "default");
+      const workspacePath = join(dataBaseDir, ".zcode-next", "workspace", "default");
 
       await expect(service.ensureConversationWorkspace()).resolves.toEqual({
         path: workspacePath,
@@ -317,7 +317,7 @@ describe("fileService", () => {
     it("rejects a file collision without returning a half-created workspace", async () => {
       const dataBaseDir = makeTempDir("zcode-conversation-workspace-file-");
       setDataBaseDir(dataBaseDir);
-      const workspaceRoot = join(dataBaseDir, ".zcode", "workspace");
+      const workspaceRoot = join(dataBaseDir, ".zcode-next", "workspace");
       mkdirSync(workspaceRoot, { recursive: true });
       writeFileSync(join(workspaceRoot, "default"), "not a directory");
 
@@ -330,7 +330,7 @@ describe("fileService", () => {
   // ── createScratchWorkspace ───────────────────────────────────────
 
   describe("createScratchWorkspace", () => {
-    const scratchRoot = join(homedir(), "ZCodeProject");
+    const scratchRoot = join(homedir(), "ZCodeNextProject");
     const testWorkspaceName = `zcode-file-service-test-${Date.now()}`;
     const testWorkspacePath = join(scratchRoot, testWorkspaceName);
 

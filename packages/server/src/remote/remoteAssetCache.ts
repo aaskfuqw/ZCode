@@ -169,8 +169,8 @@ export async function ensureRemoteReleaseDirFromCdn(
 
   if (remoteCdnBaseUrls.length === 0 || !remoteCacheDir || !platformArch || !version) {
     throw new Error(
-      `[deploy] production remote assets require remoteCdnBaseUrl or remoteCdnBaseUrls, remoteCacheDir and platformArch ` +
-        `(remoteCdnBaseUrl=${options.remoteCdnBaseUrl ?? "<empty>"}, remoteCdnBaseUrls=${JSON.stringify(options.remoteCdnBaseUrls ?? [])}, remoteCacheDir=${options.remoteCacheDir ?? "<empty>"}, platformArch=${options.platformArch ?? "<empty>"}).`,
+      "[deploy] ZCode Next remote assets require remoteCdnBaseUrl or remoteCdnBaseUrls, remoteCacheDir and platformArch. " +
+        "Configure ZCODE_REMOTE_ASSET_CDN_BASE_URL or build-time CDN roots with Next-built runtime assets, or prepare local development assets.",
     );
   }
 
@@ -1888,7 +1888,7 @@ export async function readCachedRemoteAssetMarker(cacheDir: string): Promise<str
 }
 
 export function resolveFallbackRemoteAssetCacheDir(): string {
-  return join(tmpdir(), "zcode-remote-assets-cache");
+  return join(tmpdir(), "zcode-next-remote-assets-cache");
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyTheme } from "@/useTheme.js";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { applyTheme, useTheme } from "@/useTheme.js";
 
 beforeEach(() => {
+  localStorage.clear();
   document.head.innerHTML = "";
   document.documentElement.className = "";
   document.documentElement.removeAttribute("data-zcode-browser-theme-surface");
@@ -15,7 +17,19 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
   vi.unstubAllGlobals();
+});
+
+it("reads and writes only Next's theme preference", () => {
+  localStorage.setItem("zcode-theme", "zai-light");
+  const { result, unmount } = renderHook(() => useTheme());
+  expect(result.current.theme).toBe("zai-dark");
+  act(() => result.current.setTheme("light"));
+  expect(localStorage.getItem("zcode-next-theme")).toBe("zai-light");
+  expect(localStorage.getItem("zcode-theme")).toBe("zai-light");
+  unmount();
+  expect(renderHook(() => useTheme()).result.current.theme).toBe("zai-light");
 });
 
 describe("applyTheme", () => {

@@ -113,7 +113,7 @@ export async function migrateStoredCommonMcpToZCodeAgent(
     platform,
     legacyServers,
     nativeServers,
-    "localStorage:zcode-mcp-config",
+    "localStorage:zcode-next-mcp-config",
   );
   if (migration.completed) {
     // 只有确认写入 zcode agent 目录后才清理旧数据，避免 Web 端没有 desktop bridge 时丢配置。

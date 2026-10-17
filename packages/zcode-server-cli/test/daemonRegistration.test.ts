@@ -83,7 +83,7 @@ describe("daemon service registration", () => {
     const kind = platform === "darwin" ? "launchd" : platform === "linux" ? "systemd" : "task-scheduler";
     const legacyDescriptor = createServiceDescriptor({
       platform,
-      command: join(layout.stableBinDir, platform === "win32" ? "zcode.cmd" : "zcode"),
+      command: join(layout.stableBinDir, platform === "win32" ? "zcode-next.cmd" : "zcode-next"),
       args: ["serve", "--supervisor", "--server-root", layout.serverRoot],
     });
     await mkdir(layout.serviceDir, { recursive: true });
@@ -148,7 +148,7 @@ describe("daemon service registration", () => {
       expect(commands).toEqual(["status", "stop"]);
       const canonicalLayout = await resolveCanonicalServerLayout(layout.serverRoot);
       expect(serviceMocks.unregisterService).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "com.zhipu.zcode.server" }),
+        expect.objectContaining({ name: "dev.zcode.next.server" }),
         join(canonicalLayout.serviceDir, `${kind}.service`),
       );
       expect(serviceMocks.registerService).toHaveBeenCalledOnce();

@@ -21,7 +21,7 @@ import { AccountProviderApiKeyResolver } from "../src/model-provider/accountProv
 import { createAccountProjectTokenClient } from "../src/model-provider/accountProjectTokenClient.js";
 import { resolveAccountTeamPlanRuntimeApiKey } from "../src/model-provider/accountProviderTeamPlanRequestKey.js";
 
-const DESKTOP_OAUTH_CALLBACK_URI = "zcode://oauth/callback";
+const DESKTOP_OAUTH_CALLBACK_URI = "zcode-next://oauth/callback";
 
 function buildDesktopOAuthLoginRedirectUri(origin: string): string {
   const url = new URL("/app/oauth/login", origin);
@@ -283,7 +283,7 @@ describe("oauthService", () => {
 
     expect(authorizeUrl.searchParams.get("state")).toBe(started.state);
     expect(redirectUrl.origin + redirectUrl.pathname).toBe("https://zcode.z.ai/app/oauth/login");
-    expect(redirectUrl.searchParams.get("redirect")).toBe("zcode://oauth/callback");
+    expect(redirectUrl.searchParams.get("redirect")).toBe("zcode-next://oauth/callback");
     expect(redirectUrl.searchParams.get("app_version")).toBe(ZCODE_VERSION);
     expect(result).toEqual({
       kind: "session",
@@ -333,14 +333,16 @@ describe("oauthService", () => {
       "/api/biz/v1/organization/org/projects/project/api_keys/key/access_tokens",
     ]);
     await expect(
-      service.handleCallback(`zcode://oauth/callback?state=${started.state}&code=late-code`),
+      service.handleCallback(`zcode-next://oauth/callback?state=${started.state}&code=late-code`),
     ).resolves.toEqual({ kind: "duplicate", provider: ZAI_PROVIDER_ID });
     await expect(
-      service.handleCallback("zcode://oauth/callback?state=different-state&code=late-code"),
+      service.handleCallback("zcode-next://oauth/callback?state=different-state&code=late-code"),
     ).rejects.toThrow("OAuth state 不匹配或已过期");
     now += 30_000;
     await expect(
-      service.handleCallback(`zcode://oauth/callback?state=${started.state}&code=too-late-code`),
+      service.handleCallback(
+        `zcode-next://oauth/callback?state=${started.state}&code=too-late-code`,
+      ),
     ).rejects.toThrow("OAuth state 不匹配或已过期");
     await expect(service.pollPendingOAuth()).resolves.toBeNull();
     expect(mockFetch).toHaveBeenCalledTimes(6);
@@ -400,7 +402,7 @@ describe("oauthService", () => {
       });
       expect(authorizeUrl.origin + authorizeUrl.pathname).toBe("https://bigmodel.cn/login");
       expect(redirectUrl.origin + redirectUrl.pathname).toBe("https://zcode.z.ai/app/oauth/login");
-      expect(redirectUrl.searchParams.get("redirect")).toBe("zcode://oauth/callback");
+      expect(redirectUrl.searchParams.get("redirect")).toBe("zcode-next://oauth/callback");
       expect(redirectUrl.searchParams.get("app_version")).toBe(ZCODE_VERSION);
       expect(result).toEqual({
         kind: "session",
@@ -462,7 +464,7 @@ describe("oauthService", () => {
     await vi.advanceTimersByTimeAsync(5_000);
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?state=${started.state}&code=late-code`),
+      service.handleCallback(`zcode-next://oauth/callback?state=${started.state}&code=late-code`),
     ).rejects.toThrow("OAuth state 不匹配或已过期");
     expect(exchangeToken).not.toHaveBeenCalled();
     expect(credentialStore.get("oauth:zai:access_token")).toBe("existing-token");
@@ -1026,7 +1028,7 @@ describe("oauthService", () => {
     const service = createBigModelService({ apiClient: createMockApiClient(fetchMock) });
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
     await expect(
-      service.handleCallback(`zcode://oauth/callback?state=${state}&error=access_denied`),
+      service.handleCallback(`zcode-next://oauth/callback?state=${state}&error=access_denied`),
     ).rejects.toThrow("OAuth 回调缺少");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await credentialServiceStub.load("oauth:active_provider")).toBeNull();
@@ -1038,7 +1040,7 @@ describe("oauthService", () => {
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
     for (let i = 0; i < 2; i++) {
       await expect(
-        service.handleCallback(`zcode://oauth/callback?state=${state}`),
+        service.handleCallback(`zcode-next://oauth/callback?state=${state}`),
       ).resolves.toBeNull();
     }
     expect(fetchMock).not.toHaveBeenCalled();
@@ -1046,7 +1048,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-001&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`),
     ).resolves.toMatchObject({ kind: "session", provider: BIGMODEL_PROVIDER_ID });
   });
 
@@ -1055,12 +1057,12 @@ describe("oauthService", () => {
       apiClient: createMockApiClient(vi.fn<typeof fetch>()),
     });
     const first = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-    await service.handleCallback(`zcode://oauth/callback?state=${first.state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?state=${first.state}`);
 
     const second = await service.startOAuth(BIGMODEL_PROVIDER_ID);
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=old-code&state=${first.state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=old-code&state=${first.state}`),
     ).rejects.toThrow("OAuth state 不匹配或已过期");
     expect(second.state).not.toBe(first.state);
     await service.cancelPending();
@@ -1072,12 +1074,12 @@ describe("oauthService", () => {
       apiClient: createMockApiClient(vi.fn<typeof fetch>()),
     });
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-    await service.handleCallback(`zcode://oauth/callback?state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?state=${state}`);
 
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=late-code&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=late-code&state=${state}`),
     ).rejects.toThrow("OAuth state 不匹配或已过期");
   });
 
@@ -1129,7 +1131,7 @@ describe("oauthService", () => {
     );
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
     const result = await service.handleCallback(
-      `zcode://oauth/callback?code=zai-code-001&state=${state}&utm_source=google&utm_campaign=brand_search`,
+      `zcode-next://oauth/callback?code=zai-code-001&state=${state}&utm_source=google&utm_campaign=brand_search`,
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -1209,7 +1211,7 @@ describe("oauthService", () => {
     );
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?code=zai-code-001&state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?code=zai-code-001&state=${state}`);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -1246,7 +1248,7 @@ describe("oauthService", () => {
     );
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?code=zai-code-001&state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?code=zai-code-001&state=${state}`);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -1286,7 +1288,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=zai-code-001&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=zai-code-001&state=${state}`),
     ).resolves.toEqual({
       kind: "session",
       provider: ZAI_PROVIDER_ID,
@@ -1332,7 +1334,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=zai-code-002&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=zai-code-002&state=${state}`),
     ).resolves.toEqual({
       kind: "session",
       provider: ZAI_PROVIDER_ID,
@@ -1364,7 +1366,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=bad-code&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=bad-code&state=${state}`),
     ).rejects.toThrow(/invalid oauth code/);
 
     expect(await credentialServiceStub.load("oauth:zai:access_token")).toBeNull();
@@ -1398,7 +1400,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=zai-code-001&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=zai-code-001&state=${state}`),
     ).rejects.toThrow(/data.zai.access_token/);
 
     expect(await credentialServiceStub.load("oauth:zai:access_token")).toBeNull();
@@ -1433,7 +1435,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=zai-code-001&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=zai-code-001&state=${state}`),
     ).rejects.toThrow(/data.token/);
 
     expect(await credentialServiceStub.load("oauth:zai:access_token")).toBeNull();
@@ -1476,7 +1478,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?code=zai-code-003&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?code=zai-code-003&state=${state}`),
     ).resolves.toEqual({
       kind: "session",
       provider: ZAI_PROVIDER_ID,
@@ -1750,7 +1752,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=auth-code-001&state=${state}&utm_source=google`,
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}&utm_source=google`,
     );
 
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -1822,7 +1824,7 @@ describe("oauthService", () => {
     );
 
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=auth-code-001&state=${state}`,
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
     );
 
     expect(result.userInfo).toEqual({
@@ -1854,7 +1856,7 @@ describe("oauthService", () => {
     );
 
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=auth-code-001&state=${state}`,
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
     );
 
     expect(result.userInfo).toEqual({
@@ -1877,7 +1879,7 @@ describe("oauthService", () => {
     );
 
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=auth-code-001&state=${state}`,
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
     );
 
     expect(result.userInfo).toEqual({
@@ -1900,7 +1902,7 @@ describe("oauthService", () => {
     );
 
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=auth-code-001&state=${state}`,
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
     );
 
     expect(result.userInfo).toEqual({
@@ -1925,7 +1927,9 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?authCode=auth-code-001&state=${state}`);
+    await service.handleCallback(
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
+    );
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -1950,7 +1954,9 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?authCode=auth-code-001&state=${state}`);
+    await service.handleCallback(
+      `zcode-next://oauth/callback?authCode=auth-code-001&state=${state}`,
+    );
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -1983,7 +1989,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-500&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=auth-code-500&state=${state}`),
     ).rejects.toMatchObject<ApiError>({
       name: "ApiError",
       method: "POST",
@@ -2062,7 +2068,7 @@ describe("oauthService", () => {
 
     const started = await service.startOAuthWithPolling(BIGMODEL_PROVIDER_ID);
     const deepLink = service.handleCallback(
-      `zcode://oauth/callback?state=${started.state}&code=deep-link-code`,
+      `zcode-next://oauth/callback?state=${started.state}&code=deep-link-code`,
     );
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     rejectExchange(new Error("deep-link exchange failed"));
@@ -2101,7 +2107,7 @@ describe("oauthService", () => {
       ],
     });
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-    const callback = service.handleCallback(`zcode://oauth/callback?state=${state}&code=late`);
+    const callback = service.handleCallback(`zcode-next://oauth/callback?state=${state}&code=late`);
     await Promise.resolve();
     await service.cancelPending();
     resolveExchange({ accessToken: "cancelled-token" });
@@ -2133,7 +2139,7 @@ describe("oauthService", () => {
     );
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?authCode=switch-code&state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?authCode=switch-code&state=${state}`);
 
     expect(await credentialServiceStub.load("oauth:active_provider")).toBe(BIGMODEL_PROVIDER_ID);
     expect(await credentialServiceStub.load("oauth:bigmodel:access_token")).toBe(
@@ -2162,7 +2168,9 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-missing&state=${state}`),
+      service.handleCallback(
+        `zcode-next://oauth/callback?authCode=auth-code-missing&state=${state}`,
+      ),
     ).rejects.toThrow(/缺少 data.token/);
     expect(await credentialServiceStub.load("oauth:bigmodel:access_token")).toBeNull();
     expect(await credentialServiceStub.load("zcodejwttoken")).toBeNull();
@@ -2187,7 +2195,9 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-expired&state=${state}`),
+      service.handleCallback(
+        `zcode-next://oauth/callback?authCode=auth-code-expired&state=${state}`,
+      ),
     ).rejects.toThrow(/authCode 已过期/);
     expect(await credentialServiceStub.load("oauth:bigmodel:access_token")).toBeNull();
   });
@@ -2202,7 +2212,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse("code-field-zcode-jwt"));
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
 
-    await service.handleCallback(`zcode://oauth/callback?code=oauth-code-002&state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?code=oauth-code-002&state=${state}`);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -2251,7 +2261,7 @@ describe("oauthService", () => {
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
 
     const result = await service.handleCallback(
-      `zcode://oauth/callback?authCode=subscription-code-001&state=${state}`,
+      `zcode-next://oauth/callback?authCode=subscription-code-001&state=${state}`,
     );
 
     expect(result).toEqual({
@@ -2291,7 +2301,9 @@ describe("oauthService", () => {
 
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
-    await service.handleCallback(`zcode://oauth/callback?authCode=auth-code-004&state=${state}`);
+    await service.handleCallback(
+      `zcode-next://oauth/callback?authCode=auth-code-004&state=${state}`,
+    );
 
     const tokenCall = fetchMock.mock.calls[0];
     if (!tokenCall) {
@@ -2312,13 +2324,13 @@ describe("oauthService", () => {
     const second = await service.startOAuth(BIGMODEL_PROVIDER_ID);
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=first&state=${first.state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=first&state=${first.state}`),
     ).rejects.toThrow(/state/);
 
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse("token-2"));
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=second&state=${second.state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=second&state=${second.state}`),
     ).resolves.toEqual({
       kind: "session",
       provider: BIGMODEL_PROVIDER_ID,
@@ -2469,7 +2481,7 @@ describe("oauthService", () => {
             enabled: true,
             order: 9,
           },
-          redirectUri: "zcode://custom-auth/callback",
+          redirectUri: "zcode-next://custom-auth/callback",
           parseCallbackParams: () => ({ code: "", state: "" }),
           buildAuthorizeUrl: () => "https://example.com/auth",
           exchangeToken: async () => ({ accessToken: "unused" }),
@@ -2944,7 +2956,7 @@ describe("oauthService", () => {
     );
     zaiFetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse("zai-business-token"));
 
-    await zaiService.handleCallback(`zcode://zai-auth/callback?code=zai-code&state=${state}`);
+    await zaiService.handleCallback(`zcode-next://zai-auth/callback?code=zai-code&state=${state}`);
     releaseTokenLoad();
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -3103,7 +3115,7 @@ describe("oauthService", () => {
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
     fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse("new-zcode-jwt", "new-token"));
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
-    await service.handleCallback(`zcode://oauth/callback?authCode=new-login&state=${state}`);
+    await service.handleCallback(`zcode-next://oauth/callback?authCode=new-login&state=${state}`);
     releaseExpiredJwtRead();
 
     await expect(restorePromise).resolves.toMatchObject({ status: "authenticated" });
@@ -3152,7 +3164,9 @@ describe("oauthService", () => {
       createBigModelZcodeTokenResponse("new-bigmodel-jwt", "new-bigmodel-token"),
     );
     fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
-    await service.handleCallback(`zcode://oauth/callback?authCode=switch-login&state=${state}`);
+    await service.handleCallback(
+      `zcode-next://oauth/callback?authCode=switch-login&state=${state}`,
+    );
     releaseExpiredJwtRead();
 
     await expect(restorePromise).resolves.toMatchObject({ status: "authenticated" });
@@ -3421,7 +3435,7 @@ describe("oauthService", () => {
     );
 
     await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-401&state=${state}`),
+      service.handleCallback(`zcode-next://oauth/callback?authCode=auth-code-401&state=${state}`),
     ).rejects.toMatchObject<ApiError>({
       name: "ApiError",
       method: "POST",

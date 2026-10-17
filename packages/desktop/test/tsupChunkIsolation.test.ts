@@ -107,6 +107,10 @@ describe("desktop tsup chunk isolation", () => {
   });
 
   it("remote runtime CDN 根应可由 CI 的 CDN_DOMAIN/OSS_PATH_PREFIX 多值注入", () => {
+    expect(resolveBuildRemoteCdnReleaseRoots({})).toEqual([]);
+    expect(resolveBuildRemoteCdnReleaseRoots({ CDN_DOMAIN: "next-cdn.example.com" })).toEqual([
+      "https://next-cdn.example.com/zcode-next/electron/releases",
+    ]);
     expect(
       resolveBuildRemoteCdnReleaseRoots({
         CDN_DOMAIN: "cdn-zcode.z.ai,cdn.zcode-ai.com",

@@ -7,12 +7,12 @@ export const zhCN: ZCodeCopy = {
       localeUnsupported: (value) =>
         `不支持的 --locale 值：${value}。支持的语言：en-US、zh-CN、auto。`,
     },
-    help: (version) => `zcode ${version}
+    help: (version) => `zcode-next ${version}
 
 用法:
-  zcode [command] [options]
+  zcode-next [command] [options]
 
-不传 command 时，zcode 会打开全屏 TUI。
+不传 command 时，zcode-next 会打开全屏 TUI。
 
 命令:
   app-server 运行 ZCode Protocol stdio app server
@@ -283,7 +283,7 @@ Slash Commands:
       turnFailed: "本轮失败。",
     },
     terminal: {
-      starting: "正在启动 ZCode… Ctrl+C 退出",
+      starting: "正在启动 ZCode Next… Ctrl+C 退出",
       requiresInteractive: "TUI 需要交互式终端。",
     },
     transcript: {

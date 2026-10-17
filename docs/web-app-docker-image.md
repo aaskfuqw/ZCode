@@ -25,7 +25,7 @@ zcode.cjs app-server
   |
   | app data
   v
-/data/.zcode
+/data/.zcode-next
   |-- v2        app settings, task index
   `-- cli       agent session DB, logs, rollout
 ```
@@ -45,7 +45,7 @@ zcode.cjs app-server
 
 - `HOME=/data`
 - `ZCODE_DATA_BASE_DIR=/data`
-- `ZCODE_STORAGE_DIR=/data/.zcode`
+- `ZCODE_STORAGE_DIR=/data/.zcode-next`
 - 默认工作区为 `/workspace`
 
 启动脚本只在 `setting.json` 缺失或 workspace 列表为空时 seed `/workspace`，不会覆盖已有 volume 中的模型、账号或任务数据。

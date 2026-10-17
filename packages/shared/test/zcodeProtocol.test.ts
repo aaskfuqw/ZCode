@@ -2662,7 +2662,7 @@ describe("v4 workflowLaunch rows (direct-launch)", () => {
     toolCallId: "launch-abc",
     name: "deep-research",
     scope: "global" as const,
-    path: "/home/u/.zcode/workflows/deep-research.ts",
+    path: "/home/u/.zcode-next/workflows/deep-research.ts",
     args: { topic: "adaptive concurrency", depth: 2 },
     description: "Deep-dive a topic across the web and write a brief.",
   };

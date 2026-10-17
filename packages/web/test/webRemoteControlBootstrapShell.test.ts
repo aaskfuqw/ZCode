@@ -24,7 +24,7 @@ function readCssRule(source: string, selector: string): string {
 function createBootstrapDocument(theme: "zai-dark" | "zai-light"): JSDOM {
   return new JSDOM(readWebIndexHtml(), {
     beforeParse(window) {
-      window.localStorage.setItem("zcode-theme", theme);
+      window.localStorage.setItem("zcode-next-theme", theme);
       Object.defineProperty(window, "matchMedia", {
         configurable: true,
         value: () => ({ matches: false }),
@@ -36,6 +36,53 @@ function createBootstrapDocument(theme: "zai-dark" | "zai-light"): JSDOM {
 }
 
 describe("web remote control bootstrap shell", () => {
+  it("ignores upstream theme and bootstrap snapshots without consuming them", () => {
+    const snapshot = JSON.stringify({ theme: "light", background: "#ffffff" });
+    const dom = new JSDOM(readWebIndexHtml(), {
+      beforeParse(window) {
+        window.localStorage.setItem("zcode-theme", "zai-light");
+        window.sessionStorage.setItem("zcode:web-remote-control:bootstrap-shell", snapshot);
+      },
+      runScripts: "dangerously",
+      url: "https://next.example/remote",
+    });
+
+    expect(dom.window.document.title).toBe("ZCode Next");
+    expect(dom.window.document.documentElement.getAttribute("data-zcode-bootstrap-theme")).toBe(
+      "dark",
+    );
+    expect(dom.window.localStorage.getItem("zcode-theme")).toBe("zai-light");
+    expect(dom.window.sessionStorage.getItem("zcode:web-remote-control:bootstrap-shell")).toBe(
+      snapshot,
+    );
+    dom.window.close();
+  });
+
+  it("consumes only Next's bootstrap snapshot ahead of Next's saved theme", () => {
+    const dom = new JSDOM(readWebIndexHtml(), {
+      beforeParse(window) {
+        window.localStorage.setItem("zcode-next-theme", "zai-dark");
+        window.sessionStorage.setItem(
+          "zcode-next:web-remote-control:bootstrap-shell",
+          JSON.stringify({ theme: "light", background: "#ffffff" }),
+        );
+      },
+      runScripts: "dangerously",
+      url: "https://next.example/remote",
+    });
+
+    expect(dom.window.document.documentElement.getAttribute("data-zcode-bootstrap-theme")).toBe(
+      "light",
+    );
+    expect(dom.window.document.documentElement.style.getPropertyValue("--zcode-bootstrap-bg")).toBe(
+      "#ffffff",
+    );
+    expect(
+      dom.window.sessionStorage.getItem("zcode-next:web-remote-control:bootstrap-shell"),
+    ).toBeNull();
+    dom.window.close();
+  });
+
   it("内嵌与桌面 App 同源的浏览器标签图标", () => {
     const html = readWebIndexHtml();
     const document = new JSDOM(html).window.document;

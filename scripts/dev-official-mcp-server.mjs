@@ -460,14 +460,14 @@ JSON
   console.log("2) 在设置页「添加 marketplace」里填这个目录（注意是 marketplace 根目录，");
   console.log(`   不是插件目录）：${marketRoot}`);
   console.log("   然后在插件列表里找到 " + PLUGIN_NAME + " 并「安装」。");
-  console.log("   若之前用 plugins.dirs 挂过同名插件，先从 ~/.zcode/cli/config.json 的");
+  console.log("   若之前用 plugins.dirs 挂过同名插件，先从 ~/.zcode-next/cli/config.json 的");
   console.log("   plugins.dirs 里移除，避免两个来源的同名插件互相干扰。\n");
   console.log("3) 安装后**启用**它——marketplace 安装的插件默认不启用，未启用时其 MCP 不会被解析：");
   console.log("   设置页直接打开开关即可；或写配置：");
   console.log(`
 node -e '
 const fs=require("fs"),os=require("os"),path=require("path");
-const f=path.join(os.homedir(),".zcode/cli/config.json");
+const f=path.join(os.homedir(),".zcode-next/cli/config.json");
 const c=JSON.parse(fs.readFileSync(f,"utf8"));
 c.plugins=c.plugins||{};
 c.plugins.enabled=true;

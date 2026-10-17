@@ -91,7 +91,7 @@ SEA config 必须显式写入：
 - `assets`: OpenTUI runtime assets, bundled official plugin assets and the
   bundled skill pack. Official plugins are stored as raw files in the SEA blob,
   then extracted on startup into
-  `~/.zcode/cli/plugins/cache/zcode-plugins-official/<plugin>/<version>/`.
+  `~/.zcode-next/cli/plugins/cache/zcode-plugins-official/<plugin>/<version>/`.
   They must not be imported into the ZCode main bundle. Seeded official plugin
   manifests are rewritten to use the hidden `__zcode-plugin-host` entrypoint so
   the cached MCP server runs on the SEA-embedded Node.js runtime. Third-party
@@ -99,7 +99,7 @@ SEA config 必须显式写入：
   The bundled skill pack (`packages/bundled-skills/skills/**`, collected by
   `scripts/sea-bundled-skill-assets.mjs` under the `zcode-bundled-skills/`
   prefix) is not a plugin: its manifest hash names the extraction directory
-  `~/.zcode/cli/bundled-skills/<hash>/`, every required file must be present or
+  `~/.zcode-next/cli/bundled-skills/<hash>/`, every required file must be present or
   the build aborts, and a runtime hash mismatch refuses the pack.
 - `useCodeCache`: `false`。
 - `useSnapshot`: `false`。
@@ -133,7 +133,7 @@ ESM/CommonJS 的实际目标文件，不能用全局 `zod` alias 把 v3 重定�
 
 ## CLI 版本来源
 
-普通 Node CLI bundle 和 SEA binary 必须使用仓库根目录 `package.json` 的 `version` 注入 `__CLI_VERSION__`。`packages/cli/package.json` 只是 workspace 子包元数据，不能作为 `zcode --version`、`zcode version`、`zcode doctor --json`、ZCode app-server 初始化版本字段、MCP client initialize `version`，或 `session.version` 的来源。
+普通 Node CLI bundle 和 SEA binary 必须使用仓库根目录 `package.json` 的 `version` 注入 `__CLI_VERSION__`。`packages/cli/package.json` 只是 workspace 子包元数据，不能作为 `zcode-next --version`、`zcode-next version`、`zcode doctor --json`、ZCode app-server 初始化版本字段、MCP client initialize `version`，或 `session.version` 的来源。
 
 构建脚本读取根 `package.json` 失败，或 `version` 不是非空字符串时，应中止构建并报告根版本元数据异常。源码测试环境未经过 bundle 注入时，运行时仍保留 `0.0.0` fallback，便于直接测试 `packages/cli/src/run.ts`。
 
@@ -181,7 +181,7 @@ Windows 官方 `node.exe` 通常带 Authenticode 签名。脚本构建 Windows t
 - Windows Authenticode 移除覆盖 PE32/PE32+、未签名 no-op、尾部证书表 truncate 和越界目录报错。
 - OpenTUI runtime asset manifest 覆盖 `@zcode/tui`、`@zcode/i18n`、
   `@zcode/contracts` 的 workspace runtime closure，并排除 workspace 源文件。
-- CLI bundle 版本注入读取仓库根 `package.json`，即使 `packages/cli/package.json` 版本不同也不改变 `zcode --version` 的构建时版本。
+- CLI bundle 版本注入读取仓库根 `package.json`，即使 `packages/cli/package.json` 版本不同也不改变 `zcode-next --version` 的构建时版本。
 - `build:sea` workspace 脚本必须在 `build-sea.mjs --all` 前通过 Turbo `--force`
   重建 CLI 之外的 workspace，再通过 package-local `pnpm build` 直接重建 CLI；
   CLI 必须排除在 Turbo build 外，避免把同目录中的已有 SEA 产物写入 `dist/**` cache。

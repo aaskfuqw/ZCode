@@ -333,12 +333,12 @@ export const officeSuggestedPrompts: RecommendedPrompt[] = [
     category: "utility",
     iconUrl: "https://cdn-zcode.z.ai/zcode/official-plugin/assets/zcode-guide/icon.png",
     label: {
-      cn: "帮我检查当前的 ZCode 配置，看看有哪些可以调整",
-      en: "Review my ZCode configuration and suggest useful adjustments.",
+      cn: "帮我检查当前的 ZCode Next 配置，看看有哪些可以调整",
+      en: "Review my ZCode Next configuration and suggest useful adjustments.",
     },
     prompt: {
-      cn: "帮我检查当前的 ZCode 配置，看看有哪些可以调整",
-      en: "Review my ZCode configuration and suggest useful adjustments.",
+      cn: "帮我检查当前的 ZCode Next 配置，看看有哪些可以调整",
+      en: "Review my ZCode Next configuration and suggest useful adjustments.",
     },
     plugin: {
       stableId: "zcode-guide@zcode-plugins-official",

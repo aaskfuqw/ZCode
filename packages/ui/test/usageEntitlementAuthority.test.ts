@@ -55,6 +55,6 @@ describe("所有入口使用订阅权益", () => {
         providerId: "provider",
         providerFingerprint: "account/project",
       }),
-    ).toBe("zcode:usage-entitlement:subscription-v2:provider:account/project");
+    ).toBe("zcode-next:usage-entitlement:subscription-v2:provider:account/project");
   });
 });

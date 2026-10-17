@@ -26,7 +26,7 @@ Coding Plan provider 的模型菜单可见性由 `model-providers.json` 内的 p
 
 ## 入口状态缓存
 
-Model Providers 左侧入口状态会写入 `~/.zcode/v2/coding-plan-cache.json`，只缓存入口可用性，不缓存状态卡片详情。
+Model Providers 左侧入口状态会写入 `~/.zcode-next/v2/coding-plan-cache.json`，只缓存入口可用性，不缓存状态卡片详情。
 缓存 TTL 为 24 小时，用于避免打开 Model Providers 时等待 Z.AI Start/Coding 权益查询而出现 loading 抖动。
 
 缓存的数据源：

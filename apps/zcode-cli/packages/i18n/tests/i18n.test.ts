@@ -43,6 +43,12 @@ describe("i18n catalog", () => {
     }
   });
 
+  it.each(SUPPORTED_LOCALES)("identifies the Next command and TUI in %s", (locale) => {
+    const copy = getZCodeCopy(locale);
+    expect(copy.cli.help("1.0.0")).toContain("zcode-next [command] [options]");
+    expect(copy.tui.terminal.starting).toContain("ZCode Next");
+  });
+
   it("returns localized TUI and CLI copy", () => {
     const copy = getZCodeCopy("zh-CN");
 

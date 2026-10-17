@@ -59,7 +59,7 @@ describe("ZCodeAgentService saved workflows", () => {
         return {
           ok: true,
           name: "x",
-          path: "/repo/.zcode/workflows/x.dwf.ts",
+          path: "/repo/.zcode-next/workflows/x.dwf.ts",
           scope: "project",
           meta: { description: "d" },
           script: "export default async () => {}",
@@ -99,14 +99,14 @@ describe("ZCodeAgentService saved workflows", () => {
     };
     const request = vi.fn(async (method: string) => {
       if (method === zcodeProtocolMethods.workflowsUpdateMeta) {
-        return { ok: true, path: "/repo/.zcode/workflows/x.dwf.ts" };
+        return { ok: true, path: "/repo/.zcode-next/workflows/x.dwf.ts" };
       }
       throw new Error(`Unexpected method ${method}`);
     });
     const { service } = await createServiceWithRequest(request);
     await expect(
       service.updateSavedWorkflowMeta({ workspacePath: "/repo", name: "x", meta }),
-    ).resolves.toEqual({ ok: true, path: "/repo/.zcode/workflows/x.dwf.ts" });
+    ).resolves.toEqual({ ok: true, path: "/repo/.zcode-next/workflows/x.dwf.ts" });
     expect(request).toHaveBeenCalledWith(
       zcodeProtocolMethods.workflowsUpdateMeta,
       { workspace: WORKSPACE, name: "x", meta },
@@ -160,20 +160,20 @@ describe("ZCodeAgentService saved workflows", () => {
 function replyForMethod(method: string): unknown {
   switch (method) {
     case zcodeProtocolMethods.workflowsList:
-      return { workflows: [], invalid: [], dir: "/repo/.zcode/workflows" };
+      return { workflows: [], invalid: [], dir: "/repo/.zcode-next/workflows" };
     case zcodeProtocolMethods.workflowsGet:
       return {
         ok: true,
         name: "x",
-        path: "/repo/.zcode/workflows/x.dwf.ts",
+        path: "/repo/.zcode-next/workflows/x.dwf.ts",
         scope: "global",
         meta: { description: "d" },
         script: "export default async () => {}",
       };
     case zcodeProtocolMethods.workflowsUpdateMeta:
-      return { ok: true, path: "/repo/.zcode/workflows/x.dwf.ts" };
+      return { ok: true, path: "/repo/.zcode-next/workflows/x.dwf.ts" };
     case zcodeProtocolMethods.workflowsDelete:
-      return { ok: true, path: "/repo/.zcode/workflows/x.dwf.ts" };
+      return { ok: true, path: "/repo/.zcode-next/workflows/x.dwf.ts" };
     case zcodeProtocolMethods.workflowsRuns:
       return { runs: [], truncated: false };
     case zcodeProtocolMethods.workflowsMove:
@@ -245,8 +245,8 @@ describe("ZCodeAgentService moveSavedWorkflow", () => {
       if (method === zcodeProtocolMethods.workflowsMove) {
         return {
           ok: true,
-          from: "/home/.zcode/workflows/x.dwf.ts",
-          to: "/repo/.zcode/workflows/x.dwf.ts",
+          from: "/home/.zcode-next/workflows/x.dwf.ts",
+          to: "/repo/.zcode-next/workflows/x.dwf.ts",
         };
       }
       throw new Error(`Unexpected method ${method}`);
@@ -255,8 +255,8 @@ describe("ZCodeAgentService moveSavedWorkflow", () => {
     await expect(service.moveSavedWorkflow({ workspacePath: "/repo", name: "x" })).resolves.toEqual(
       {
         ok: true,
-        from: "/home/.zcode/workflows/x.dwf.ts",
-        to: "/repo/.zcode/workflows/x.dwf.ts",
+        from: "/home/.zcode-next/workflows/x.dwf.ts",
+        to: "/repo/.zcode-next/workflows/x.dwf.ts",
       },
     );
     expect(request).toHaveBeenCalledWith(
@@ -270,7 +270,7 @@ describe("ZCodeAgentService moveSavedWorkflow", () => {
   it("解析失败分支（target_exists）", async () => {
     const request = vi.fn(async (method: string) => {
       if (method === zcodeProtocolMethods.workflowsMove) {
-        return { ok: false, reason: "target_exists", path: "/repo/.zcode/workflows/x.dwf.ts" };
+        return { ok: false, reason: "target_exists", path: "/repo/.zcode-next/workflows/x.dwf.ts" };
       }
       throw new Error(`Unexpected method ${method}`);
     });
@@ -279,7 +279,7 @@ describe("ZCodeAgentService moveSavedWorkflow", () => {
       {
         ok: false,
         reason: "target_exists",
-        path: "/repo/.zcode/workflows/x.dwf.ts",
+        path: "/repo/.zcode-next/workflows/x.dwf.ts",
       },
     );
     expect(request).toHaveBeenLastCalledWith(
@@ -368,7 +368,7 @@ describe("ZCodeAgentService saving a run", () => {
           ok: true,
           name: "pr-review",
           scope: "global",
-          path: "/home/u/.zcode/workflows/pr-review.dwf.ts",
+          path: "/home/u/.zcode-next/workflows/pr-review.dwf.ts",
           overwritten: true,
         };
       }
@@ -405,7 +405,7 @@ describe("ZCodeAgentService saving a run", () => {
   it("saveSavedWorkflowFromRun 缺省 scope / overwrite 时不带这两个键；拒绝是结果不是异常", async () => {
     const request = vi.fn(async (method: string) => {
       if (method === zcodeProtocolMethods.workflowsSave) {
-        return { ok: false, reason: "target_exists", path: "/repo/.zcode/workflows/x.dwf.ts" };
+        return { ok: false, reason: "target_exists", path: "/repo/.zcode-next/workflows/x.dwf.ts" };
       }
       throw new Error(`Unexpected method ${method}`);
     });
@@ -420,7 +420,7 @@ describe("ZCodeAgentService saving a run", () => {
     ).resolves.toEqual({
       ok: false,
       reason: "target_exists",
-      path: "/repo/.zcode/workflows/x.dwf.ts",
+      path: "/repo/.zcode-next/workflows/x.dwf.ts",
     });
     expect(request).toHaveBeenCalledWith(
       zcodeProtocolMethods.workflowsSave,
@@ -435,7 +435,7 @@ describe("ZCodeAgentService saving a run", () => {
       name: "pr-review",
       description: "d",
       scope: "project" as const,
-      path: "/repo/.zcode/workflows/pr-review.dwf.ts",
+      path: "/repo/.zcode-next/workflows/pr-review.dwf.ts",
     };
     const request = vi.fn(async (method: string) => {
       if (method === zcodeProtocolMethods.workflowsForRun) {

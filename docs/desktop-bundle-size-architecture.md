@@ -36,7 +36,7 @@
   与 `mock-cdn/components/` 同步生成，目录下直接包含 `manifest-*.json` 和 `components/`。
 - `remoteCdnBaseUrl` 仍可通过环境变量覆盖；一旦显式设置，就只使用该自定义基址，不再套用
   `ZCODE_ENV` 默认值或 production 地区分流
-- SSH 远端服务器下载模式会在远端 `~/.zcode/server/asset-cache/` 下缓存已校验并解压的组件；最终安装路径仍是 `~/.zcode/server/` 下的现有 runtime、server、agent 和 tools 目录。
+- SSH 远端服务器下载模式会在远端 `~/.zcode-next/server/asset-cache/` 下缓存已校验并解压的组件；最终安装路径仍是 `~/.zcode-next/server/` 下的现有 runtime、server、agent 和 tools 目录。
 
 ## 开发态切换公网 CDN
 
@@ -77,9 +77,9 @@ remote 资产准备链路。
 `pnpm dev:desktop` 会先构建 `apps/zcode-cli/packages/cli/dist/zcode.cjs`。在
 本地开发运行且该文件存在时，SSH remote deploy 的 `glm` 组件不再使用
 mock-cdn / CDN 里的 `zcode-agent` native binary，而是把本地 `zcode.cjs` 上传到远端
-`~/.zcode/server/agents/glm/zcode.cjs`，并生成一个可执行的
-`~/.zcode/server/agents/glm/zcode-agent` wrapper。wrapper 使用远端已部署的
-`~/.zcode/server/node` 启动这份 bundle，因此 agent 仍运行在目标 SSH 机器内，文件、
+`~/.zcode-next/server/agents/glm/zcode.cjs`，并生成一个可执行的
+`~/.zcode-next/server/agents/glm/zcode-agent` wrapper。wrapper 使用远端已部署的
+`~/.zcode-next/server/node` 启动这份 bundle，因此 agent 仍运行在目标 SSH 机器内，文件、
 Git、terminal cwd 都保持远端语义。
 
 远端同时写入 `.dev-version` 内容 hash；只有该标记匹配、必要资源完整且远端

@@ -41,9 +41,7 @@ export function createWindowsE2EHomeMarkerArg(homeDir: string) {
 }
 
 export function buildWindowsTaskkillArgs(pids: number[]) {
-  const uniquePids = [...new Set(pids)].filter(
-    (pid) => Number.isInteger(pid) && pid > 0,
-  );
+  const uniquePids = [...new Set(pids)].filter((pid) => Number.isInteger(pid) && pid > 0);
   return [...uniquePids.flatMap((pid) => ["/PID", String(pid)]), "/T", "/F"];
 }
 
@@ -61,10 +59,7 @@ export function listE2EProcessTreePids(
   const platform = options.platform ?? process.platform;
   const runCommand = options.runCommand ?? runProcessScanCommand;
   if (platform === "win32") {
-    return collectWindowsE2EProcessTreePids(
-      runWindowsProcessScan(runCommand),
-      identity,
-    );
+    return collectWindowsE2EProcessTreePids(runWindowsProcessScan(runCommand), identity);
   }
   return collectE2EProcessTreePids(
     parsePosixProcessRows(runCommand("ps", ["-axo", "pid=,ppid=,command="])),
@@ -79,9 +74,7 @@ export async function listSystemProcesses(
   const runCommand = options.runCommand ?? runProcessScanCommandAsync;
   return platform === "win32"
     ? parseWindowsProcessRows(await runWindowsProcessScanAsync(runCommand))
-    : parsePosixProcessRows(
-        await runCommand("ps", ["-axo", "pid=,ppid=,command="]),
-      );
+    : parsePosixProcessRows(await runCommand("ps", ["-axo", "pid=,ppid=,command="]));
 }
 
 export function collectProcessTreeByRootPids(
@@ -90,9 +83,7 @@ export function collectProcessTreeByRootPids(
 ): E2EProcessInfo[] {
   const processPids = new Set(processes.map((item) => item.pid));
   const targetPids = new Set(
-    rootPids.filter(
-      (pid) => Number.isInteger(pid) && pid > 0 && processPids.has(pid),
-    ),
+    rootPids.filter((pid) => Number.isInteger(pid) && pid > 0 && processPids.has(pid)),
   );
 
   let changed = true;
@@ -124,17 +115,12 @@ export function collectE2EProcessTreePids(
   // reload 已从 main bridge 取得权威 PID，必须允许它作为显式根，再递归收集全部后代。
   const targetPids = new Set([
     ...(identity.rootPids ?? []).filter(
-      (pid) =>
-        Number.isInteger(pid) &&
-        pid > 0 &&
-        processPids.has(pid) &&
-        !excludedPids.has(pid),
+      (pid) => Number.isInteger(pid) && pid > 0 && processPids.has(pid) && !excludedPids.has(pid),
     ),
     ...processes
       .filter(
         (item) =>
-          !excludedPids.has(item.pid) &&
-          isCurrentE2EProcessCleanupRoot(item.command, identity),
+          !excludedPids.has(item.pid) && isCurrentE2EProcessCleanupRoot(item.command, identity),
       )
       .map((item) => item.pid),
   ]);
@@ -155,7 +141,7 @@ export function collectE2EProcessTreePids(
       ) {
         break;
       }
-      // Bug 根因：macOS 会把 Electron main 的命令行收敛成 `ZCode E2E`，
+      // Bug 根因：macOS 会把 Electron main 的命令行收敛成 `ZCode Next E2E`，
       // ChromeDriver 也不携带 appArgs；只有 renderer/utility 还保留当前 run 的
       // profile/HOME。精确命中后代后必须反向补齐父链，否则只能杀 renderer，
       // markerless main/ChromeDriver 会跨 worker 存活并持续重建窗口。
@@ -168,11 +154,7 @@ export function collectE2EProcessTreePids(
   while (changed) {
     changed = false;
     for (const item of processes) {
-      if (
-        !targetPids.has(item.pid) &&
-        targetPids.has(item.ppid) &&
-        !excludedPids.has(item.pid)
-      ) {
+      if (!targetPids.has(item.pid) && targetPids.has(item.ppid) && !excludedPids.has(item.pid)) {
         targetPids.add(item.pid);
         changed = true;
       }
@@ -182,16 +164,13 @@ export function collectE2EProcessTreePids(
   return [...targetPids].sort((left, right) => right - left);
 }
 
-function isE2EProcessAncestorCandidate(
-  command: string,
-  includeChromeDriverAncestors: boolean,
-) {
+function isE2EProcessAncestorCandidate(command: string, includeChromeDriverAncestors: boolean) {
   const normalizedCommand = command.trim().replaceAll("\\", "/").toLowerCase();
   return (
     (includeChromeDriverAncestors &&
       /(?:^|\/)chromedriver(?:\.exe)?(?:\s|$)/u.test(normalizedCommand)) ||
     /(?:^|\/)electron(?:\.exe)?(?:\s|$)/u.test(normalizedCommand) ||
-    /(?:^|\/)zcode e2e(?:\.exe)?(?:\s|$)/u.test(normalizedCommand)
+    /(?:^|\/)zcode next e2e(?:\.exe)?(?:\s|$)/u.test(normalizedCommand)
   );
 }
 
@@ -200,10 +179,7 @@ export function isCurrentE2EProcessCleanupRoot(
   identity: E2EProcessCleanupIdentity,
 ) {
   const normalizedCommand = command.toLowerCase();
-  if (
-    normalizedCommand.includes("@wdio/cli") ||
-    normalizedCommand.includes("wdio.conf.ts")
-  ) {
+  if (normalizedCommand.includes("@wdio/cli") || normalizedCommand.includes("wdio.conf.ts")) {
     return false;
   }
 
@@ -217,17 +193,11 @@ export function isCurrentE2EProcessCleanupRoot(
     return false;
   }
 
-  if (
-    buildE2EHomeArgMarkers(homeDir).some((marker) =>
-      isCommandMarkerPresent(command, marker),
-    )
-  ) {
+  if (buildE2EHomeArgMarkers(homeDir).some((marker) => isCommandMarkerPresent(command, marker))) {
     return true;
   }
 
-  return buildE2EHomePathMarkers(homeDir).some((marker) =>
-    isCommandPathPresent(command, marker),
-  );
+  return buildE2EHomePathMarkers(homeDir).some((marker) => isCommandPathPresent(command, marker));
 }
 
 function parseWindowsProcessRows(output: string): E2EProcessInfo[] {
@@ -255,8 +225,7 @@ function parseWindowsProcessRows(output: string): E2EProcessInfo[] {
     }
     return [
       {
-        command:
-          typeof record.CommandLine === "string" ? record.CommandLine : "",
+        command: typeof record.CommandLine === "string" ? record.CommandLine : "",
         pid,
         ppid: parentPid,
       },
@@ -274,14 +243,10 @@ function parsePosixProcessRows(output: string): E2EProcessInfo[] {
       pid: Number(match[1]),
       ppid: Number(match[2]),
     }))
-    .filter(
-      (item) => Number.isInteger(item.pid) && Number.isInteger(item.ppid),
-    );
+    .filter((item) => Number.isInteger(item.pid) && Number.isInteger(item.ppid));
 }
 
-function runWindowsProcessScan(
-  runCommand: (command: string, args: string[]) => string,
-) {
+function runWindowsProcessScan(runCommand: (command: string, args: string[]) => string) {
   const script = [
     "Get-CimInstance Win32_Process |",
     "Select-Object ProcessId,ParentProcessId,CommandLine |",
@@ -325,10 +290,7 @@ function runProcessScanCommand(command: string, args: string[]) {
   });
 }
 
-function runProcessScanCommandAsync(
-  command: string,
-  args: string[],
-): Promise<string> {
+function runProcessScanCommandAsync(command: string, args: string[]): Promise<string> {
   return new Promise((resolveCommand, rejectCommand) => {
     execFile(
       command,
@@ -349,10 +311,7 @@ function runProcessScanCommandAsync(
   });
 }
 
-function collectCurrentProcessAncestorPids(
-  processes: E2EProcessInfo[],
-  currentPid: number,
-) {
+function collectCurrentProcessAncestorPids(processes: E2EProcessInfo[], currentPid: number) {
   const byPid = new Map(processes.map((item) => [item.pid, item]));
   const pids = new Set<number>([currentPid]);
   let current = byPid.get(currentPid);
@@ -368,11 +327,7 @@ function buildE2EHomeArgMarkers(homeDir: string) {
 }
 
 function buildE2EHomePathMarkers(homeDir: string) {
-  return uniqueStrings([
-    homeDir,
-    homeDir.replaceAll("\\", "/"),
-    homeDir.replaceAll("/", "\\"),
-  ]);
+  return uniqueStrings([homeDir, homeDir.replaceAll("\\", "/"), homeDir.replaceAll("/", "\\")]);
 }
 
 function isCommandMarkerPresent(command: string, marker: string) {
@@ -405,10 +360,7 @@ function isCommandPathPresent(command: string, marker: string) {
     if (isHomeBoundaryBefore(before) && isHomeBoundaryAfter(after)) {
       return true;
     }
-    index = normalizedCommand.indexOf(
-      normalizedMarker,
-      index + normalizedMarker.length,
-    );
+    index = normalizedCommand.indexOf(normalizedMarker, index + normalizedMarker.length);
   }
   return false;
 }

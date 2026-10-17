@@ -1624,7 +1624,7 @@ describe("ZCodeProtocolAgentServer", () => {
       await mkdir(join(pluginRoot, ".zcode-plugin"), { recursive: true });
       await mkdir(workspacePath, { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           plugins: {
             dirs: [pluginRoot],
@@ -1706,7 +1706,7 @@ describe("ZCodeProtocolAgentServer", () => {
       await mkdir(join(root, ".git"));
       await mkdir(workspacePath, { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -5078,7 +5078,7 @@ describe("ZCodeProtocolAgentServer", () => {
             filename: "pasted-text.txt",
             mimeType: "text/plain",
             sizeBytes: 8192,
-            localPath: "/tmp/.zcode/tmp/paste-attachments/2026-06-30/pasted-text.txt",
+            localPath: "/tmp/.zcode-next/tmp/paste-attachments/2026-06-30/pasted-text.txt",
             sourceKind: "clipboard-text",
           },
           {
@@ -5097,7 +5097,7 @@ describe("ZCodeProtocolAgentServer", () => {
       attachments: [
         { path: "/tmp/report.pdf", type: "pdf" },
         {
-          path: "/tmp/.zcode/tmp/paste-attachments/2026-06-30/pasted-text.txt",
+          path: "/tmp/.zcode-next/tmp/paste-attachments/2026-06-30/pasted-text.txt",
           sourceKind: "clipboard-text",
           type: "file",
         },

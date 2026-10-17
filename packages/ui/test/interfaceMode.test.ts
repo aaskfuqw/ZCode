@@ -7,6 +7,35 @@ import { createZCodeStore } from "@/store/index.js";
 describe("界面模式偏好", () => {
   beforeEach(() => localStorage.clear());
 
+  it("starts with Next defaults when only upstream UI preferences exist", () => {
+    localStorage.setItem("zcode-theme", "zai-light");
+    localStorage.setItem("zcode-locale", "en-US");
+    localStorage.setItem("zcode-interface-mode", "office");
+    localStorage.setItem("zcode-ui-font-size-px", "20");
+    localStorage.setItem("zcode-performance-mode", "true");
+    localStorage.setItem("zcode-code-preview-settings", JSON.stringify({ wrapLongLines: true }));
+    const store = createZCodeStore({
+      send: vi.fn(async () => {}),
+      acquireClaim: async () => ({ status: "unavailable" }),
+      commitClaim: async () => {},
+      releaseClaim: async () => {},
+      tryClaim: async () => false,
+      onMessage: () => ({ dispose: () => {} }),
+    });
+
+    expect(store.getState()).toMatchObject({
+      theme: "zai-dark",
+      locale: "zh-CN",
+      interfaceMode: "coding",
+      uiFontSizePx: 14,
+      performanceMode: false,
+      codePreviewSettings: { wrapLongLines: false },
+    });
+    store.getState().setInterfaceMode("office");
+    expect(localStorage.getItem("zcode-next-interface-mode")).toBe("office");
+    expect(localStorage.getItem("zcode-interface-mode")).toBe("office");
+  });
+
   it.each([
     [null, "coding"],
     [undefined, "coding"],

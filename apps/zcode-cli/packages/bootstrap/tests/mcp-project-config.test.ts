@@ -45,7 +45,7 @@ describe("project MCP config", () => {
       await mkdir(join(root, ".git"));
       await mkdir(cwd, { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -208,7 +208,7 @@ describe("project MCP config", () => {
       await mkdir(cwd, { recursive: true });
       await mkdir(join(root, "home"), { recursive: true });
       await writeFile(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         JSON.stringify({
           mcp: {
             servers: {
@@ -537,7 +537,7 @@ describe("project MCP config", () => {
 
   it("re-injects the product broker into shared node_repl after CLI env sanitization", () => {
     // 复现 Critical：CLI 入口 sanitize 会先从 process.env 删除 broker socket/token，若定向注入只读
-    // process.env，全局 ~/.zcode/cli/config.json 的 zcode-cua 会 fail-open 绕过 broker，让
+    // process.env，全局 ~/.zcode-next/cli/config.json 的 zcode-cua 会 fail-open 绕过 broker，让
     // Python/uvx 成为 TCC 主体。修复后 sanitize 前的凭据被捕获到进程内私有存储并仍能定向注入。
     const socketPath = "/tmp/zcode-cua-broker.sock";
     const token = "broker-token-abc";

@@ -30,9 +30,9 @@ describe("workspace hook trust phase 0", () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-workspace-hook-hard-block-"));
     try {
       await mkdir(join(root, ".git"));
-      await mkdir(join(root, ".zcode"), { recursive: true });
+      await mkdir(join(root, ".zcode-next"), { recursive: true });
       await writeFile(
-        join(root, ".zcode", "config.json"),
+        join(root, ".zcode-next", "config.json"),
         JSON.stringify({
           hooks: {
             enabled: true,

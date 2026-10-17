@@ -218,7 +218,7 @@ test("prepares beta CLI runtime env with beta storage root", () => {
     ["/usr/bin/node", "/workspace/bin/zcode.js"],
   );
 
-  assert.equal(env.ZCODE_STORAGE_DIR, join(homedir(), ".zcode-beta"));
+  assert.equal(env.ZCODE_STORAGE_DIR, join(homedir(), ".zcode-next-beta"));
 });
 
 test("preserves explicit storage root when beta mode is enabled", () => {
@@ -872,8 +872,8 @@ test("passes custom command suggestions into the TUI", async () => {
             disableNonInteractive: false,
             frontmatterKeys: [],
             name: "review",
-            path: "/workspace/.zcode/commands/review.md",
-            rootPath: "/workspace/.zcode/commands",
+            path: "/workspace/.zcode-next/commands/review.md",
+            rootPath: "/workspace/.zcode-next/commands",
             scope: "project",
             source: "zcode",
           },
@@ -919,7 +919,7 @@ test("command center expands custom commands before submitting to runtime", asyn
         metadata: {
           description: "Review custom changes",
           name: "review",
-          path: "/workspace/.zcode/commands/review.md",
+          path: "/workspace/.zcode-next/commands/review.md",
           scope: "project",
           source: "zcode",
         },
@@ -935,7 +935,7 @@ test("command center expands custom commands before submitting to runtime", asyn
   assert.match(submittedPrompt, /Review auth and auth high/);
 });
 
-test("zcode commands list prints custom commands", async () => {
+test("zcode-next commands list prints custom commands", async () => {
   const ctx = createContext(["commands"]);
   const logger = {} as NonNullable<RunDependencies["logger"]>;
   const exitCode = await run(ctx, {
@@ -954,8 +954,8 @@ test("zcode commands list prints custom commands", async () => {
             disableNonInteractive: false,
             frontmatterKeys: [],
             name: "review",
-            path: "/workspace/project/.zcode/commands/review.md",
-            rootPath: "/workspace/project/.zcode/commands",
+            path: "/workspace/project/.zcode-next/commands/review.md",
+            rootPath: "/workspace/project/.zcode-next/commands",
             scope: "project",
             source: "zcode",
           },
@@ -971,7 +971,7 @@ test("zcode commands list prints custom commands", async () => {
   assert.match(ctx.stdout.output(), /\/review \[scope\]/);
 });
 
-test("zcode login runs OAuth flow without exposing tokens", async () => {
+test("zcode-next login runs OAuth flow without exposing tokens", async () => {
   const ctx = createContext(["login", "--no-browser"]);
   let sawNoBrowser = false;
   const exitCode = await run(ctx, {
@@ -986,8 +986,8 @@ test("zcode login runs OAuth flow without exposing tokens", async () => {
         poll_token: "poll-token",
       });
       return {
-        configPath: "/home/test/.zcode/v2/model-selection.json",
-        credentialsPath: "/home/test/.zcode/v2/credentials.json",
+        configPath: "/home/test/.zcode-next/v2/model-selection.json",
+        credentialsPath: "/home/test/.zcode-next/v2/credentials.json",
         model: "zai/glm-5.1",
         providerId: "zai",
         user: {
@@ -1006,12 +1006,12 @@ test("zcode login runs OAuth flow without exposing tokens", async () => {
   assert.match(ctx.stdout.output(), /Login successful as Alice/);
   assert.match(
     ctx.stdout.output(),
-    /Model selection: \/home\/test\/\.zcode\/v2\/model-selection\.json/,
+    /Model selection: \/home\/test\/\.zcode-next\/v2\/model-selection\.json/,
   );
   assert.doesNotMatch(ctx.stdout.output(), /access-token|jwt-token/);
 });
 
-test("zcode logout clears shared OAuth credentials", async () => {
+test("zcode-next logout clears shared OAuth credentials", async () => {
   const ctx = createContext(["logout"]);
   let logoutCalled = false;
   const exitCode = await run(ctx, {
@@ -1019,7 +1019,7 @@ test("zcode logout clears shared OAuth credentials", async () => {
     logoutZCodeCli: async () => {
       logoutCalled = true;
       return {
-        credentialsPath: "/home/test/.zcode/v2/credentials.json",
+        credentialsPath: "/home/test/.zcode-next/v2/credentials.json",
       };
     },
   });
@@ -1081,8 +1081,8 @@ test("command center handles login and logout locally", async () => {
         poll_interval_sec: 2,
       });
       return {
-        configPath: "/home/test/.zcode/v2/model-selection.json",
-        credentialsPath: "/home/test/.zcode/v2/credentials.json",
+        configPath: "/home/test/.zcode-next/v2/model-selection.json",
+        credentialsPath: "/home/test/.zcode-next/v2/credentials.json",
         model: "zai/glm-5.1",
         providerId: "zai",
         user: {
@@ -1095,7 +1095,7 @@ test("command center handles login and logout locally", async () => {
     configureApiKey: async (options) => {
       apiKeyCalled = options.providerId === "bigmodel" && options.apiKey === "manual-key";
       return {
-        configPath: "/home/test/.zcode/v2/model-selection.json",
+        configPath: "/home/test/.zcode-next/v2/model-selection.json",
         model: "bigmodel/glm-5.1",
         providerId: "bigmodel",
       };
@@ -1103,7 +1103,7 @@ test("command center handles login and logout locally", async () => {
     logout: async () => {
       logoutCalled = true;
       return {
-        credentialsPath: "/home/test/.zcode/v2/credentials.json",
+        credentialsPath: "/home/test/.zcode-next/v2/credentials.json",
       };
     },
     resumeApp: async () => {
@@ -1144,7 +1144,7 @@ test("command center handles login and logout locally", async () => {
   assert.match(loginResult.response, /Configured Z\.AI Coding Plan as Alice/);
   assert.match(
     loginResult.response,
-    /Model selection: \/home\/test\/\.zcode\/v2\/model-selection\.json/,
+    /Model selection: \/home\/test\/\.zcode-next\/v2\/model-selection\.json/,
   );
   assert.match(apiKeyResult.response, /Configured BigModel Coding Plan/);
   assert.match(logoutResult.response, /Logged out from Coding Plan accounts/);
@@ -1218,7 +1218,7 @@ const reviewCustomCommand = {
   metadata: {
     description: "Review custom changes",
     name: "review",
-    path: "/workspace/.zcode/commands/review.md",
+    path: "/workspace/.zcode-next/commands/review.md",
     scope: "project",
     source: "zcode",
   },
@@ -1289,7 +1289,7 @@ test("headless prompt keeps a facade-reserved custom command name on the command
         metadata: {
           description: "Compress things",
           name: "compress",
-          path: "/workspace/.zcode/commands/compress.md",
+          path: "/workspace/.zcode-next/commands/compress.md",
           scope: "project",
           source: "zcode",
         },
@@ -1332,7 +1332,9 @@ test("headless prompt propagates a custom command load failure that is not a mis
   const exitCode = await run(ctx, {
     ...createPromptDeps(),
     loadCustomCommand: async () => {
-      throw new Error("EACCES: permission denied, open '/workspace/.zcode/commands/review.md'");
+      throw new Error(
+        "EACCES: permission denied, open '/workspace/.zcode-next/commands/review.md'",
+      );
     },
     isReservedSlashCommandName: () => false,
   });
@@ -1436,11 +1438,11 @@ test("TUI bare skill command lists skills when startup metadata is unavailable",
         skills: [
           {
             description: "Use for demo tasks.",
-            directory: "/workspace/project/.zcode/skills/demo",
+            directory: "/workspace/project/.zcode-next/skills/demo",
             frontmatterKeys: ["name", "description"],
             name: "demo-skill",
-            path: "/workspace/project/.zcode/skills/demo/SKILL.md",
-            rootPath: "/workspace/project/.zcode/skills",
+            path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
+            rootPath: "/workspace/project/.zcode-next/skills",
             safeToAutoLoad: true,
             scope: "project",
             source: "zcode",
@@ -1777,7 +1779,7 @@ test("filters the known SQLite experimental warning from stderr", () => {
     "(node:59658) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n",
   );
   stderr.write(
-    "(Use `zcode-darwin-arm64 --trace-warnings ...` to show where the warning was created)\n",
+    "(Use `zcode-next-darwin-arm64 --trace-warnings ...` to show where the warning was created)\n",
   );
   stderr.write("real error\n");
 
@@ -3081,7 +3083,7 @@ test("command center toggles plugins and refreshes the picker", async () => {
           enabled = nextEnabled;
           return {
             enabled,
-            path: "/home/test/.zcode/cli/config.json",
+            path: "/home/test/.zcode-next/cli/config.json",
             plugin: {
               commandRootCount: 1,
               dataPath: "/tmp/zcode/plugins/data/ios-simulator@zcode-plugins-official",
@@ -3802,7 +3804,7 @@ test("command center lists skills without sending a model prompt", async () => {
           {
             description: "Use for demo tasks.",
             name: "demo-skill",
-            path: "/workspace/project/.zcode/skills/demo/SKILL.md",
+            path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
             scope: "project",
             source: "zcode",
             whenToUse: "When demo files change.",
@@ -3825,7 +3827,7 @@ test("command center lists skills without sending a model prompt", async () => {
   assert.match(result.response, /Available skills \(1\)/);
   assert.match(result.response, /demo-skill \(project\/zcode\)/);
   assert.match(result.response, /Use for demo tasks\. When demo files change\./);
-  assert.match(result.response, /\/workspace\/project\/\.zcode\/skills\/demo\/SKILL\.md/);
+  assert.match(result.response, /\/workspace\/project\/\.zcode-next\/skills\/demo\/SKILL\.md/);
   assert.match(result.response, /Use \/skill <name> \[task\] to load one\./);
 });
 
@@ -3946,7 +3948,7 @@ test("prints help with help flag", async () => {
   const exitCode = await run(ctx);
 
   assert.equal(exitCode, 0);
-  assert.match(ctx.stdout.output(), /With no command, zcode opens the full-screen TUI\./);
+  assert.match(ctx.stdout.output(), /With no command, zcode-next opens the full-screen TUI\./);
   assert.match(ctx.stdout.output(), /Commands:/);
   assert.match(ctx.stdout.output(), /--force-mcs/);
   assert.match(ctx.stdout.output(), /--surface <surface>/);
@@ -3982,7 +3984,7 @@ test("rejects removed hello command", async () => {
   assert.equal(ctx.stdout.output(), "");
 });
 
-test("zcode plugins list prints installed plugins", async () => {
+test("zcode-next plugins list prints installed plugins", async () => {
   const ctx = createContext(["plugins", "list", "--verbose"]);
   const logger = {} as NonNullable<RunDependencies["logger"]>;
   const exitCode = await run(ctx, {
@@ -4473,7 +4475,7 @@ test("failed plugin host still exits when initialization leaves stdin active", a
   }
 });
 
-test("zcode plugins enable persists the selected plugin", async () => {
+test("zcode-next plugins enable persists the selected plugin", async () => {
   const ctx = createContext(["plugins", "enable", "ios-dev"]);
   const exitCode = await run(ctx, {
     cwd: () => "/workspace/project",
@@ -4483,7 +4485,7 @@ test("zcode plugins enable persists the selected plugin", async () => {
       assert.equal(options.workingDirectory, "/workspace/project");
       return {
         enabled: true,
-        path: "/home/test/.zcode/cli/config.json",
+        path: "/home/test/.zcode-next/cli/config.json",
         plugin: {
           commandRootCount: 1,
           dataPath: "/tmp/zcode/plugins/data/ios-dev@zcode-plugins-official",
@@ -4505,7 +4507,7 @@ test("zcode plugins enable persists the selected plugin", async () => {
   assert.equal(exitCode, 0);
   assert.match(
     ctx.stdout.output(),
-    /Enabled plugin ios-dev@zcode-plugins-official in \/home\/test\/.zcode\/cli\/config\.json/,
+    /Enabled plugin ios-dev@zcode-plugins-official in \/home\/test\/.zcode-next\/cli\/config\.json/,
   );
 });
 
@@ -4541,7 +4543,7 @@ test("lists skills in human format", async () => {
           {
             code: "skill_scan_failed",
             message: "Failed to scan skill directory: demo",
-            path: "/workspace/project/.zcode/skills/demo/SKILL.md",
+            path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
             severity: "warning",
             skillName: "demo",
           },
@@ -4549,11 +4551,11 @@ test("lists skills in human format", async () => {
         skills: [
           {
             description: "Use for demo tasks.",
-            directory: "/workspace/project/.zcode/skills/demo",
+            directory: "/workspace/project/.zcode-next/skills/demo",
             frontmatterKeys: ["name", "description", "version"],
             name: "demo",
-            path: "/workspace/project/.zcode/skills/demo/SKILL.md",
-            rootPath: "/workspace/project/.zcode/skills",
+            path: "/workspace/project/.zcode-next/skills/demo/SKILL.md",
+            rootPath: "/workspace/project/.zcode-next/skills",
             safeToAutoLoad: true,
             scope: "project",
             source: "zcode",
@@ -4591,11 +4593,11 @@ test("lists skills for bare prompt skill command", async () => {
         skills: [
           {
             description: "Review React code.",
-            directory: "/workspace/project/.zcode/skills/react",
+            directory: "/workspace/project/.zcode-next/skills/react",
             frontmatterKeys: ["name", "description"],
             name: "react-review",
-            path: "/workspace/project/.zcode/skills/react/SKILL.md",
-            rootPath: "/workspace/project/.zcode/skills",
+            path: "/workspace/project/.zcode-next/skills/react/SKILL.md",
+            rootPath: "/workspace/project/.zcode-next/skills",
             safeToAutoLoad: true,
             scope: "project",
             source: "zcode",
@@ -4624,11 +4626,11 @@ test("lists skills in JSON format", async () => {
         skills: [
           {
             description: "Review React code.",
-            directory: "/workspace/project/.zcode/skills/react",
+            directory: "/workspace/project/.zcode-next/skills/react",
             frontmatterKeys: ["name", "description", "when_to_use"],
             name: "react-review",
-            path: "/workspace/project/.zcode/skills/react/SKILL.md",
-            rootPath: "/workspace/project/.zcode/skills",
+            path: "/workspace/project/.zcode-next/skills/react/SKILL.md",
+            rootPath: "/workspace/project/.zcode-next/skills",
             safeToAutoLoad: true,
             scope: "project",
             source: "zcode",
@@ -4663,7 +4665,7 @@ test("rejects unknown skills subcommands", async () => {
 
   assert.equal(exitCode, 1);
   assert.match(ctx.stderr.output(), /Unknown skills command: missing/);
-  assert.match(ctx.stderr.output(), /Usage: zcode skills \[list\|inspect <name>\]/);
+  assert.match(ctx.stderr.output(), /Usage: zcode-next skills \[list\|inspect <name>\]/);
   assert.equal(ctx.stdout.output(), "");
 });
 
@@ -5713,7 +5715,7 @@ test("prints JSON for doctor command", async () => {
     };
 
     assert.equal(exitCode, 0);
-    assert.equal(payload.cli.name, "zcode");
+    assert.equal(payload.cli.name, "zcode-next");
     assert.equal(payload.cli.processName, CLI_PROCESS_NAME);
     assert.equal(payload.runtime.node, process.version);
     assert.equal(payload.runtime.processTitle, CLI_PROCESS_NAME);
@@ -5734,8 +5736,8 @@ test("prints human doctor details with verbose diagnostics", async () => {
     const output = ctx.stdout.output();
 
     assert.equal(exitCode, 0);
-    assert.match(output, /zcode doctor/);
-    assert.match(output, /process: zcode-cli/);
+    assert.match(output, /zcode-next doctor/);
+    assert.match(output, /process: zcode-next-cli/);
     assert.match(output, /execPath:/);
     assert.match(output, /cwd:/);
     assert.equal(output.includes("["), false);
@@ -6408,7 +6410,7 @@ test("headless prompt reports exact Workspace Hook pretrust diagnostics without 
           event: "SessionStart",
           matcher: null,
           displayCommand: "./start.sh",
-          sourcePath: ".zcode/config.json",
+          sourcePath: ".zcode-next/config.json",
           configuredEnabled: true,
           hookDeclarationDigest: "a".repeat(64),
           trustState: "pending_trust",
@@ -6421,7 +6423,7 @@ test("headless prompt reports exact Workspace Hook pretrust diagnostics without 
   assert.equal(ctx.stdout.output(), "ok\n");
   assert.match(ctx.stderr.output(), /Workspace Hooks skipped: workspace_hooks_pending_trust/);
   assert.match(ctx.stderr.output(), new RegExp("a{64}"));
-  assert.match(ctx.stderr.output(), /zcode hooks trust review/);
+  assert.match(ctx.stderr.output(), /zcode-next hooks trust review/);
 });
 
 test("headless rollout-off diagnostics preserve the runtime feature-disabled reason", async () => {

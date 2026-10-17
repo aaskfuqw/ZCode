@@ -15,11 +15,11 @@ const runnerSource = new URL("./zcode-distribution/runner.mjs", import.meta.url)
 async function fixture(t) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), "zcode-distribution-")));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const root = join(directory, "zcode");
+  const root = join(directory, "zcode-next");
   for (const name of ["bin", "agent", "web", "server"]) {
     await mkdir(join(root, name), { recursive: true });
   }
-  await cp(runnerSource, join(root, "bin/zcode.mjs"));
+  await cp(runnerSource, join(root, "bin/zcode-next.mjs"));
   await writeFile(join(root, "package.json"), JSON.stringify({ type: "module", version: "1.2.3" }));
   await writeFile(
     join(root, "agent/zcode.cjs"),
@@ -42,7 +42,7 @@ process.on('SIGTERM', () => process.exit(0));
 setInterval(() => {}, 1000);
 `,
   );
-  return { directory, root, runner: join(root, "bin/zcode.mjs") };
+  return { directory, root, runner: join(root, "bin/zcode-next.mjs") };
 }
 
 test("default launch and CLI arguments reuse the Agent entry without starting Web", async (t) => {
@@ -65,7 +65,7 @@ test("help exposes Web mode and preserves CLI help; version uses the distributio
   const { runner } = await fixture(t);
   assert.equal((await exec(process.execPath, [runner, "--version"])).stdout.trim(), "1.2.3");
   const help = (await exec(process.execPath, [runner, "--help"])).stdout;
-  assert.match(help, /zcode --web/);
+  assert.match(help, /zcode-next --web/);
   assert.match(help, /"argv":\["--help"\]/);
   const webHelp = (await exec(process.execPath, [runner, "--web", "--help"])).stdout;
   assert.match(webHelp, /--workspace/);
@@ -148,20 +148,28 @@ test("Web mode passes its runtime configuration and terminates its child on shut
   assert.deepEqual(await exited, [0, null]);
 });
 
-test("installer creates zcode and the installed command defaults to CLI", async (t) => {
+test("installer creates zcode-next and the installed command defaults to CLI", async (t) => {
   const { directory, root } = await fixture(t);
   const downloads = join(directory, "downloads");
   const releaseDir = join(downloads, "releases/1.2.3");
   await mkdir(releaseDir, { recursive: true });
-  await exec("tar", ["-czf", join(releaseDir, "zcode-1.2.3.tar.gz"), "-C", directory, "zcode"]);
+  await exec("tar", [
+    "-czf",
+    join(releaseDir, "zcode-next-1.2.3.tar.gz"),
+    "-C",
+    directory,
+    "zcode-next",
+  ]);
   await writeFile(
     join(downloads, "latest.json"),
-    JSON.stringify({ version: "1.2.3", tarball: "zcode-1.2.3.tar.gz" }),
+    JSON.stringify({ version: "1.2.3", tarball: "zcode-next-1.2.3.tar.gz" }),
   );
   const installer = join(directory, "install.sh");
   await writeFile(installer, installScriptSource(`file://${downloads}/`));
   const installRoot = join(directory, "installed");
   const bin = join(directory, "bin");
+  await mkdir(bin, { recursive: true });
+  await writeFile(join(bin, "zcode"), "upstream-launcher");
   await exec("sh", [installer], {
     env: {
       ...process.env,
@@ -170,9 +178,10 @@ test("installer creates zcode and the installed command defaults to CLI", async 
       ZCODE_DIST_BIN_DIR: bin,
     },
   });
+  assert.equal(await readFile(join(bin, "zcode"), "utf8"), "upstream-launcher");
   await rm(root, { recursive: true });
-  const result = await exec(join(bin, "zcode"), [], { cwd: directory });
+  const result = await exec(join(bin, "zcode-next"), [], { cwd: directory });
   assert.deepEqual(JSON.parse(result.stdout).argv, []);
-  const webHelp = await exec(join(bin, "zcode"), ["--web", "--help"]);
-  assert.match(webHelp.stdout, /zcode --web/);
+  const webHelp = await exec(join(bin, "zcode-next"), ["--web", "--help"]);
+  assert.match(webHelp.stdout, /zcode-next --web/);
 });

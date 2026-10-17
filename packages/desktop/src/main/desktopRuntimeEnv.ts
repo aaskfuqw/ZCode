@@ -55,14 +55,18 @@ function isTruthyRuntimeEnvOverride(name: string): boolean {
   return value === "1" || value === "true" || value === "yes" || value === "on";
 }
 
-// e2e 运行的是生产构建，默认会和本机正式版 ZCode 共用 app name / userData，
+// e2e 运行的是生产构建，默认会和本机正式版 ZCode Next 共用 app name / userData，
 // 触发 Electron 单实例锁后只激活已有窗口，Chromedriver 无法接管测试进程。
 // 这里允许测试显式隔离运行时身份，正常桌面/远控路径保持原来的默认值。
 export const runtimeApplicationName =
   readRuntimeEnvOverride("ZCODE_DESKTOP_APPLICATION_NAME") ??
-  (isLocalDevelopmentRuntime ? "ZCode Dev" : isPreviewPackagedRuntime ? "ZCode Preview" : "ZCode");
+  (isLocalDevelopmentRuntime
+    ? "ZCode Next Dev"
+    : isPreviewPackagedRuntime
+      ? "ZCode Next Preview"
+      : "ZCode Next");
 // Electron 的 app.getPath("home") 不一定跟随测试进程里的 HOME 覆盖。
-// e2e 默认工作区依赖 home 路径，因此提供显式覆盖，避免测试写到开发者真实 ~/ZCodeProject。
+// e2e 默认工作区依赖 home 路径，因此提供显式覆盖，避免测试写到开发者真实 ~/ZCodeNextProject。
 export const runtimeHomePath = readRuntimeEnvOverride("ZCODE_DESKTOP_HOME_DIR");
 // Chromedriver 管理 Electron 时会注入临时 userData；e2e 默认路径模式下导入期不能提前读取 appData。
 export const shouldUseElectronDefaultUserDataPath = isTruthyRuntimeEnvOverride(
@@ -231,7 +235,7 @@ function resolveRemoteCdnBaseUrls(
   return resolveOrderedRemoteCdnBaseUrls({
     ...options,
     env: ZCODE_ENV,
-    overrideBaseUrl: raw,
+    overrideBaseUrl: raw ?? options.overrideBaseUrl,
     version: ZCODE_VERSION,
   });
 }
@@ -303,6 +307,11 @@ export function resolveRemoteAssetDirs(
 ): RemoteAssetDirs {
   const remoteCdnBaseUrls = resolveRemoteCdnBaseUrls(options, localEnv);
   const remoteCdnBaseUrl = remoteCdnBaseUrls[0];
+  if (isElectronAppPackaged() && remoteCdnBaseUrls.length === 0) {
+    throw new Error(
+      "ZCode Next remote resources are not configured. Set ZCODE_REMOTE_ASSET_CDN_BASE_URL or build with CDN_DOMAIN/OSS_PATH_PREFIX pointing to ZCode Next runtime resources.",
+    );
+  }
 
   // remote 资源之前和 desktop 本地 provider 资源共用安装包内路径，
   // 结果打包后会把整套 Linux 远程运行时一起塞进 .app，和“remote 资源走 CDN / mock-cdn”的职责边界冲突。
@@ -400,7 +409,7 @@ function resolveHostProcessBinaryEnv(
   hostProcessLocalEnv: Record<string, string>,
   bundledPath: string | undefined,
 ): string | undefined {
-  // ZCode Agent 与 app 协议适配强绑定版本，生产包必须优先使用随包携带的固定 runtime。
+  // ZCode Next Agent 与 app 协议适配强绑定版本，生产包必须优先使用随包携带的固定 runtime。
   // 用户机器或本地 .env 里残留的 GLM_BINARY_PATH 即使存在，也可能版本不兼容。
   // 只有 bundled runtime 缺失时才把显式路径作为兜底，避免用户本机 CLI 覆盖内嵌版本。
   if (bundledPath) {
@@ -492,7 +501,7 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
             )
           ? rawInheritedEnv.ZCODE_CUA_BUNDLED_HELPER_APP_PATH?.trim() ||
             join(
-              rawInheritedEnv.ZCODE_HOME?.trim() || join(homedir(), ".zcode"),
+              rawInheritedEnv.ZCODE_HOME?.trim() || join(homedir(), ".zcode-next"),
               "computer-use",
               "dev",
               DEV_HELPER_APP_NAME,
@@ -521,11 +530,11 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
 
   return {
     ...inheritedEnv,
-    // ZCode 运行时不再使用 NODE_ENV；它会被用户 shell、包管理器和测试框架复用。
+    // ZCode Next 运行时不再使用 NODE_ENV；它会被用户 shell、包管理器和测试框架复用。
     // 这里显式下发 ZCODE_RUNTIME_ENV，并在继承环境里清掉 NODE_ENV，避免 host/agent/Bash 被污染。
     [ZCODE_RUNTIME_ENV_KEY]: resolveHostProcessNodeEnv(),
     // 显式注入编译期产品身份，保证主进程与 host 的身份语义一致；地址独立解析。
-    // inheritedEnv 从 .env 通用变量补齐 ZCode/ZAI 链接，未覆盖时统一使用线上默认值。
+    // inheritedEnv 从 .env 通用变量补齐 ZCode Next/ZAI 链接，未覆盖时统一使用线上默认值。
     ZCODE_ENV,
     // Preview 与生产版共享任务、配置和凭据，但不同版本的 Helper 不能互相覆盖或触发降级保护。
     // 只隔离 computer-use 下的运行组件，不改写 ZCODE_HOME / ZCODE_DATA_BASE_DIR 业务数据根。

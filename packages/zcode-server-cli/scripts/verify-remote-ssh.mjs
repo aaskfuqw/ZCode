@@ -182,7 +182,9 @@ async function main() {
   );
 
   log("start daemon on remote");
-  const { stdout: daemonOutput } = await ssh("/root/zcode-server/bin/zcode serve --daemon --json");
+  const { stdout: daemonOutput } = await ssh(
+    "/root/zcode-server/bin/zcode-next serve --daemon --json",
+  );
   const daemonStatus = JSON.parse(daemonOutput.trim().split("\n").pop());
   assert(daemonStatus.state === "ready", `daemon ready, got: ${daemonOutput}`);
   assert(
@@ -274,13 +276,13 @@ async function main() {
   log("node-pty ok");
 
   log("verify remote lifecycle status/stop");
-  const { stdout: statusOutput } = await ssh("/root/zcode-server/bin/zcode status --json");
+  const { stdout: statusOutput } = await ssh("/root/zcode-server/bin/zcode-next status --json");
   assert(
     JSON.parse(statusOutput.trim().split("\n").pop()).state === "ready",
     "remote status ready",
   );
-  await ssh("/root/zcode-server/bin/zcode stop --json");
-  const { stdout: stoppedOutput } = await ssh("/root/zcode-server/bin/zcode status --json");
+  await ssh("/root/zcode-server/bin/zcode-next stop --json");
+  const { stdout: stoppedOutput } = await ssh("/root/zcode-server/bin/zcode-next status --json");
   const stopped = JSON.parse(stoppedOutput.trim().split("\n").pop());
   assert(stopped.state === "stopped", `remote stopped, got ${stopped.state}`);
   log("lifecycle ok (ready -> stop -> stopped)");

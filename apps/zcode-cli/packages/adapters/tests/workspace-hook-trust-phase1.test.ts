@@ -32,7 +32,7 @@ async function snapshotFor(
   value: unknown,
   options: { projectConfigPath?: string; workspaceIdentity?: string } = {},
 ) {
-  const path = join(root, ".zcode", "config.json");
+  const path = join(root, ".zcode-next", "config.json");
   await writeJson(path, value);
   const result = createConfig({
     env: {},
@@ -49,11 +49,11 @@ describe("workspace hook trust phase 1 discovery", () => {
     const root = await createWorkspace();
     try {
       await writeJson(
-        join(root, "zcode.json"),
+        join(root, "zcode-next.json"),
         projectHooks({ type: "command", command: "echo ancestor", async: true }),
       );
       await writeJson(
-        join(root, ".zcode", "config.json"),
+        join(root, ".zcode-next", "config.json"),
         projectHooks({ type: "process", command: "node", args: ["hook.mjs"] }),
       );
 
@@ -75,8 +75,8 @@ describe("workspace hook trust phase 1 discovery", () => {
       expect(
         snapshot?.sourceFiles.map((source) => [source.configFileKind, source.editable]),
       ).toEqual([
-        ["zcode.json", false],
-        [".zcode/config.json", true],
+        ["zcode-next.json", false],
+        [".zcode-next/config.json", true],
       ]);
       expect(snapshot?.hooks).toHaveLength(2);
       expect(snapshot?.hooks[0]).toMatchObject({
@@ -197,7 +197,7 @@ describe("workspace hook trust phase 1 discovery", () => {
   it("configured gates 只改变 bundle digest，且 hooks.enabled 缺省遵循 Runtime 语义", async () => {
     const root = await createWorkspace();
     try {
-      const configPath = join(root, ".zcode", "config.json");
+      const configPath = join(root, ".zcode-next", "config.json");
       await writeJson(configPath, {
         hooks: {
           events: {
@@ -246,8 +246,8 @@ describe("workspace hook trust phase 1 discovery", () => {
   it("JSON 空白/key 排列不影响 digest，显式 projectConfigPath 进入 provenance", async () => {
     const root = await createWorkspace();
     try {
-      const configPath = join(root, ".zcode", "config.json");
-      await mkdir(join(root, ".zcode"), { recursive: true });
+      const configPath = join(root, ".zcode-next", "config.json");
+      await mkdir(join(root, ".zcode-next"), { recursive: true });
       await writeFile(
         configPath,
         '{"hooks":{"events":{"SessionStart":[{"hooks":[{"command":"echo stable","type":"command"}]}]},"enabled":true}}',
@@ -290,11 +290,11 @@ describe("workspace hook trust phase 1 discovery", () => {
     try {
       await mkdir(child, { recursive: true });
       await writeJson(
-        join(parent, "zcode.json"),
+        join(parent, "zcode-next.json"),
         projectHooks({ type: "command", command: "echo parent" }),
       );
       await writeJson(
-        join(child, ".zcode", "config.json"),
+        join(child, ".zcode-next", "config.json"),
         projectHooks({ type: "command", command: "echo child" }),
       );
 
@@ -309,7 +309,7 @@ describe("workspace hook trust phase 1 discovery", () => {
   it("无效 project Hook schema fail closed，不创建 snapshot", async () => {
     const root = await createWorkspace();
     try {
-      const configPath = join(root, ".zcode", "config.json");
+      const configPath = join(root, ".zcode-next", "config.json");
       await writeJson(configPath, projectHooks({ type: "process", command: "" }));
       const result = createConfig({ env: {}, skipUserConfig: true, workingDirectory: root });
 

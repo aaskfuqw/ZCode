@@ -31,6 +31,30 @@ afterEach(() => {
 });
 
 describe("paths", () => {
+  it("initializes a Next device identity without importing or changing upstream identity", async () => {
+    const home = makeTempHome();
+    const { mkdir, readFile, writeFile } = await import("node:fs/promises");
+    const upstreamDir = join(home, ".zcode", "v2");
+    const upstreamIdentity = JSON.stringify({ deviceMid: "upstream-device" });
+    await mkdir(upstreamDir, { recursive: true });
+    await writeFile(join(upstreamDir, "device-identity.json"), upstreamIdentity);
+    await writeFile(join(upstreamDir, "telemetry-state.json"), upstreamIdentity);
+    const { ensureDeviceMid } = await import("../src/device/deviceIdentity.js");
+
+    expect(await ensureDeviceMid({ homeDir: home, randomUUID: () => "next-device" })).toBe(
+      "next-device",
+    );
+    expect(
+      JSON.parse(await readFile(join(home, ".zcode-next", "v2", "device-identity.json"), "utf8")),
+    ).toEqual({ deviceMid: "next-device" });
+    expect(await readFile(join(upstreamDir, "device-identity.json"), "utf8")).toBe(
+      upstreamIdentity,
+    );
+    expect(await readFile(join(upstreamDir, "telemetry-state.json"), "utf8")).toBe(
+      upstreamIdentity,
+    );
+  });
+
   it("copyDataDirectory 会复制普通文件并跳过 workspace 里的共享目录软链", async () => {
     const oldBase = makeTempHome();
     const newBase = makeTempHome();
@@ -38,7 +62,7 @@ describe("paths", () => {
     vi.resetModules();
 
     const { copyDataDirectory } = await import("../src/paths.js");
-    const oldV2Dir = join(oldBase, ".zcode", "v2");
+    const oldV2Dir = join(oldBase, ".zcode-next", "v2");
     const oldSharedSkillRoot = join(oldV2Dir, "agent-config", "claude", "skills");
     const oldSharedPluginRoot = join(oldV2Dir, "agent-config", "claude", "plugins");
     const oldWorkspaceRoot = join(oldV2Dir, "agent-config", "claude", "workspace-hash-1");
@@ -54,7 +78,7 @@ describe("paths", () => {
 
     await copyDataDirectory(oldBase, newBase);
 
-    const newV2Dir = join(newBase, ".zcode", "v2");
+    const newV2Dir = join(newBase, ".zcode-next", "v2");
     const newWorkspaceRoot = join(newV2Dir, "agent-config", "claude", "workspace-hash-1");
     const newSkillLink = join(newWorkspaceRoot, "skills");
     const newPluginLink = join(newWorkspaceRoot, "plugins");
@@ -67,8 +91,8 @@ describe("paths", () => {
   it("copyDataDirectory 会跳过 setting.json 及其原子写入瞬时文件", async () => {
     const oldBase = makeTempHome();
     const newBase = makeTempHome();
-    const oldV2Dir = join(oldBase, ".zcode", "v2");
-    const newV2Dir = join(newBase, ".zcode", "v2");
+    const oldV2Dir = join(oldBase, ".zcode-next", "v2");
+    const newV2Dir = join(newBase, ".zcode-next", "v2");
     mkdirSync(oldV2Dir, { recursive: true });
     writeFileSync(join(oldV2Dir, "setting.json"), '{"dataBaseDir":"/old"}', "utf-8");
     writeFileSync(join(oldV2Dir, "setting.json.lock"), "lock", "utf-8");
@@ -92,17 +116,17 @@ describe("paths", () => {
     const env = {
       ProgramFiles: "C:\\Program Files",
       LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local",
-      ZCODE_WINDOWS_APP_INSTALL_DIR: "C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode",
+      ZCODE_WINDOWS_APP_INSTALL_DIR: "C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode Next",
     };
 
     expect(
-      validateDataBaseDirTarget("c:\\program files\\zcode", {
+      validateDataBaseDirTarget("c:\\program files\\zcode next", {
         platform: "win32",
         env,
       }),
     ).toMatchObject({ ok: false });
     expect(
-      validateDataBaseDirTarget("C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode\\data", {
+      validateDataBaseDirTarget("C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode Next\\data", {
         platform: "win32",
         env,
       }),
@@ -115,17 +139,17 @@ describe("paths", () => {
     const { validateDataBaseDirTarget } = await import("../src/paths.js");
     const env = {
       LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local",
-      ZCODE_WINDOWS_APP_INSTALL_DIR: "C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode",
+      ZCODE_WINDOWS_APP_INSTALL_DIR: "C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode Next",
     };
 
     expect(
-      validateDataBaseDirTarget("C:\\Users\\tester\\AppData\\Local\\Programs\\ZCodeData", {
+      validateDataBaseDirTarget("C:\\Users\\tester\\AppData\\Local\\Programs\\ZCode NextData", {
         platform: "win32",
         env,
       }),
     ).toEqual({ ok: true });
     expect(
-      validateDataBaseDirTarget("C:\\Users\\tester\\Documents\\ZCode", {
+      validateDataBaseDirTarget("C:\\Users\\tester\\Documents\\ZCode Next", {
         platform: "win32",
         env,
       }),

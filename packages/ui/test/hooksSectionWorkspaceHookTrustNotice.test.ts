@@ -138,7 +138,7 @@ function workspaceHook(): Hook {
       declarationEnabled: true,
       runtimeHooksEnabled: true,
       configuredEnabled: true,
-      sourcePath: "/workspace-a/.zcode/config.json",
+      sourcePath: "/workspace-a/.zcode-next/config.json",
       reviewItemId: "review-pending",
       workspaceIdentity: "/workspace-a",
       bundleDigest: "a".repeat(64),

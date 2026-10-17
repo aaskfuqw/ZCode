@@ -23,19 +23,58 @@ function readPngSize(path: string): { width: number; height: number } {
 }
 
 describe("desktop Linux deep link registration helpers", () => {
+  it("leaves upstream desktop entries and icons untouched during Next registration", async () => {
+    const { registerLinuxDeepLinkProtocol } =
+      await import("../src/main/desktopLinuxDeepLinkRegistration.js");
+    const homeDir = mkdtempSync(join(tmpdir(), "zcode-next-linux-isolation-"));
+    const dataDir = join(homeDir, ".local", "share");
+    const applicationsDir = join(dataDir, "applications");
+    const systemApplicationsDir = join(homeDir, "system", "applications");
+    const upstreamEntry = "[Desktop Entry]\nName=ZCode\nComment=ZCode Desktop App\n";
+    const upstreamIconPath = join(dataDir, "icons", "hicolor", "512x512", "apps", "zcode.png");
+    try {
+      mkdirSync(applicationsDir, { recursive: true });
+      mkdirSync(systemApplicationsDir, { recursive: true });
+      mkdirSync(dirname(upstreamIconPath), { recursive: true });
+      writeFileSync(join(applicationsDir, "zcode.desktop"), upstreamEntry);
+      writeFileSync(join(systemApplicationsDir, "zcode.desktop"), upstreamEntry);
+      writeFileSync(upstreamIconPath, "upstream-icon");
+      registerLinuxDeepLinkProtocol({
+        executablePath: "/opt/ZCode Next/zcode-next",
+        homeDir,
+        env: {},
+        systemApplicationDirs: [systemApplicationsDir],
+        logger: { info: () => undefined, warn: () => undefined },
+        runCommand: () => ({ status: 0, stderr: "" }),
+      });
+      expect(readFileSync(join(applicationsDir, "zcode.desktop"), "utf8")).toBe(upstreamEntry);
+      expect(readFileSync(join(systemApplicationsDir, "zcode.desktop"), "utf8")).toBe(
+        upstreamEntry,
+      );
+      expect(readFileSync(upstreamIconPath, "utf8")).toBe("upstream-icon");
+      const nextEntry = readFileSync(join(applicationsDir, "zcode-next.desktop"), "utf8");
+      expect(nextEntry).toContain("MimeType=x-scheme-handler/zcode-next;");
+      expect(nextEntry).toContain("Icon=zcode-next");
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
   it("prefers the AppImage path for protocol desktop entry Exec", async () => {
     const { createLinuxDeepLinkDesktopEntry, resolveLinuxDeepLinkCommand } =
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
 
     const command = resolveLinuxDeepLinkCommand({
-      env: { APPIMAGE: "/home/alice/Downloads/ZCode-2.8.0-linux-x64.AppImage" },
+      env: { APPIMAGE: "/home/alice/Downloads/ZCode Next-2.8.0-linux-x64.AppImage" },
       executablePath: "/tmp/.mount_ZCode/zcode",
     });
     const entry = createLinuxDeepLinkDesktopEntry(command);
 
-    expect(command.executablePath).toBe("/home/alice/Downloads/ZCode-2.8.0-linux-x64.AppImage");
-    expect(entry).toContain('Exec="/home/alice/Downloads/ZCode-2.8.0-linux-x64.AppImage" %U');
-    expect(entry).toContain("MimeType=x-scheme-handler/zcode;");
+    expect(command.executablePath).toBe(
+      "/home/alice/Downloads/ZCode Next-2.8.0-linux-x64.AppImage",
+    );
+    expect(entry).toContain('Exec="/home/alice/Downloads/ZCode Next-2.8.0-linux-x64.AppImage" %U');
+    expect(entry).toContain("MimeType=x-scheme-handler/zcode-next;");
   });
 
   it("keeps AppImage sandbox and GPU launch switches for protocol callbacks", async () => {
@@ -43,7 +82,7 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
 
     const command = resolveLinuxDeepLinkCommand({
-      env: { APPIMAGE: "/home/alice/Applications/ZCode.AppImage" },
+      env: { APPIMAGE: "/home/alice/Applications/ZCode Next.AppImage" },
       executablePath: "/tmp/.mount_ZCode/zcode",
       argv: [
         "/tmp/.mount_ZCode/zcode",
@@ -52,7 +91,7 @@ describe("desktop Linux deep link registration helpers", () => {
         "--disable-software-rasterizer",
         "--use-gl=swiftshader",
         "--remote-debugging-port=9229",
-        "zcode://oauth/callback?code=1&state=s",
+        "zcode-next://oauth/callback?code=1&state=s",
         "/home/alice/project",
       ],
     });
@@ -65,7 +104,7 @@ describe("desktop Linux deep link registration helpers", () => {
       "--use-gl=swiftshader",
     ]);
     expect(entry).toContain(
-      'Exec="/home/alice/Applications/ZCode.AppImage" "--no-sandbox" "--disable-gpu" "--disable-software-rasterizer" "--use-gl=swiftshader" %U',
+      'Exec="/home/alice/Applications/ZCode Next.AppImage" "--no-sandbox" "--disable-gpu" "--disable-software-rasterizer" "--use-gl=swiftshader" %U',
     );
     expect(entry).not.toContain("remote-debugging-port");
     expect(entry).not.toContain("oauth/callback");
@@ -78,13 +117,13 @@ describe("desktop Linux deep link registration helpers", () => {
 
     const command = resolveLinuxDeepLinkCommand({
       env: {},
-      executablePath: "/opt/ZCode/zcode",
-      argv: ["/opt/ZCode/zcode", "--no-sandbox", "--disable-gpu"],
+      executablePath: "/opt/ZCode Next/zcode",
+      argv: ["/opt/ZCode Next/zcode", "--no-sandbox", "--disable-gpu"],
     });
     const entry = createLinuxDeepLinkDesktopEntry(command);
 
-    expect(command).toEqual({ executablePath: "/opt/ZCode/zcode", args: [] });
-    expect(entry).toContain('Exec="/opt/ZCode/zcode" %U');
+    expect(command).toEqual({ executablePath: "/opt/ZCode Next/zcode", args: [] });
+    expect(entry).toContain('Exec="/opt/ZCode Next/zcode" %U');
   });
 
   it("escapes desktop Exec paths before writing user-level handlers", async () => {
@@ -92,10 +131,10 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
 
     const entry = createLinuxDeepLinkDesktopEntry({
-      executablePath: '/home/alice/Downloads/ZCode "Nightly".AppImage',
+      executablePath: '/home/alice/Downloads/ZCode Next "Nightly".AppImage',
     });
 
-    expect(entry).toContain('Exec="/home/alice/Downloads/ZCode \\"Nightly\\".AppImage" %U');
+    expect(entry).toContain('Exec="/home/alice/Downloads/ZCode Next \\"Nightly\\".AppImage" %U');
   });
 
   it("writes the Preview product name into the shared Linux protocol handler", async () => {
@@ -103,14 +142,14 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
 
     const entry = createLinuxDeepLinkDesktopEntry({
-      executablePath: "/opt/ZCode Preview/zcode-preview",
-      productName: "ZCode Preview",
+      executablePath: "/opt/ZCode Next Preview/zcode-preview",
+      productName: "ZCode Next Preview",
     });
 
-    expect(entry).toContain("Name=ZCode Preview");
-    expect(entry).toContain("StartupWMClass=ZCode Preview");
-    expect(entry).toContain('Exec="/opt/ZCode Preview/zcode-preview" %U');
-    expect(entry).toContain("MimeType=x-scheme-handler/zcode;");
+    expect(entry).toContain("Name=ZCode Next Preview");
+    expect(entry).toContain("StartupWMClass=ZCode Next Preview");
+    expect(entry).toContain('Exec="/opt/ZCode Next Preview/zcode-preview" %U');
+    expect(entry).toContain("MimeType=x-scheme-handler/zcode-next;");
   });
 
   it("escapes AppImage callback switches before writing desktop Exec", async () => {
@@ -118,12 +157,12 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
 
     const entry = createLinuxDeepLinkDesktopEntry({
-      executablePath: "/home/alice/Downloads/ZCode.AppImage",
+      executablePath: "/home/alice/Downloads/ZCode Next.AppImage",
       args: ['--disable-features=UseOzonePlatform,"Quoted"'],
     });
 
     expect(entry).toContain(
-      'Exec="/home/alice/Downloads/ZCode.AppImage" "--disable-features=UseOzonePlatform,\\"Quoted\\"" %U',
+      'Exec="/home/alice/Downloads/ZCode Next.AppImage" "--disable-features=UseOzonePlatform,\\"Quoted\\"" %U',
     );
   });
 
@@ -143,7 +182,7 @@ describe("desktop Linux deep link registration helpers", () => {
 
       expect(
         shouldInstallAppImageDesktopIcon({
-          env: { APPIMAGE: "/home/alice/Applications/ZCode.AppImage" },
+          env: { APPIMAGE: "/home/alice/Applications/ZCode Next.AppImage" },
           iconSourcePath,
         }),
       ).toBe(true);
@@ -160,7 +199,7 @@ describe("desktop Linux deep link registration helpers", () => {
       });
 
       expect(result).toEqual({
-        iconFilePath: join(dataDir, "icons", "hicolor", "512x512", "apps", "zcode.png"),
+        iconFilePath: join(dataDir, "icons", "hicolor", "512x512", "apps", "zcode-next.png"),
         installed: true,
         changed: true,
       });
@@ -207,8 +246,8 @@ describe("desktop Linux deep link registration helpers", () => {
         executablePath: "/tmp/.mount_ZCode/zcode",
         homeDir,
         iconSourcePath: badIconSourcePath,
-        env: { APPIMAGE: "/home/alice/Applications/ZCode.AppImage" },
-        // 固定系统级目录为空，避免测试机恰好装了 ZCode 系统包时走清理分支。
+        env: { APPIMAGE: "/home/alice/Applications/ZCode Next.AppImage" },
+        // 固定系统级目录为空，避免测试机恰好装了 ZCode Next 系统包时走清理分支。
         systemApplicationDirs: [join(tempRoot, "empty-system-applications")],
         logger: {
           info: () => undefined,
@@ -220,10 +259,16 @@ describe("desktop Linux deep link registration helpers", () => {
         },
       });
 
-      const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+      const desktopFilePath = join(
+        homeDir,
+        ".local",
+        "share",
+        "applications",
+        "zcode-next.desktop",
+      );
       expect(existsSync(desktopFilePath)).toBe(true);
       expect(readFileSync(desktopFilePath, "utf8")).toContain(
-        'Exec="/home/alice/Applications/ZCode.AppImage" %U',
+        'Exec="/home/alice/Applications/ZCode Next.AppImage" %U',
       );
       expect(
         warnings.some(([message]) => message === "[deep-link] Linux AppImage 图标安装失败，已降级"),
@@ -235,7 +280,7 @@ describe("desktop Linux deep link registration helpers", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "zcode.desktop", "x-scheme-handler/zcode"],
+          args: ["default", "zcode-next.desktop", "x-scheme-handler/zcode-next"],
         },
       ]);
     } finally {
@@ -268,16 +313,16 @@ describe("desktop Linux deep link registration helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-system-entry-"));
     const homeDir = join(tempRoot, "home");
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
     const infos: unknown[][] = [];
     const commandCalls: CommandCall[] = [];
 
     try {
-      // 模拟 rpm/deb 安装产物：/usr/share/applications/zcode.desktop。
+      // 模拟 rpm/deb 安装产物：/usr/share/applications/zcode-next.desktop。
       mkdirSync(systemApplicationsDir, { recursive: true });
       writeFileSync(
-        join(systemApplicationsDir, "zcode.desktop"),
-        "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+        join(systemApplicationsDir, "zcode-next.desktop"),
+        "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
         "utf8",
       );
       // 模拟旧 AppImage 时代遗留的用户级条目（含归属标记 Comment 行）。
@@ -286,17 +331,17 @@ describe("desktop Linux deep link registration helpers", () => {
         desktopFilePath,
         [
           "[Desktop Entry]",
-          "Name=ZCode",
-          "Comment=ZCode Desktop App",
-          'Exec="/home/alice/Downloads/ZCode-2.8.0-linux-x64.AppImage" %U',
-          "MimeType=x-scheme-handler/zcode;",
+          "Name=ZCode Next",
+          "Comment=ZCode Next Desktop App",
+          'Exec="/home/alice/Downloads/ZCode Next-2.8.0-linux-x64.AppImage" %U',
+          "MimeType=x-scheme-handler/zcode-next;",
           "",
         ].join("\n"),
         "utf8",
       );
 
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [systemApplicationsDir],
@@ -319,7 +364,7 @@ describe("desktop Linux deep link registration helpers", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "zcode.desktop", "x-scheme-handler/zcode"],
+          args: ["default", "zcode-next.desktop", "x-scheme-handler/zcode-next"],
         },
       ]);
       expect(
@@ -336,24 +381,24 @@ describe("desktop Linux deep link registration helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-custom-entry-"));
     const homeDir = join(tempRoot, "home");
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
     const warnings: unknown[][] = [];
 
     try {
       mkdirSync(systemApplicationsDir, { recursive: true });
       writeFileSync(
-        join(systemApplicationsDir, "zcode.desktop"),
-        "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+        join(systemApplicationsDir, "zcode-next.desktop"),
+        "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
         "utf8",
       );
       // 用户手写的自定义条目：没有我们的归属标记，不应被静默删除。
       mkdirSync(dirname(desktopFilePath), { recursive: true });
       const customEntry =
-        "[Desktop Entry]\nName=ZCode\nComment=Custom wrapper\nExec=/home/alice/wrap.sh %U\n";
+        "[Desktop Entry]\nName=ZCode Next\nComment=Custom wrapper\nExec=/home/alice/wrap.sh %U\n";
       writeFileSync(desktopFilePath, customEntry, "utf8");
 
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [systemApplicationsDir],
@@ -369,7 +414,7 @@ describe("desktop Linux deep link registration helpers", () => {
       expect(
         warnings.some(
           ([message]) =>
-            message === "[deep-link] Linux 用户级 zcode.desktop 非本应用写入，保留不清理",
+            message === "[deep-link] Linux 用户级 zcode-next.desktop 非本应用写入，保留不清理",
         ),
       ).toBe(true);
     } finally {
@@ -383,15 +428,15 @@ describe("desktop Linux deep link registration helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-appimage-system-"));
     const homeDir = join(tempRoot, "home");
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
     const iconSourcePath = join(import.meta.dirname, "..", "build", "icons", "512x512.png");
     const commandCalls: CommandCall[] = [];
 
     try {
       mkdirSync(systemApplicationsDir, { recursive: true });
       writeFileSync(
-        join(systemApplicationsDir, "zcode.desktop"),
-        "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+        join(systemApplicationsDir, "zcode-next.desktop"),
+        "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
         "utf8",
       );
 
@@ -399,7 +444,7 @@ describe("desktop Linux deep link registration helpers", () => {
         executablePath: "/tmp/.mount_ZCode/zcode",
         homeDir,
         iconSourcePath,
-        env: { APPIMAGE: "/home/alice/Applications/ZCode.AppImage" },
+        env: { APPIMAGE: "/home/alice/Applications/ZCode Next.AppImage" },
         systemApplicationDirs: [systemApplicationsDir],
         logger: { info: () => undefined, warn: () => undefined },
         runCommand: (command, args) => {
@@ -412,7 +457,7 @@ describe("desktop Linux deep link registration helpers", () => {
       expect(existsSync(desktopFilePath)).toBe(false);
       expect(
         existsSync(
-          join(homeDir, ".local", "share", "icons", "hicolor", "512x512", "apps", "zcode.png"),
+          join(homeDir, ".local", "share", "icons", "hicolor", "512x512", "apps", "zcode-next.png"),
         ),
       ).toBe(false);
       expect(commandCalls).toEqual([
@@ -422,7 +467,7 @@ describe("desktop Linux deep link registration helpers", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "zcode.desktop", "x-scheme-handler/zcode"],
+          args: ["default", "zcode-next.desktop", "x-scheme-handler/zcode-next"],
         },
       ]);
     } finally {
@@ -435,11 +480,11 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-no-system-"));
     const homeDir = join(tempRoot, "home");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
 
     try {
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [join(tempRoot, "empty-system-applications")],
@@ -448,7 +493,7 @@ describe("desktop Linux deep link registration helpers", () => {
       });
 
       expect(existsSync(desktopFilePath)).toBe(true);
-      expect(readFileSync(desktopFilePath, "utf8")).toContain('Exec="/opt/ZCode/zcode" %U');
+      expect(readFileSync(desktopFilePath, "utf8")).toContain('Exec="/opt/ZCode Next/zcode" %U');
     } finally {
       rmSync(tempRoot, { force: true, recursive: true });
     }
@@ -459,14 +504,14 @@ describe("desktop Linux deep link registration helpers", () => {
       await import("../src/main/desktopLinuxDeepLinkRegistration.js");
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-dir-system-"));
     const homeDir = join(tempRoot, "home");
-    // 系统目录下的 zcode.desktop 是一个目录而非普通文件，不得视为有效系统条目。
+    // 系统目录下的 zcode-next.desktop 是一个目录而非普通文件，不得视为有效系统条目。
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
 
     try {
-      mkdirSync(join(systemApplicationsDir, "zcode.desktop"), { recursive: true });
+      mkdirSync(join(systemApplicationsDir, "zcode-next.desktop"), { recursive: true });
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [systemApplicationsDir],
@@ -487,15 +532,15 @@ describe("desktop Linux deep link registration helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-unreadable-"));
     const homeDir = join(tempRoot, "home");
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
     const warnings: unknown[][] = [];
     const commandCalls: CommandCall[] = [];
 
     try {
       mkdirSync(systemApplicationsDir, { recursive: true });
       writeFileSync(
-        join(systemApplicationsDir, "zcode.desktop"),
-        "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+        join(systemApplicationsDir, "zcode-next.desktop"),
+        "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
         "utf8",
       );
       mkdirSync(dirname(desktopFilePath), { recursive: true });
@@ -504,7 +549,7 @@ describe("desktop Linux deep link registration helpers", () => {
       chmodSync(desktopFilePath, 0o000);
 
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [systemApplicationsDir],
@@ -522,7 +567,7 @@ describe("desktop Linux deep link registration helpers", () => {
       expect(
         warnings.some(
           ([message]) =>
-            message === "[deep-link] Linux 用户级 zcode.desktop 非本应用写入，保留不清理",
+            message === "[deep-link] Linux 用户级 zcode-next.desktop 非本应用写入，保留不清理",
         ),
       ).toBe(true);
       // 归属识别失败只降级，协议注册命令仍完整执行。
@@ -533,7 +578,7 @@ describe("desktop Linux deep link registration helpers", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "zcode.desktop", "x-scheme-handler/zcode"],
+          args: ["default", "zcode-next.desktop", "x-scheme-handler/zcode-next"],
         },
       ]);
     } finally {
@@ -548,14 +593,14 @@ describe("desktop Linux deep link registration helpers", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "zcode-linux-crlf-"));
     const homeDir = join(tempRoot, "home");
     const systemApplicationsDir = join(tempRoot, "system", "applications");
-    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode.desktop");
+    const desktopFilePath = join(homeDir, ".local", "share", "applications", "zcode-next.desktop");
     const infos: unknown[][] = [];
 
     try {
       mkdirSync(systemApplicationsDir, { recursive: true });
       writeFileSync(
-        join(systemApplicationsDir, "zcode.desktop"),
-        "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+        join(systemApplicationsDir, "zcode-next.desktop"),
+        "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
         "utf8",
       );
       // 旧版本写出的 LF 条目被 Windows 风格工具改写为 CRLF 后仍应识别为可清理。
@@ -564,17 +609,17 @@ describe("desktop Linux deep link registration helpers", () => {
         desktopFilePath,
         [
           "[Desktop Entry]",
-          "Name=ZCode",
-          "Comment=ZCode Desktop App",
-          'Exec="/home/alice/Downloads/ZCode.AppImage" %U',
-          "MimeType=x-scheme-handler/zcode;",
+          "Name=ZCode Next",
+          "Comment=ZCode Next Desktop App",
+          'Exec="/home/alice/Downloads/ZCode Next.AppImage" %U',
+          "MimeType=x-scheme-handler/zcode-next;",
           "",
         ].join("\r\n"),
         "utf8",
       );
 
       registerLinuxDeepLinkProtocol({
-        executablePath: "/opt/ZCode/zcode",
+        executablePath: "/opt/ZCode Next/zcode",
         homeDir,
         env: {},
         systemApplicationDirs: [systemApplicationsDir],
@@ -588,7 +633,8 @@ describe("desktop Linux deep link registration helpers", () => {
       expect(existsSync(desktopFilePath)).toBe(false);
       expect(
         infos.some(
-          ([message]) => message === "[deep-link] 已清理遗留的用户级 zcode.desktop，恢复系统级条目",
+          ([message]) =>
+            message === "[deep-link] 已清理遗留的用户级 zcode-next.desktop，恢复系统级条目",
         ),
       ).toBe(true);
     } finally {
@@ -608,28 +654,28 @@ describe("desktop Linux deep link registration helpers", () => {
       const homeDir = join(tempRoot, "home");
       const systemApplicationsDir = join(tempRoot, "system", "applications");
       const applicationsDir = join(homeDir, ".local", "share", "applications");
-      const desktopFilePath = join(applicationsDir, "zcode.desktop");
+      const desktopFilePath = join(applicationsDir, "zcode-next.desktop");
       const warnings: unknown[][] = [];
       const commandCalls: CommandCall[] = [];
 
       try {
         mkdirSync(systemApplicationsDir, { recursive: true });
         writeFileSync(
-          join(systemApplicationsDir, "zcode.desktop"),
-          "[Desktop Entry]\nName=ZCode\nExec=/opt/ZCode/zcode %U\n",
+          join(systemApplicationsDir, "zcode-next.desktop"),
+          "[Desktop Entry]\nName=ZCode Next\nExec=/opt/ZCode Next/zcode %U\n",
           "utf8",
         );
         mkdirSync(applicationsDir, { recursive: true });
         writeFileSync(
           desktopFilePath,
-          '[Desktop Entry]\nComment=ZCode Desktop App\nExec="/old/ZCode.AppImage" %U\n',
+          '[Desktop Entry]\nComment=ZCode Next Desktop App\nExec="/old/ZCode Next.AppImage" %U\n',
           "utf8",
         );
         // 目录去掉写权限后 rmSync 失败（EPERM）：删除失败必须只降级，不得抛出或阻断注册。
         chmodSync(applicationsDir, 0o500);
 
         registerLinuxDeepLinkProtocol({
-          executablePath: "/opt/ZCode/zcode",
+          executablePath: "/opt/ZCode Next/zcode",
           homeDir,
           env: {},
           systemApplicationDirs: [systemApplicationsDir],
@@ -645,7 +691,9 @@ describe("desktop Linux deep link registration helpers", () => {
 
         expect(existsSync(desktopFilePath)).toBe(true);
         expect(
-          warnings.some(([message]) => message === "[deep-link] 清理遗留用户级 zcode.desktop 失败"),
+          warnings.some(
+            ([message]) => message === "[deep-link] 清理遗留用户级 zcode-next.desktop 失败",
+          ),
         ).toBe(true);
         expect(commandCalls).toEqual([
           {
@@ -654,7 +702,7 @@ describe("desktop Linux deep link registration helpers", () => {
           },
           {
             command: "xdg-mime",
-            args: ["default", "zcode.desktop", "x-scheme-handler/zcode"],
+            args: ["default", "zcode-next.desktop", "x-scheme-handler/zcode-next"],
           },
         ]);
       } finally {

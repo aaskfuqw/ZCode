@@ -47,8 +47,8 @@ describe("WPL-006 Workspace Plugin missing package E2E", () => {
     this.timeout(300000);
 
     const { workspace } = getE2EAppDataPaths();
-    const workspaceConfigPath = join(workspace, ".zcode", "config.json");
-    await mkdir(join(workspace, ".zcode"), { recursive: true });
+    const workspaceConfigPath = join(workspace, ".zcode-next", "config.json");
+    await mkdir(join(workspace, ".zcode-next"), { recursive: true });
     await writeFile(
       workspaceConfigPath,
       `${JSON.stringify({ plugins: { enabledPlugins: { [PLUGIN_LIFECYCLE_ID]: true } } }, null, 2)}\n`,
@@ -83,9 +83,7 @@ describe("WPL-006 Workspace Plugin missing package E2E", () => {
     await installPluginThroughUi(PLUGIN_LIFECYCLE_ID);
     const afterInstall = await getPluginOverview();
     expect(afterInstall.installedPlugins).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: PLUGIN_LIFECYCLE_ID, scope: "user" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ id: PLUGIN_LIFECYCLE_ID, scope: "user" })]),
     );
     expect(await readFile(workspaceConfigPath, "utf8")).toContain(PLUGIN_LIFECYCLE_ID);
     expect(await readFile(installedPluginsPath, "utf8")).toContain(PLUGIN_LIFECYCLE_ID);
@@ -109,7 +107,9 @@ async function assertLifecycleRuntimeAfterExplicitInstall(): Promise<void> {
   });
   expect(requestRecord).not.toBeNull();
   if (!requestRecord) return;
-  expect(captureArtifactAdvertisesToolName(requestRecord.requestJson, PLUGIN_LIFECYCLE_MCP_TOOL_NAME)).toBe(true);
+  expect(
+    captureArtifactAdvertisesToolName(requestRecord.requestJson, PLUGIN_LIFECYCLE_MCP_TOOL_NAME),
+  ).toBe(true);
   await browser.waitUntil(
     async () => {
       await respondToToolCrossProductBlockers();

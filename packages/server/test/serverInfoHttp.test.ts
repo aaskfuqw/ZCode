@@ -77,14 +77,18 @@ describe("server info HTTP endpoint", () => {
 
     const rejected = await fetch(`${baseUrl}/api/server-info`);
     expect(rejected.status).toBe(401);
+    const upstreamCookie = await fetch(`${baseUrl}/api/server-info`, {
+      headers: { cookie: "zcode_lite_token=secret-token" },
+    });
+    expect(upstreamCookie.status).toBe(401);
 
     const accepted = await fetch(`${baseUrl}/api/server-info?token=secret-token`);
     expect(accepted.status).toBe(200);
-    expect(accepted.headers.get("set-cookie")).toContain("zcode_lite_token=");
+    expect(accepted.headers.get("set-cookie")).toContain("zcode_next_lite_token=");
 
     const cookieAccepted = await fetch(`${baseUrl}/api/server-info`, {
       headers: {
-        cookie: "zcode_lite_token=secret-token",
+        cookie: "zcode_next_lite_token=secret-token",
       },
     });
     expect(cookieAccepted.status).toBe(200);

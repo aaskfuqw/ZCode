@@ -202,7 +202,7 @@ describe("createZCodeStore global state", () => {
     store.getState().setPerformanceMode(true);
 
     expect(store.getState().performanceMode).toBe(true);
-    expect(localStorageState.get("zcode-performance-mode")).toBe("true");
+    expect(localStorageState.get("zcode-next-performance-mode")).toBe("true");
     expect(
       createZCodeStore(mockBroadcastService).getState().performanceMode,
     ).toBe(true);

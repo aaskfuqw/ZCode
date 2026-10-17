@@ -1067,7 +1067,7 @@ function StdioTrafficView() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState("--:--:--.---");
   const [realTraffic, setRealTraffic] = useState<RealTrafficState>({
     status: "loading",
-    logDir: "~/.zcode/v2/dev/stdio-traffic",
+    logDir: "~/.zcode-next/v2/dev/stdio-traffic",
     records: [],
   });
   const liveSequenceRef = useRef(0);
@@ -1243,7 +1243,7 @@ function StdioTrafficView() {
   const sourcePath =
     trafficSourceMode === "mock"
       ? "mock replay"
-      : (realTraffic.filePath ?? realTraffic.logDir ?? "~/.zcode/v2/dev/stdio-traffic");
+      : (realTraffic.filePath ?? realTraffic.logDir ?? "~/.zcode-next/v2/dev/stdio-traffic");
   const emptyTrafficMessage =
     trafficSourceMode === "mock"
       ? "mock replay 暂无 frame。"

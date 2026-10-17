@@ -26,7 +26,7 @@ function workspaceHook(): Hook {
       declarationEnabled: false,
       runtimeHooksEnabled: true,
       configuredEnabled: false,
-      sourcePath: ".zcode/config.json",
+      sourcePath: ".zcode-next/config.json",
       trustState: "pending_trust",
     },
   };
@@ -60,7 +60,7 @@ function reviewBinding(
           type: "command",
           displayName: "SessionStart",
           displayCommand: "echo project",
-          sourcePath: ".zcode/config.json",
+          sourcePath: ".zcode-next/config.json",
           resolvedTimeoutMs: 60_000,
           resolvedMaxOutputBytes: 32_768,
           executionMode: "foreground",

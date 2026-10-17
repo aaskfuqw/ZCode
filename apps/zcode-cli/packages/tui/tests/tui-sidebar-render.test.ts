@@ -39,6 +39,7 @@ test("renders localized sidebar rows without section title glyph tails", async (
       .map((line) => line.trimEnd());
 
     // Todos 改为可折叠区块，标题与 API 等区块一样带展开标记。
+    assert.ok(lines.some((line) => line.includes("ZCode Next")));
     assert.ok(lines.includes(" ▼ Todos"));
     assert.ok(lines.includes(" 进度      0/0"));
     assert.ok(lines.includes(" ▼ API"));

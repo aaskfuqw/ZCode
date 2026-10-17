@@ -30,7 +30,7 @@ import type { LinuxChromePasswordStore } from "./chromeInstallationCandidates.js
 import type { WindowsChromeAppBoundKeyReader } from "./windowsChromeAppBoundKey.js";
 import { clearEmbeddedBrowserSitePermissions } from "./embeddedBrowserSitePermissions.js";
 
-export const EMBEDDED_BROWSER_PARTITION = "persist:zcode-embedded-browser";
+export const EMBEDDED_BROWSER_PARTITION = "persist:zcode-next-embedded-browser";
 const CACHE_STORAGE_TYPES: Electron.ClearStorageDataOptions["storages"] = [
   "shadercache",
   "serviceworkers",
@@ -124,8 +124,9 @@ export async function importChromeBrowserData(options: {
   let detectedChromeExecutablePath = options.chromeExecutablePath;
   if (platform !== "win32" && !options.profilePath && !detectedChromeExecutablePath) {
     detectedChromeExecutablePath =
-      (await (options.chromeExecutableDiscovery ??
-        (() => resolveChromeExecutablePath({ platform })))()) ?? undefined;
+      (await (
+        options.chromeExecutableDiscovery ?? (() => resolveChromeExecutablePath({ platform }))
+      )()) ?? undefined;
     if (!detectedChromeExecutablePath) {
       // 过去会先扫描默认 Profile，导致“Chrome 未安装”被误报为 Profile 缺失，
       // 也无法识别注册在非默认目录的浏览器。先完成可执行文件发现，失败时不访问源数据。

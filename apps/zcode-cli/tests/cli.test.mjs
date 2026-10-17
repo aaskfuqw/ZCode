@@ -29,9 +29,9 @@ test("rejects removed hello command", async () => {
 test("prints JSON doctor payload", async () => {
   const { stdout } = await runCli(["doctor", "--json"]);
   const payload = JSON.parse(stdout);
-  assert.equal(payload.cli.name, "zcode");
-  assert.equal(payload.cli.processName, "zcode-cli");
-  assert.equal(payload.runtime.processTitle, "zcode-cli");
+  assert.equal(payload.cli.name, "zcode-next");
+  assert.equal(payload.cli.processName, "zcode-next-cli");
+  assert.equal(payload.runtime.processTitle, "zcode-next-cli");
   assert.equal(payload.packaging.default, "node-bundle");
   assert.equal(payload.packaging.sea, "optional");
 });

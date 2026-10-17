@@ -15,10 +15,7 @@ import {
   setCurrentElectronRendererContentSize,
   restoreElectronRendererContentSize,
 } from "../helpers/desktop-app.js";
-import {
-  UPSTREAM_PROVIDER_ID,
-  UPSTREAM_SECONDARY_MODEL,
-} from "../helpers/upstream-provider.js";
+import { UPSTREAM_PROVIDER_ID, UPSTREAM_SECONDARY_MODEL } from "../helpers/upstream-provider.js";
 import {
   prepareV4ConversationE2E,
   loginWithApiKey,
@@ -197,7 +194,7 @@ describe("Composer 七档压缩", () => {
             localePreference: "zh-CN",
           }),
         );
-        const configFile = join(paths.homeDir, ".zcode", "cli", "config.json");
+        const configFile = join(paths.homeDir, ".zcode-next", "cli", "config.json");
         const config = JSON.parse(
           await readFile(configFile, "utf8").catch((error: NodeJS.ErrnoException) => {
             if (error.code === "ENOENT") return "{}";

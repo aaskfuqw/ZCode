@@ -398,7 +398,7 @@ export async function stageRelease(options: StageOptions): Promise<StagedRelease
   const tools = await copyNativeTools(options.nativeToolsDir, join(runtimeDir, "tools"), options.target);
   const plugins = await copyDirectoryIfPresent(options.officialPluginsDir, join(runtimeDir, "packages"));
 
-  const launcherPath = join(releaseDir, "bin", options.target.startsWith("win32-") ? "zcode.cmd" : "zcode");
+  const launcherPath = join(releaseDir, "bin", options.target.startsWith("win32-") ? "zcode-next.cmd" : "zcode-next");
   await writeFile(launcherPath, POSIX_LAUNCHER, "utf8");
   if (options.target.startsWith("win32-")) {
     await writeFile(launcherPath, WINDOWS_LAUNCHER, "utf8");

@@ -25,13 +25,13 @@ process.execPath  <Electron Helper>
   env:  { ELECTRON_RUN_AS_NODE: "1" }   // 必须，否则子进程被当成 Chromium 子进程卡在 GPU 初始化
 ```
 
-**远端**（无 Electron，复用 dev 已有机制）：部署 `zcode.cjs` 到 `~/.zcode/server/agents/glm/zcode.cjs`，再写一个**同名 wrapper**（就是 resolver 期望的可执行入口 `zcode-agent`）：
+**远端**（无 Electron，复用 dev 已有机制）：部署 `zcode.cjs` 到 `~/.zcode-next/server/agents/glm/zcode.cjs`，再写一个**同名 wrapper**（就是 resolver 期望的可执行入口 `zcode-agent`）：
 
 ```sh
 #!/bin/sh
 set -eu
-runtime_root="${ZCODE_SERVER_RUNTIME_ROOT:-$HOME/.zcode/server}"
-exec "$runtime_root/node" "$HOME/.zcode/server/agents/glm/zcode.cjs" "$@"
+runtime_root="${ZCODE_SERVER_RUNTIME_ROOT:-$HOME/.zcode-next/server}"
+exec "$runtime_root/node" "$HOME/.zcode-next/server/agents/glm/zcode.cjs" "$@"
 ```
 
 这样 provider runtime resolver **不需要为远端改任何代码**——照旧找 `zcode-agent` 这个可执行文件，找到的是 wrapper，由它用远端 node 执行 `zcode.cjs`。

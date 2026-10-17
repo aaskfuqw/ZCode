@@ -5,7 +5,8 @@
 
 ## Core principles
 
-- This repository is a personal fork. Existing behavior and architecture are the starting point; explicit requirements and decisions for this fork may change them.
+- This repository is the ZCode Next personal fork. Existing behavior and architecture are the starting point; explicit requirements and decisions for this fork may change them.
+- Product identity, data isolation, and upstream compatibility follow [ADR 0005](docs/adr/0005-separate-zcode-next-product-and-data.md).
 - Before adding or changing behavior, establish the product rules, state owner, interfaces, and acceptance scenarios.
 - Treat the checked-out source, `package.json`, and architecture policies as authoritative. Document only features, commands, and files that currently exist in this repository; remove references from instructions and skills when removing a feature.
 - When investigating a problem, diagnose the cause before changing code unless a fix was explicitly requested. Combine source, logs, and runtime evidence, and distinguish confirmed causes from hypotheses.

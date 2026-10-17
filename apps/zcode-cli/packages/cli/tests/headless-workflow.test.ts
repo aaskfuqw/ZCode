@@ -707,7 +707,7 @@ test("a resolvable custom command waits for settle instead of early-returning", 
         metadata: {
           description: "Start a dynamic workflow",
           name: "launch-plan",
-          path: "/workspace/.zcode/commands/launch-plan.md",
+          path: "/workspace/.zcode-next/commands/launch-plan.md",
           scope: "project",
           source: "zcode",
         },

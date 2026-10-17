@@ -177,7 +177,7 @@ export interface UninstallZCodeMarketplacePluginOptions extends ResolveZCodePlug
   pluginName?: string;
   marketplace?: string;
   removeCache?: boolean;
-  /** 保留 data/<plugin-id> 用户数据目录（`zcode plugins uninstall --keep-data`）。 */
+  /** 保留 data/<plugin-id> 用户数据目录（`zcode-next plugins uninstall --keep-data`）。 */
   keepData?: boolean;
 }
 
@@ -833,7 +833,7 @@ export async function uninstallZCodeMarketplacePlugin(
 }
 
 /**
- * `zcode plugins update <plugin>`：先刷新所属 marketplace 目录，再按同一条目重装。
+ * `zcode-next plugins update <plugin>`：先刷新所属 marketplace 目录，再按同一条目重装。
  * cacheMarketplacePlugin 对已存在的安装记录做原地覆盖并保留 installedAt；启用态只会给
  * 用户配置里尚未显式声明的 id 补默认值，因此更新不会改变用户已经做过的开关选择。
  */
@@ -867,7 +867,7 @@ export async function updateZCodeMarketplacePlugin(
   return { ...installed, previousVersion: record.version };
 }
 
-/** `zcode plugins validate <path>`：只读校验本地插件目录或 marketplace 目录。 */
+/** `zcode-next plugins validate <path>`：只读校验本地插件目录或 marketplace 目录。 */
 export async function validateZCodePluginPath(
   options: ValidateZCodePluginPathOptions,
 ): Promise<PluginLoadOutcome["diagnostics"]> {
@@ -1303,10 +1303,10 @@ function resolvePluginConfigPath(
     return configResult.sources.user.path;
   }
 
-  // Workspace Plugin 配置固定落在当前 `<workspace>/.zcode/config.json`。嵌套 workspace
+  // Workspace Plugin 配置固定落在当前 `<workspace>/.zcode-next/config.json`。嵌套 workspace
   // 可能同时发现仓库根与自身的配置，读取端 innermost 优先；写入端也必须锁定当前
   // workspace，不能用 project discovery 的第一个 outermost 文件。
-  const workspaceConfigPath = join(workingDirectory, ".zcode", "config.json");
+  const workspaceConfigPath = join(workingDirectory, ".zcode-next", "config.json");
   const projectConfigPaths = [
     ...(options.projectConfigPath ? [options.projectConfigPath] : []),
     ...configResult.sources.project.paths,
@@ -1335,10 +1335,10 @@ export function isWorkspacePluginConfigPath(
   if (platform === "win32") {
     return (
       win32.basename(path).toLowerCase() === "config.json" &&
-      win32.basename(win32.dirname(path)).toLowerCase() === ".zcode"
+      win32.basename(win32.dirname(path)).toLowerCase() === ".zcode-next"
     );
   }
-  return basename(path) === "config.json" && basename(dirname(path)) === ".zcode";
+  return basename(path) === "config.json" && basename(dirname(path)) === ".zcode-next";
 }
 
 export function resolveMarketplaceRefreshTargetIds(input: {

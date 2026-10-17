@@ -11,7 +11,7 @@ Goal: reduce any hook problem to a single concrete fix.
 
 ## 1. Configuration sources and merging
 
-- **Configuration-file hooks**: the top-level `hooks` key in `~/.zcode/cli/config.json` (or the workspace `<repo>/.zcode/config.json` / `zcode.json`), shaped as `{ enabled?, timeoutMs?, maxOutputBytes?, events: { <Event>: [ { matcher?, hooks: [...] } ] } }`. **These are disabled by default — configuration-file hooks must set `hooks.enabled: true` to run.**
+- **Configuration-file hooks**: the top-level `hooks` key in `~/.zcode-next/cli/config.json` (or the workspace `<repo>/.zcode-next/config.json` / `zcode-next.json`), shaped as `{ enabled?, timeoutMs?, maxOutputBytes?, events: { <Event>: [ { matcher?, hooks: [...] } ] } }`. **These are disabled by default — configuration-file hooks must set `hooks.enabled: true` to run.**
 - **Plugin hooks**: each plugin's `hooks/hooks.json` (or its manifest `hooks` field). Plugin matchers are appended after configuration matchers. **When any plugin contributes a hook, the hook runner is enabled automatically.**
 - Non-plugin (user or workspace) configuration hooks have no trust gate; with `enabled: true` they run unconditionally.
 
@@ -38,7 +38,7 @@ Goal: reduce any hook problem to a single concrete fix.
 ## 3. How to inspect hooks
 
 - **In the client**: **Settings → Plugin Management** → open a plugin's detail view to see the hooks it registers and whether each is runnable.
-- **As an agent**: read the `hooks/hooks.json` (or the manifest `hooks` field) for a plugin, and the `hooks` block of `~/.zcode/cli/config.json` / the workspace config for configuration hooks.
+- **As an agent**: read the `hooks/hooks.json` (or the manifest `hooks` field) for a plugin, and the `hooks` block of `~/.zcode-next/cli/config.json` / the workspace config for configuration hooks.
 - **Execution** (fired, timed out, blocked) is recorded in the ZCode log, with the hook's source, matcher, outcome, duration, and a preview of its error stream — enough to distinguish a timeout from a failure from a block.
 
 ## 4. Common pitfalls (symptom → cause → fix)

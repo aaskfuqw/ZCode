@@ -148,7 +148,7 @@ ZCode app-server `session/new` 至少记录：
 
 日志级别不通过环境变量配置。调用方可以显式传入 logger `minLevel` 或通过 logger factory 的运行时接口调整级别；未显式传入时，开发环境默认 `debug`，以便本地 debug app 能看到 `context.built` 和 `context_usage_snapshot`；普通运行默认 `info`。开发环境由 `ZCODE_RUNTIME_ENV=development` 或本地源码/tsx CLI 入口识别；`ZCODE_RUNTIME_ENV=production` 和 `ZCODE_RUNTIME_ENV=test` 明确使用普通默认值。`NODE_ENV` 不参与 ZCode 运行时判定，避免用户 shell 或包管理器变量影响 agent 行为。`ZCODE_LOG_LEVEL` 不属于受支持的环境变量 surface，设置后必须被忽略。
 
-默认日志目录通过跨平台目录解析获得，初版可使用 `{home}/.zcode/cli/log`。默认日志文件名为 `zcode-YYYY-MM-DD.jsonl`，其中日期使用本机本地日历日，而不是 UTC 日期；否则北京时间等正时区在本地凌晨启动时会把日志写入前一天的文件，导致排查启动耗时时误判为日志缺失。
+默认日志目录通过跨平台目录解析获得，初版可使用 `{home}/.zcode-next/cli/log`。默认日志文件名为 `zcode-YYYY-MM-DD.jsonl`，其中日期使用本机本地日历日，而不是 UTC 日期；否则北京时间等正时区在本地凌晨启动时会把日志写入前一天的文件，导致排查启动耗时时误判为日志缺失。
 
 ## 日志保留与自动清理
 
@@ -162,7 +162,7 @@ ZCode app-server `session/new` 至少记录：
 
 ## 默认日志载荷边界
 
-`{home}/.zcode/cli/log/zcode-YYYY-MM-DD.jsonl` 是默认定位日志，目标是回答“哪个 session/turn/trace/protocol seq/事件类型在什么时间出问题”，不是保存完整协议消息、模型流式内容或工具输入输出镜像。默认日志可以记录索引、状态、计数、耗时、字节数、key 列表和短摘要；不得在高频路径写入完整 `protocolMessage`、完整 stream delta、完整 tool input/result、完整 stdout/stderr tail 或完整 request/response headers。
+`{home}/.zcode-next/cli/log/zcode-YYYY-MM-DD.jsonl` 是默认定位日志，目标是回答“哪个 session/turn/trace/protocol seq/事件类型在什么时间出问题”，不是保存完整协议消息、模型流式内容或工具输入输出镜像。默认日志可以记录索引、状态、计数、耗时、字节数、key 列表和短摘要；不得在高频路径写入完整 `protocolMessage`、完整 stream delta、完整 tool input/result、完整 stdout/stderr tail 或完整 request/response headers。
 
 高频事件必须摘要化写入：
 

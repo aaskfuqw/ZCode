@@ -54,9 +54,9 @@ describe("about", () => {
     const options = createSystemAboutPanelOptions(appleSiliconSnapshot, 2026, "en-US");
 
     expect(options).toMatchObject({
-      applicationName: "ZCode Desktop App",
+      applicationName: "ZCode Next Desktop App",
       applicationVersion: "version 0.1.7",
-      copyright: "Copyright © 2026 ZCode.",
+      copyright: "Copyright © 2026 ZCode Next.",
       credits: "Optimized for Apple Silicon.",
     });
   });
@@ -65,33 +65,33 @@ describe("about", () => {
     const options = createSystemAboutPanelOptions(appleSiliconSnapshot, 2026, "zh-CN");
 
     expect(options).toMatchObject({
-      applicationName: "ZCode Desktop App",
+      applicationName: "ZCode Next Desktop App",
       applicationVersion: "版本 0.1.7",
-      copyright: "版权所有 © 2026 ZCode。",
+      copyright: "版权所有 © 2026 ZCode Next。",
       credits: "已针对 Apple Silicon 优化。",
     });
   });
 
   it("应生成参考图样式的自定义 About 内容", () => {
     const html = createCustomAboutDialogHtml({
-      applicationName: "ZCode Desktop App",
+      applicationName: "ZCode Next Desktop App",
       appVersion: appleSiliconSnapshot.appVersion,
-      copyright: "Copyright © 2026 ZCode.",
+      copyright: "Copyright © 2026 ZCode Next.",
       optimizationLine: "Optimized for Apple Silicon.",
       versionLabel: "version",
       okButtonLabel: "OK",
     });
 
-    expect(html).toContain("ZCode Desktop App");
+    expect(html).toContain("ZCode Next Desktop App");
     expect(html).toContain("version 0.1.7");
     expect(html).toContain("Optimized for Apple Silicon.");
-    expect(html).toContain("Copyright © 2026 ZCode.");
-    expect(html).toContain("class=\"ok-button\"");
+    expect(html).toContain("Copyright © 2026 ZCode Next.");
+    expect(html).toContain('class="ok-button"');
     expect(html).toContain(">OK</button>");
-    expect(html).toContain("class=\"app-logo\"");
-    expect(html).toContain("viewBox=\"0 0 256 218\"");
+    expect(html).toContain('class="app-logo"');
+    expect(html).toContain('viewBox="0 0 256 218"');
     expect(html).toContain("linear-gradient(180deg, #000000 0%, #151718 100%)");
-    expect(html).toContain("class=\"about-window\"");
+    expect(html).toContain('class="about-window"');
     expect(html).toContain("border-radius: 0");
     expect(html).toContain("background: var(--about-primary)");
     expect(html).toContain("color: var(--about-primary-foreground)");
@@ -103,9 +103,9 @@ describe("about", () => {
 
   it("应生成中文自定义 About 内容", () => {
     const html = createCustomAboutDialogHtml({
-      applicationName: "ZCode Desktop App",
+      applicationName: "ZCode Next Desktop App",
       appVersion: appleSiliconSnapshot.appVersion,
-      copyright: "版权所有 © 2026 ZCode。",
+      copyright: "版权所有 © 2026 ZCode Next。",
       optimizationLine: "已针对 Apple Silicon 优化。",
       versionLabel: "版本",
       okButtonLabel: "确定",
@@ -113,7 +113,7 @@ describe("about", () => {
 
     expect(html).toContain("版本 0.1.7");
     expect(html).toContain("已针对 Apple Silicon 优化。");
-    expect(html).toContain("版权所有 © 2026 ZCode。");
+    expect(html).toContain("版权所有 © 2026 ZCode Next。");
     expect(html).toContain(">确定</button>");
   });
 
@@ -123,7 +123,7 @@ describe("about", () => {
   });
 
   it("版权年份可按调用方传入覆盖", () => {
-    expect(formatAboutCopyright(2027, "en-US")).toBe("Copyright © 2027 ZCode.");
-    expect(formatAboutCopyright(2027, "zh-CN")).toBe("版权所有 © 2027 ZCode。");
+    expect(formatAboutCopyright(2027, "en-US")).toBe("Copyright © 2027 ZCode Next.");
+    expect(formatAboutCopyright(2027, "zh-CN")).toBe("版权所有 © 2027 ZCode Next。");
   });
 });

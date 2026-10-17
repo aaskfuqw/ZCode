@@ -1910,7 +1910,7 @@ describe("AgentRuntime manual compact", () => {
     const requests: Array<{ messages: Array<{ content: unknown; role: string }> }> = [];
     const planMarker = "E2E_PLAN_FILE_COMPACT_CONTINUITY_MARKER";
     const fileSystemPort = new MemoryFileSystem({
-      "/workspace/project/.zcode/plans/plan-sess_runtime-compact-plan-file-reference.md": `1. Preserve ${planMarker}\n2. Continue after compact`,
+      "/workspace/project/.zcode-next/plans/plan-sess_runtime-compact-plan-file-reference.md": `1. Preserve ${planMarker}\n2. Continue after compact`,
     });
     const modelImplementation = {
       async generateText(request: {

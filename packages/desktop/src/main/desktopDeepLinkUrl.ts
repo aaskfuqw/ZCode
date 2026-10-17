@@ -1,5 +1,7 @@
-const DEEP_LINK_SCHEME = "zcode";
-const DEEP_LINK_RE = /\bzcode:(?:\/\/|\/)?[^\s"'<>]+/i;
+import { DESKTOP_DEEP_LINK_SCHEME } from "../../scripts/desktop-product-identity.mjs";
+
+const DEEP_LINK_SCHEME = DESKTOP_DEEP_LINK_SCHEME;
+const DEEP_LINK_RE = new RegExp(`\\b${DEEP_LINK_SCHEME}:(?:\\/\\/|\\/)?[^\\s"'<>]+`, "i");
 const OAUTH_CALLBACK_HOSTS = new Set(["oauth"]);
 const WORKSPACE_OPEN_HOST = "workspace";
 const SHARE_IMPORT_HOST = "share";

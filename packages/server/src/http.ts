@@ -195,7 +195,7 @@ function createServerInfo(options: HttpServerOptions): ServerRemoteInfo {
   };
 }
 
-const zcodeLiteTokenCookieName = "zcode_lite_token";
+const zcodeLiteTokenCookieName = "zcode_next_lite_token";
 
 const staticMimeTypes: Record<string, string> = {
   ".css": "text/css; charset=utf-8",

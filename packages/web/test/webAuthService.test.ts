@@ -121,7 +121,7 @@ describe("WebAuthService", () => {
 
     const authorizeUrl = new URL(assigned[0]!);
     const state = parseOAuthState(authorizeUrl.searchParams.get("state")!);
-    expect(sessionStorage.getItem("oauth_pending_nonce")).toBe("nonce-1");
+    expect(sessionStorage.getItem("zcode-next:oauth_pending_nonce")).toBe("nonce-1");
     expect(authorizeUrl.origin + authorizeUrl.pathname).toBe(
       "https://chat.z.ai/api/oauth/authorize",
     );
@@ -190,7 +190,7 @@ describe("WebAuthService", () => {
 
   it("exchanges token, persists complete session, and returns sanitized app_return_to", async () => {
     const { localStorage, service, sessionStorage } = createService();
-    sessionStorage.setItem("oauth_pending_nonce", "nonce-1");
+    sessionStorage.setItem("zcode-next:oauth_pending_nonce", "nonce-1");
     const state = buildOAuthState({
       nonce: "nonce-1",
       app_return_to: "http://192.168.1.8:5173/web-remote?remoteControlToken=token&ignored=1",
@@ -223,15 +223,15 @@ describe("WebAuthService", () => {
         displayName: "Ada",
       },
     });
-    expect(localStorage.getItem("zcodejwttoken")).toBe("jwt-token");
-    expect(localStorage.getItem("oauth:zai:access_token")).toBe("zai-token");
-    expect(localStorage.getItem("oauth:active_provider")).toBe("zai");
-    expect(sessionStorage.getItem("oauth_pending_nonce")).toBeNull();
+    expect(localStorage.getItem("zcode-next:zcodejwttoken")).toBe("jwt-token");
+    expect(localStorage.getItem("zcode-next:oauth:zai:access_token")).toBe("zai-token");
+    expect(localStorage.getItem("zcode-next:oauth:active_provider")).toBe("zai");
+    expect(sessionStorage.getItem("zcode-next:oauth_pending_nonce")).toBeNull();
   });
 
   it("does not persist a half-login state when token response is incomplete", async () => {
     const { localStorage, service, sessionStorage } = createService();
-    sessionStorage.setItem("oauth_pending_nonce", "nonce-1");
+    sessionStorage.setItem("zcode-next:oauth_pending_nonce", "nonce-1");
     const state = buildOAuthState({ nonce: "nonce-1" });
     vi.stubGlobal(
       "fetch",
@@ -254,9 +254,9 @@ describe("WebAuthService", () => {
       ),
     ).rejects.toThrow(/access_token/);
 
-    expect(localStorage.getItem("zcodejwttoken")).toBeNull();
-    expect(localStorage.getItem("oauth:zai:access_token")).toBeNull();
-    expect(localStorage.getItem("oauth:active_provider")).toBeNull();
+    expect(localStorage.getItem("zcode-next:zcodejwttoken")).toBeNull();
+    expect(localStorage.getItem("zcode-next:oauth:zai:access_token")).toBeNull();
+    expect(localStorage.getItem("zcode-next:oauth:active_provider")).toBeNull();
   });
 });
 
@@ -289,13 +289,13 @@ describe("WebAuthService BigModel provider", () => {
     expect(url.searchParams.get("client_id")).toBeNull();
     expect(url.searchParams.get("response_type")).toBeNull();
     // 回调页要靠它知道用哪个 provider 换 token
-    expect(sessionStorage.getItem("oauth_pending_provider")).toBe("bigmodel");
+    expect(sessionStorage.getItem("zcode-next:oauth_pending_provider")).toBe("bigmodel");
   });
 
   it("换 token 时带 provider，并从 data.bigmodel.access_token 取值", async () => {
     const { localStorage, service, sessionStorage } = createService();
-    sessionStorage.setItem("oauth_pending_nonce", "nonce-1");
-    sessionStorage.setItem("oauth_pending_provider", "bigmodel");
+    sessionStorage.setItem("zcode-next:oauth_pending_nonce", "nonce-1");
+    sessionStorage.setItem("zcode-next:oauth_pending_provider", "bigmodel");
     const state = buildOAuthState({ nonce: "nonce-1" });
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -316,16 +316,16 @@ describe("WebAuthService BigModel provider", () => {
 
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).provider).toBe("bigmodel");
     expect(result?.userInfo.id).toBe("53291785835589288");
-    expect(localStorage.getItem("oauth:active_provider")).toBe("bigmodel");
-    expect(localStorage.getItem("oauth:bigmodel:access_token")).toBe("bigmodel-token");
-    expect(localStorage.getItem("zcodejwttoken")).toBe("jwt-token");
+    expect(localStorage.getItem("zcode-next:oauth:active_provider")).toBe("bigmodel");
+    expect(localStorage.getItem("zcode-next:oauth:bigmodel:access_token")).toBe("bigmodel-token");
+    expect(localStorage.getItem("zcode-next:zcodejwttoken")).toBe("jwt-token");
     // pending provider 用完即清，避免污染下一次登录
-    expect(sessionStorage.getItem("oauth_pending_provider")).toBeNull();
+    expect(sessionStorage.getItem("zcode-next:oauth_pending_provider")).toBeNull();
   });
 
   it("缺少 pending provider 时按 zai 兜底，保持旧回调链接可用", async () => {
     const { localStorage, service, sessionStorage } = createService();
-    sessionStorage.setItem("oauth_pending_nonce", "nonce-1");
+    sessionStorage.setItem("zcode-next:oauth_pending_nonce", "nonce-1");
     const state = buildOAuthState({ nonce: "nonce-1" });
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -343,13 +343,13 @@ describe("WebAuthService BigModel provider", () => {
     await service.handleCallback(`https://zcode.z.ai/cn/share/callback?code=code-1&state=${state}`);
 
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).provider).toBe("zai");
-    expect(localStorage.getItem("oauth:active_provider")).toBe("zai");
+    expect(localStorage.getItem("zcode-next:oauth:active_provider")).toBe("zai");
   });
 
   it("BigModel 响应缺 access_token 时不落半个登录态", async () => {
     const { localStorage, service, sessionStorage } = createService();
-    sessionStorage.setItem("oauth_pending_nonce", "nonce-1");
-    sessionStorage.setItem("oauth_pending_provider", "bigmodel");
+    sessionStorage.setItem("zcode-next:oauth_pending_nonce", "nonce-1");
+    sessionStorage.setItem("zcode-next:oauth_pending_provider", "bigmodel");
     const state = buildOAuthState({ nonce: "nonce-1" });
     vi.stubGlobal(
       "fetch",
@@ -366,7 +366,7 @@ describe("WebAuthService BigModel provider", () => {
       service.handleCallback(`https://zcode.z.ai/cn/share/callback?code=code-1&state=${state}`),
     ).rejects.toThrow(/data\.bigmodel\.access_token/);
 
-    expect(localStorage.getItem("zcodejwttoken")).toBeNull();
-    expect(localStorage.getItem("oauth:active_provider")).toBeNull();
+    expect(localStorage.getItem("zcode-next:zcodejwttoken")).toBeNull();
+    expect(localStorage.getItem("zcode-next:oauth:active_provider")).toBeNull();
   });
 });

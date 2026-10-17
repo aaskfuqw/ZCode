@@ -139,6 +139,20 @@ afterEach(() => {
 });
 
 describe("IntlProvider locale preference sync", () => {
+  it("does not restore upstream locale preference", async () => {
+    localStorage.setItem("zcode-locale-preference", "en-US");
+    renderIntlProvider({
+      children: createElement(LocaleControls),
+      settings: { locale: "zh-CN", localePreference: "zh-CN" },
+    });
+
+    await waitFor(() => expect(screen.getByTestId("locale").textContent).toBe("zh-CN"));
+    expect(localStorage.getItem).not.toHaveBeenCalledWith("zcode-locale-preference");
+    fireEvent.click(screen.getByRole("button", { name: "en-US" }));
+    expect(localStorage.getItem("zcode-locale-preference")).toBe("en-US");
+    expect(localStorage.getItem("zcode-next-locale-preference")).toBe("en-US");
+  });
+
   it("手机远控以桌面 settingService locale 覆盖手机本地偏好", () => {
     expect(
       resolveLocalePreferenceFromSettings({
@@ -304,7 +318,7 @@ describe("IntlProvider locale preference sync", () => {
       expect(screen.getByTestId("locale").textContent).toBe("en-US");
       expect(screen.getByTestId("localePreference").textContent).toBe("en-US");
     });
-    expect(localStorage.getItem("zcode-locale-preference")).toBe("en-US");
+    expect(localStorage.getItem("zcode-next-locale-preference")).toBe("en-US");
     expect(settingService.update).toHaveBeenCalledWith({
       locale: "en-US",
       localePreference: "en-US",
@@ -357,7 +371,7 @@ describe("IntlProvider locale preference sync", () => {
 
     expect(screen.getByTestId("locale").textContent).toBe("zh-CN");
     expect(screen.getByTestId("localePreference").textContent).toBe("system");
-    expect(localStorage.getItem("zcode-locale-preference")).toBe("system");
+    expect(localStorage.getItem("zcode-next-locale-preference")).toBe("system");
   });
 
   it("settingService 持久化延迟时不会阻塞跨窗口广播", async () => {
@@ -436,10 +450,7 @@ describe("IntlProvider locale preference sync", () => {
 
   it("首次 settingService update 永久 pending 后再次选择仍会尝试持久化", async () => {
     const pendingUpdate = createDeferred<void>();
-    const update = vi
-      .fn()
-      .mockReturnValueOnce(pendingUpdate.promise)
-      .mockResolvedValue(undefined);
+    const update = vi.fn().mockReturnValueOnce(pendingUpdate.promise).mockResolvedValue(undefined);
     renderIntlProvider({
       settings: {
         locale: "zh-CN",

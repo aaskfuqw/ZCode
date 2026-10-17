@@ -18,9 +18,9 @@ const skillOutcome: SkillLoadOutcome = {
     {
       name: "demo-skill",
       description: "Use this for demo workflows",
-      path: "/workspace/.zcode/skills/demo-skill/SKILL.md",
-      directory: "/workspace/.zcode/skills/demo-skill",
-      rootPath: "/workspace/.zcode/skills",
+      path: "/workspace/.zcode-next/skills/demo-skill/SKILL.md",
+      directory: "/workspace/.zcode-next/skills/demo-skill",
+      rootPath: "/workspace/.zcode-next/skills",
       scope: "project",
       source: "zcode",
       safeToAutoLoad: true,
@@ -70,7 +70,7 @@ describe("Skill integration", () => {
           return {
             metadata: skillOutcome.skills[0]!,
             content: "# Demo Skill\n\nFollow this workflow.",
-            baseDirectory: "/workspace/.zcode/skills/demo-skill",
+            baseDirectory: "/workspace/.zcode-next/skills/demo-skill",
             bytesRead: 37,
             sizeBytes: 37,
             truncated: false,
@@ -96,7 +96,7 @@ describe("Skill integration", () => {
             metadata: skillOutcome.skills[0]!,
             content:
               "# Demo Skill\n\nRead ${CLAUDE_SKILL_DIR}/references.md and ${ZCODE_SKILL_DIR}/notes.md.",
-            baseDirectory: "/workspace/.zcode/skills/demo-skill",
+            baseDirectory: "/workspace/.zcode-next/skills/demo-skill",
             bytesRead: 91,
             sizeBytes: 91,
             truncated: false,
@@ -106,8 +106,8 @@ describe("Skill integration", () => {
     );
 
     expect(loaded).toContain('<skill_content name="demo-skill">');
-    expect(loaded).toContain("/workspace/.zcode/skills/demo-skill/references.md");
-    expect(loaded).toContain("/workspace/.zcode/skills/demo-skill/notes.md");
+    expect(loaded).toContain("/workspace/.zcode-next/skills/demo-skill/references.md");
+    expect(loaded).toContain("/workspace/.zcode-next/skills/demo-skill/notes.md");
   });
 
   // docs/dynamic-workflow/authoring.md「The skill」：只有工作流技能拿 200 000 字节的上限，其余技能仍是 100 000。
@@ -123,7 +123,7 @@ describe("Skill integration", () => {
         return {
           metadata: { ...skillOutcome.skills[0]!, name: request.name },
           content: "body",
-          baseDirectory: "/workspace/.zcode/skills/demo-skill",
+          baseDirectory: "/workspace/.zcode-next/skills/demo-skill",
           bytesRead: 4,
           sizeBytes: 4,
           truncated: false,

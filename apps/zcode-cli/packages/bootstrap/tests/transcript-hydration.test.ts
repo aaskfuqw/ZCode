@@ -3315,7 +3315,7 @@ describe("workflow-direct-launch 启动轮冷恢复", () => {
     toolCallId: "launch-abc",
     name: "deep-research",
     scope: "global" as const,
-    path: "/home/u/.zcode/workflows/deep-research.ts",
+    path: "/home/u/.zcode-next/workflows/deep-research.ts",
     args: { topic: "adaptive concurrency" },
     description: "Deep-dive a topic",
   };

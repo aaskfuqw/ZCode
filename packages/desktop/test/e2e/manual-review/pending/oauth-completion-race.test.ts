@@ -74,7 +74,7 @@ describe("OAuth 双路径完成竞态", () => {
     await browser.electron.execute((electron, channel) => {
       electron.BrowserWindow.getAllWindows()[0]!.webContents.send(
         channel,
-        "zcode://oauth/callback?state=e2e-race&authCode=cancelled",
+        "zcode-next://oauth/callback?state=e2e-race&authCode=cancelled",
       );
     }, PlatformChannels.OAuthCallback);
     await browser.waitUntil(
@@ -120,7 +120,7 @@ describe("OAuth 双路径完成竞态", () => {
     await browser.electron.execute((electron, channel) => {
       electron.BrowserWindow.getAllWindows()[0]!.webContents.send(
         channel,
-        "zcode://oauth/callback?state=e2e-race&authCode=e2e-code&channel_id=desktop&utm_source=website&utm_campaign=race",
+        "zcode-next://oauth/callback?state=e2e-race&authCode=e2e-code&channel_id=desktop&utm_source=website&utm_campaign=race",
       );
     }, PlatformChannels.OAuthCallback);
     await browser.waitUntil(
@@ -163,7 +163,7 @@ describe("OAuth 双路径完成竞态", () => {
     await browser.electron.execute((electron, channel) => {
       electron.BrowserWindow.getAllWindows()[0]!.webContents.send(
         channel,
-        "zcode://oauth/callback?state=e2e-race&authCode=late&channel_id=desktop&utm_source=website&utm_campaign=late",
+        "zcode-next://oauth/callback?state=e2e-race&authCode=late&channel_id=desktop&utm_source=website&utm_campaign=late",
       );
     }, PlatformChannels.OAuthCallback);
     await browser.waitUntil(

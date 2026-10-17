@@ -79,7 +79,7 @@ setTimeout(() => {
       ZCODE_SERVER_ENTRY: backendEntry,
       ZCODE_AGENT_ENTRY: agentEntry,
       ZCODE_SERVER_WORKSPACE: workspaceDir,
-      ZCODE_STORAGE_DIR: join(dataDir, ".zcode"),
+      ZCODE_STORAGE_DIR: join(dataDir, ".zcode-next"),
       ZCODE_TEST_BACKEND_START_DELAY_MS: "1000",
       ZCODE_WEB_DIST_DIR: webDistDir,
     },

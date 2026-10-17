@@ -17,7 +17,7 @@ export function ensureCliDeviceMid(options: EnsureCliDeviceMidOptions = {}): Pro
   const base = options.baseDir ?? env.ZCODE_DATA_BASE_DIR?.trim() ?? homedir();
   const expanded =
     base === "~" ? homedir() : base.startsWith("~/") ? join(homedir(), base.slice(2)) : base;
-  const directory = join(resolve(expanded || homedir()), ".zcode", "v2");
+  const directory = join(resolve(expanded || homedir()), ".zcode-next", "v2");
   let pending = pendingByDirectory.get(directory);
   if (!pending) {
     const createId = options.createId ?? createUuid;

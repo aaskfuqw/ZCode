@@ -1,8 +1,16 @@
-# ZCode
+# ZCode Next
 
-ZCode is a personal fork of the ZCode Desktop app: an Electron shell with a window-scoped Local Host, remote workspaces, a web client, and a mobile remote-control client.
+ZCode Next is a personal fork of the ZCode Desktop app: an Electron shell with a window-scoped Local Host, remote workspaces, a web client, and a mobile remote-control client.
 
 ## Language
+
+**ZCode Next**:
+The independently evolving product maintained in this personal fork.
+_Avoid_: ZCode when referring to this fork
+
+**Upstream ZCode**:
+The original ZCode product from which ZCode Next was forked.
+_Avoid_: ZCode Next when referring to the upstream product
 
 **Update**:
 Getting a newer build of this fork by pulling the repository and rebuilding it. The application itself never checks for, downloads, installs, or is blocked by a newer version, and no remote configuration can force one.
@@ -13,7 +21,7 @@ Automatic collection and delivery of ZCode usage, stability, and performance obs
 _Avoid_: using telemetry to mean all logs, business events, or user-visible usage
 
 **Business device identity**:
-A stable device identity required by ZCode's official model and subscription services. It remains the same when upgrading this fork and is independent of telemetry.
+A stable device identity required by the official model and subscription services. ZCode Next has its own identity, preserved across Next upgrades and independent of telemetry and upstream ZCode's identity.
 _Avoid_: telemetry identity, analytics device ID
 
 **Marketing capability**:

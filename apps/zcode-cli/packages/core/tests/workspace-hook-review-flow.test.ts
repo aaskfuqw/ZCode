@@ -21,8 +21,8 @@ function request(generation = 1): WorkspaceHookReviewRequestPayload {
     deadlineAt: generation * 1_000 + 10_000,
     sourceFiles: [
       {
-        path: "/workspace/.zcode/config.json",
-        displayPath: ".zcode/config.json",
+        path: "/workspace/.zcode-next/config.json",
+        displayPath: ".zcode-next/config.json",
         editable: true,
       },
     ],
@@ -35,7 +35,7 @@ function request(generation = 1): WorkspaceHookReviewRequestPayload {
         type: "command",
         displayName: "SessionStart · startup",
         displayCommand: "echo project",
-        sourcePath: ".zcode/config.json",
+        sourcePath: ".zcode-next/config.json",
         resolvedTimeoutMs: 60_000,
         resolvedMaxOutputBytes: 32_768,
         executionMode: "foreground",

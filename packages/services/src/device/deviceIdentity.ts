@@ -6,7 +6,7 @@ export function ensureDeviceMid(
   options: { homeDir?: string; randomUUID?: () => string } = {},
 ): Promise<string> {
   return ensureBusinessDeviceMid(
-    options.homeDir ? join(options.homeDir, ".zcode", "v2") : getAppConfigDir(),
+    options.homeDir ? join(options.homeDir, ".zcode-next", "v2") : getAppConfigDir(),
     options.randomUUID,
   );
 }

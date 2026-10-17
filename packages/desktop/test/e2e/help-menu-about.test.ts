@@ -86,7 +86,7 @@ async function assertLogExport(label: string, pendingLabel: string) {
       { timeout: 30_000, timeoutMsg: "点击导出日志后未生成归档并请求系统定位" },
     );
     const archivePath = String(reveal.mock.calls[0]?.[0]);
-    expect(archivePath).toMatch(/zcode-logs-[^/\\]+\.zip$/);
+    expect(archivePath).toMatch(/zcode-next-logs-[^/\\]+\.zip$/);
     const archive = await readFile(archivePath);
     expect(archive.subarray(0, 4).toString("hex")).toBe("504b0304");
     await browser.waitUntil(
@@ -171,13 +171,13 @@ describe(`问号菜单应用入口（${expectedFlavor}）`, () => {
       "Request a feature",
       "Export logs",
       "Resource manager",
-      "About ZCode",
+      "About ZCode Next",
     ]);
     expect(await $$('[role="menu"] [role="separator"]')).toHaveLength(1);
     await browser.saveScreenshot(join(tmpdir(), "zcode-help-export-en-light.png"));
     await assertLogExport("Export logs", "Exporting logs...");
     await openMenu();
-    await $('[role="menuitem"]*=About ZCode').click();
+    await $('[role="menuitem"]*=About ZCode Next').click();
     await assertAboutWindow();
   });
 
@@ -198,13 +198,13 @@ describe(`问号菜单应用入口（${expectedFlavor}）`, () => {
       "给产品提需求",
       "导出日志",
       "资源管理器",
-      "关于 ZCode",
+      "关于 ZCode Next",
     ]);
     expect(await $$('[role="menu"] [role="separator"]')).toHaveLength(1);
     await browser.saveScreenshot(join(tmpdir(), "zcode-help-export-zh-dark.png"));
     await assertLogExport("导出日志", "正在导出日志中");
     await openMenu();
-    await $('[role="menuitem"]*=关于 ZCode').click();
+    await $('[role="menuitem"]*=关于 ZCode Next').click();
     await assertAboutWindow();
   });
 });

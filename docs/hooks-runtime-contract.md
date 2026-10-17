@@ -56,13 +56,13 @@ HooksService / conversation projection
 
 ## 配置来源与合并
 
-| 来源                           | Runtime 执行 | 设置页编辑 | 生效规则                                               |
-| ------------------------------ | ------------ | ---------- | ------------------------------------------------------ |
-| `~/.zcode/cli/config.json`     | 是           | 是         | user hooks 先执行                                      |
-| workspace `.zcode/config.json` | 条件执行     | 是         | rollout 开启且 exact Trust/policy admission 通过后执行 |
-| 已启用插件 hooks               | 是           | 否         | 按现有 plugin 来源规则执行                             |
-| `.agents/settings.json`        | 否           | 否         | 只读展示，可显式导入 `.zcode`                          |
-| `.claude/settings.json`        | 否           | 否         | 只读展示，可显式导入 `.zcode`                          |
+| 来源                                | Runtime 执行 | 设置页编辑 | 生效规则                                               |
+| ----------------------------------- | ------------ | ---------- | ------------------------------------------------------ |
+| `~/.zcode-next/cli/config.json`     | 是           | 是         | user hooks 先执行                                      |
+| workspace `.zcode-next/config.json` | 条件执行     | 是         | rollout 开启且 exact Trust/policy admission 通过后执行 |
+| 已启用插件 hooks                    | 是           | 否         | 按现有 plugin 来源规则执行                             |
+| `.agents/settings.json`             | 否           | 否         | 只读展示，可显式导入 `.zcode-next`                     |
+| `.claude/settings.json`             | 否           | 否         | 只读展示，可显式导入 `.zcode-next`                     |
 
 配置合并约束：
 
@@ -74,7 +74,7 @@ HooksService / conversation projection
 3. 插件 hooks 只在插件启用时注入 runtime；插件关闭后新 session 不再执行。
 4. 每个 `process` / `command` 支持 `enabled?: boolean`，缺省为 `true`。Runner 必须跳过
    `enabled:false`，不能只在 UI 中隐藏或变灰。
-5. UI 只把 `.zcode` hooks 写回原 user/project 文件，不修改 plugin、`.agents` 或 `.claude` 文件。
+5. UI 只把 `.zcode-next` hooks 写回原 user/project 文件，不修改 plugin、`.agents` 或 `.claude` 文件。
 6. 单条 Hook 的未知扩展字段必须在设置服务中往返保留，并由 Agent 配置 schema 接受；runtime
    可以忽略当前版本不识别的字段，不能因此让整个配置文件失效。
 
@@ -207,10 +207,10 @@ stdout 规则：
 
 Hooks 设置页必须在 desktop 和 Web UI 使用同一组件，并满足：
 
-- `.zcode` hooks 支持新增、编辑、删除、启停和 user/workspace scope。
+- `.zcode-next` hooks 支持新增、编辑、删除、启停和 user/workspace scope。
 - 表单支持 7 个事件、`process` / `command` 类型、matcher、argv、timeout、`statusMessage`
   和 command async。
-- `.agents` / `.claude` hooks 标记为兼容来源、不可直接编辑或启停，并提供显式导入 `.zcode`。
+- `.agents` / `.claude` hooks 标记为兼容来源、不可直接编辑或启停，并提供显式导入 `.zcode-next`。
 - 插件 hooks 单独分组；列表只读展示 event 与 command，并以分组标题和插件图标表达来源。
   matcher、type、source path 与 effective enabled 状态保留为数据事实，不在列表行重复堆叠。
 - 插件 Hook 的 User / Workspace 分栏只使用 overview 安装记录中的权威 scope。overview
@@ -244,7 +244,7 @@ Hooks 设置页必须在 desktop 和 Web UI 使用同一组件，并满足：
 | HK-06 | `PostToolUseFailure` | 字符串 error、interrupt、recovery context                                         | core + desktop E2E       |
 | HK-07 | `Stop`               | last assistant、transcript、block 续跑上限                                        | core + desktop E2E       |
 | HK-08 | Config/source        | user+project+plugin 顺序、逐 Hook disabled 真跳过                                 | adapter/bootstrap/core   |
-| HK-09 | Settings             | `.zcode` 可写、legacy 可导入、plugin 只读可见                                     | service/UI + desktop E2E |
+| HK-09 | Settings             | `.zcode-next` 可写、legacy 可导入、plugin 只读可见                                | service/UI + desktop E2E |
 | HK-10 | Executors/async      | process argv、command shell/fire-and-forget、父级取消、后台 lifecycle、错误隔离   | core + desktop E2E       |
 
 完整窗口级 suite 使用 `HK-LC-01`、`HK-EF-01`、`HK-ST-01`、`HK-UP-01`，定义在

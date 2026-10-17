@@ -146,7 +146,7 @@ export async function corruptLifecycleMarketplaceManifest(
 function lifecycleManagedPluginRoot(homeDir: string): string {
   return join(
     homeDir,
-    ".zcode",
+    ".zcode-next",
     "cli",
     "plugins",
     "marketplaces",
@@ -203,7 +203,7 @@ export async function seedInlineLifecyclePlugin(): Promise<string> {
     ].join("\n"),
   );
 
-  const configPath = join(homeDir, ".zcode", "cli", "config.json");
+  const configPath = join(homeDir, ".zcode-next", "cli", "config.json");
   const config = await readJsonRecord(configPath);
   const plugins = isRecord(config.plugins) ? config.plugins : {};
   const enabledPlugins = isRecord(plugins.enabledPlugins) ? plugins.enabledPlugins : {};
@@ -403,9 +403,11 @@ export async function waitForDisplayedPluginControl(
 export async function addMarketplaceSourceThroughUi(source: string): Promise<void> {
   await waitForPluginControl("plugin-store-create");
   await browser.execute(() => {
-    document.querySelector<HTMLElement>('[data-testid="plugin-store-create"]')?.dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }),
-    );
+    document
+      .querySelector<HTMLElement>('[data-testid="plugin-store-create"]')
+      ?.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }),
+      );
   });
   await waitForPluginControl("plugin-store-add-source-menu-item");
   await clickPluginControl("plugin-store-add-source-menu-item");
@@ -884,7 +886,7 @@ export async function waitForPluginDraftRuntimeInvalidation(
 
 export async function readPluginConfigOptions(): Promise<Record<string, unknown>> {
   const config = await readJsonRecord(
-    join(getE2EAppDataPaths().homeDir, ".zcode", "cli", "config.json"),
+    join(getE2EAppDataPaths().homeDir, ".zcode-next", "cli", "config.json"),
   );
   const plugins = isRecord(config.plugins) ? config.plugins : {};
   const options = isRecord(plugins.options) ? plugins.options : {};
@@ -892,7 +894,7 @@ export async function readPluginConfigOptions(): Promise<Record<string, unknown>
 }
 
 export function pluginStoragePath(...segments: string[]): string {
-  return join(getE2EAppDataPaths().homeDir, ".zcode", "cli", "plugins", ...segments);
+  return join(getE2EAppDataPaths().homeDir, ".zcode-next", "cli", "plugins", ...segments);
 }
 
 export function pluginDataPath(pluginId: string): string {
@@ -1006,7 +1008,7 @@ async function writeLifecyclePlugin(pluginRoot: string, version: string): Promis
     name: PLUGIN_LIFECYCLE_NAME,
     version,
     description: `E2E plugin management lifecycle fixture ${version}`,
-    author: { name: "ZCode E2E" },
+    author: { name: "ZCode Next E2E" },
     homepage: "https://example.com/e2e-plugin-lifecycle",
     commands: "commands",
     agents: "agents",
@@ -1104,7 +1106,7 @@ async function writeMarketplaceManifest(marketplaceRoot: string, version: string
         description: `Deterministic plugin lifecycle fixture ${version}`,
         description_i18n: { "zh-CN": `确定性插件生命周期测试 ${version}` },
         category: "productivity",
-        author: { name: "ZCode E2E", url: "https://example.com" },
+        author: { name: "ZCode Next E2E", url: "https://example.com" },
         homepage: "https://example.com/e2e-plugin-lifecycle",
         privacyPolicy: "https://example.com/privacy",
         termsOfService: "https://example.com/terms",

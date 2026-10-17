@@ -273,16 +273,16 @@ async function createTemporaryRoot(): Promise<string> {
 }
 
 function identityFile(root: string): string {
-  return join(root, ".zcode", "v2", "device-identity.json");
+  return join(root, ".zcode-next", "v2", "device-identity.json");
 }
 
 function legacyIdentityFile(root: string): string {
-  return join(root, ".zcode", "v2", "telemetry-state.json");
+  return join(root, ".zcode-next", "v2", "telemetry-state.json");
 }
 
 async function writeLegacyIdentity(root: string, state: Record<string, unknown>): Promise<string> {
   const stateFile = legacyIdentityFile(root);
-  await mkdir(join(root, ".zcode", "v2"), { recursive: true });
+  await mkdir(join(root, ".zcode-next", "v2"), { recursive: true });
   await writeFile(stateFile, JSON.stringify(state, null, 2), "utf-8");
   return stateFile;
 }

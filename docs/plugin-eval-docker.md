@@ -22,7 +22,7 @@ flowchart LR
     D --> E[plugins marketplace update<br/>+ install 全量官方插件]
   end
   subgraph host[主机（一次）]
-    F[~/.zcode/v2 登录凭据] --> G[prepare-auth.mjs<br/>重加密 + 写死模型选择]
+    F[~/.zcode-next/v2 登录凭据] --> G[prepare-auth.mjs<br/>重加密 + 写死模型选择]
   end
   subgraph run[每任务一容器]
     H[task.json] --> I[disable --all<br/>enable 白名单]
@@ -63,7 +63,7 @@ docker/plugin-eval/bin/build-image.sh --ref feat-cli-plugins-parity \
 2. `builder` 阶段 `pnpm install --frozen-lockfile --filter "@zcode/cli..." --filter zcode`，然后按仓库脚本
    `scripts/build-desktop-agent-cli.mjs` 的顺序构建 shared-types → contracts → core → adapters → i18n → bootstrap → cli。
 3. `runtime` 阶段只带 `node + zcode.cjs + jq/python3/git/ripgrep`，以 uid 10001 的 `zcode` 用户运行；
-   `HOME=/data`、`ZCODE_DATA_BASE_DIR=/data`、`ZCODE_STORAGE_DIR=/data/.zcode`、`ZCODE_BASE_URL=https://zcode.z.ai`。
+   `HOME=/data`、`ZCODE_DATA_BASE_DIR=/data`、`ZCODE_STORAGE_DIR=/data/.zcode-next`、`ZCODE_BASE_URL=https://zcode.z.ai`。
    内置插件不在 `zcode.cjs` 里，CLI 在入口文件同级的 `packages/<name>-plugin` 找根目录，所以 builder 阶段把
    document-skills、zcode-guide、skill-creator、restore-legacy-sessions 四个纯内容型内置插件 stage 到 `/opt/zcode/packages/`；
    同理 CLI 启动必读的内置 provider 目录 `config/provider/zcode-builtin.json` 放到 `/opt/zcode/provider/`。
@@ -84,7 +84,7 @@ node docker/plugin-eval/bin/prepare-auth.mjs --out ./.zcode-eval-auth \
 # 末尾会打印：export ZCODE_EVAL_CREDENTIAL_SECRET=...   （复制执行）
 ```
 
-为什么不能直接把 `~/.zcode/v2` 拷进容器：
+为什么不能直接把 `~/.zcode-next/v2` 拷进容器：
 
 - `credentials.json` 的值用 aes-256-gcm 加密，默认密钥由 `platform:homedir:username` 派生。容器里三者全变，直接拷贝必然解密失败。
   脚本在主机上用本机密钥解密，再用 `ZCODE_EVAL_CREDENTIAL_SECRET` 重加密；容器运行时以 `ZCODE_CREDENTIAL_SECRET` 传入同一个值。

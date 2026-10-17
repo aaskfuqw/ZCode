@@ -40,12 +40,12 @@ Useful questions:
 
 ZCode discovers skills in these directories (highest priority first):
 
-- `<project>/.zcode/skills/<name>/SKILL.md`
+- `<project>/.zcode-next/skills/<name>/SKILL.md`
 - `<project>/.agents/skills/<name>/SKILL.md`
-- `~/.zcode/skills/<name>/SKILL.md`
+- `~/.zcode-next/skills/<name>/SKILL.md`
 - `~/.agents/skills/<name>/SKILL.md`
 
-**Default to creating new skills under `.agents/skills/`** — it's the standard, cross-tool location for new skills. Note that `.zcode/skills` still takes priority during discovery: if the same skill name exists in both, the `.zcode/skills` copy wins, so `.zcode/skills` is the place to *override* a skill. Pick the `<project>` path for skills that only make sense in this repo; pick the `~/` (user) path for personal skills you want everywhere.
+**Default to creating new skills under `.agents/skills/`** — it's the standard, cross-tool location for new skills. Note that `.zcode-next/skills` still takes priority during discovery: if the same skill name exists in both, the `.zcode-next/skills` copy wins, so `.zcode-next/skills` is the place to *override* a skill. Pick the `<project>` path for skills that only make sense in this repo; pick the `~/` (user) path for personal skills you want everywhere.
 
 ### Write the SKILL.md
 

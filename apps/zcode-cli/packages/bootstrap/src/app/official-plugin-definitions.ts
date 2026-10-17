@@ -36,7 +36,7 @@ export const OFFICIAL_CUA_PLUGIN_ID = `${OFFICIAL_CUA_PLUGIN_NAME}@${ZCODE_OFFIC
 
 export interface OfficialPluginDefinition {
   // 内容型 plugin (无 MCP server / 无系统依赖) 可以设为 true,
-  // 这样用户首次 `/skill <name>` 就能用,不必先 `zcode plugins enable`。
+  // 这样用户首次 `/skill <name>` 就能用,不必先 `zcode-next plugins enable`。
   // 默认 false 保持 ios-simulator / android-emulator 这类重负载 plugin 原来行为。
   defaultEnabled?: boolean;
   listing?: OfficialPluginListingSeed;

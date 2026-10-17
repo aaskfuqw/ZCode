@@ -89,10 +89,10 @@ packages/desktop/test/e2e/fixtures/cases/conversation-session/<case-name>.json
 
 ### 跨平台运行时路径合同
 
-`.e2e-home` 是 Desktop E2E 的隔离用户目录，不应把 case 文件散落到系统 `/tmp`。spec 在运行时创建、读取、修改或等待的文件统一放到 Agent 实际执行 workspace `ZCodeProject` 下的 `.zcode-e2e/<case>`：
+`.e2e-home` 是 Desktop E2E 的隔离用户目录，不应把 case 文件散落到系统 `/tmp`。spec 在运行时创建、读取、修改或等待的文件统一放到 Agent 实际执行 workspace `ZCodeNextProject` 下的 `.zcode-e2e/<case>`：
 
 ```text
-.e2e-home/ZCodeProject/               Agent workspace cwd
+.e2e-home/ZCodeNextProject/               Agent workspace cwd
 └── .zcode-e2e/<case>/                case-owned runtime files
 ```
 
@@ -103,7 +103,7 @@ packages/desktop/test/e2e/fixtures/cases/conversation-session/<case-name>.json
 
 ```text
 spec native path ─────────────┐
-fixture absolute tool path ───┼─> ZCodeProject/.zcode-e2e/<case>/file
+fixture absolute tool path ───┼─> ZCodeNextProject/.zcode-e2e/<case>/file
 Bash relative path ───────────┘
 ```
 

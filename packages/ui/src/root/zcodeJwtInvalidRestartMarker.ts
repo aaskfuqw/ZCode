@@ -1,4 +1,4 @@
-const ZCODE_JWT_INVALID_RESTART_MARKER_KEY = "zcode:auth:jwt-invalid-restart";
+const ZCODE_JWT_INVALID_RESTART_MARKER_KEY = "zcode-next:auth:jwt-invalid-restart";
 
 interface RestartMarkerStorage {
   getItem(key: string): string | null;
