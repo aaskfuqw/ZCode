@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { protocolContractSchema } from "./zcode-protocol-v4/connection-contract.js";
 
 export const SERVER_REMOTE_PROTOCOL_VERSION = 1;
 
@@ -13,6 +14,7 @@ export const serverRemoteInfoSchema = z.object({
   name: z.string().trim().min(1).optional(),
   version: z.string(),
   protocolVersion: z.literal(SERVER_REMOTE_PROTOCOL_VERSION),
+  protocolContract: protocolContractSchema,
   authRequired: z.boolean(),
   workspaces: z.array(serverRemoteWorkspaceInfoSchema),
   capabilities: z.object({
@@ -24,6 +26,10 @@ export const serverRemoteInfoSchema = z.object({
 export type ServerRemoteWorkspaceInfo = z.infer<typeof serverRemoteWorkspaceInfoSchema>;
 
 export type ServerRemoteInfo = z.infer<typeof serverRemoteInfoSchema>;
+
+export const serverRemoteHostAdmissionSchema = z
+  .object({ protocolContract: protocolContractSchema })
+  .strict();
 
 export const serverRemoteHostCapabilitySchema = z
   .object({

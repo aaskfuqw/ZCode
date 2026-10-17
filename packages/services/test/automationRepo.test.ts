@@ -101,7 +101,7 @@ describe("AutomationRepo 调度状态机", () => {
     },
   );
 
-  it("首次派发区分跟随默认、未迁移旧选择和损坏新值，不从旧列恢复执行选择", async () => {
+  it("首次派发区分跟随默认和损坏的模型选择", async () => {
     const created = await repo.create(makeParams(), { nextRunAt: NOW + MINUTE });
     await expect(
       repo.getModelSelectionForDispatch(created.automationId, created.workspaceKey),
@@ -109,14 +109,15 @@ describe("AutomationRepo 调度状态机", () => {
     const db = new DatabaseSync(dbPath);
     try {
       for (const raw of [null, "{}", "invalid-json"]) {
-        db.prepare(
-          "UPDATE automations SET model_selection = ?, model = ?, provider = ? WHERE automation_id = ?",
-        ).run(raw, "unrecognized-old-model", "glm", created.automationId);
+        db.prepare("UPDATE automations SET model_selection = ? WHERE automation_id = ?").run(
+          raw,
+          created.automationId,
+        );
         await expect(
           repo.getModelSelectionForDispatch(created.automationId, created.workspaceKey),
         ).rejects.toThrow("Automation 模型选择不可用");
       }
-      // 新版明确跟随是合法产品意图；保留的旧列仅供回滚，不得重新带回旧选择。
+      // An explicit null is a valid request to follow the workspace selection.
       db.prepare("UPDATE automations SET model_selection = 'null' WHERE automation_id = ?").run(
         created.automationId,
       );
@@ -143,32 +144,6 @@ describe("AutomationRepo 调度状态机", () => {
     }
   });
 
-  it("旧账号与自定义选择仅凭存储即可导入，不需要账号或候选配置", async () => {
-    const first = await repo.create(makeParams(), { nextRunAt: NOW + MINUTE });
-    const second = await repo.create(makeParams(), { nextRunAt: NOW + MINUTE });
-    const db = new DatabaseSync(dbPath);
-    db.prepare(
-      "UPDATE automations SET model_selection = NULL, model = ? WHERE automation_id = ?",
-    ).run("builtin:bigmodel-coding-plan/GLM-5", first.automationId);
-    db.prepare(
-      "UPDATE automations SET model_selection = NULL, model = ? WHERE automation_id = ?",
-    ).run("custom-provider/model", second.automationId);
-    db.exec("DELETE FROM tasks_schema_migration WHERE id='0002_provider_selection'");
-    db.close();
-    repo.close();
-    repo = new AutomationRepo(dbPath);
-    const list = await repo.list();
-    expect(
-      list.find((item) => item.automationId === first.automationId)?.modelSelection?.providerId,
-    ).toBe("account:bigmodel-individual-coding-plan");
-    expect(
-      list.find((item) => item.automationId === second.automationId)?.modelSelection?.providerId,
-    ).toBe("custom-provider");
-    expect((await repo.get(first.automationId))?.modelSelection?.providerId).toBe(
-      "account:bigmodel-individual-coding-plan",
-    );
-  });
-
   it("delete：返回真实删除结果并限定 workspace", async () => {
     const created = await repo.create(makeParams(), { nextRunAt: NOW + MINUTE });
 
@@ -177,49 +152,16 @@ describe("AutomationRepo 调度状态机", () => {
     await expect(repo.delete(created.automationId, created.workspaceKey)).resolves.toBe(false);
   });
 
-  it.each([
-    "builtin:zai-coding-plan/GLM-5.3-Flash",
-    "custom:builtin%3Azai-coding-plan:GLM-5.3-Flash",
-  ])("旧定时任务解码 %s，并在新列固定迁移结果但保留回滚字段", async (legacyModel) => {
-    const created = await repo.create(makeParams(), { nextRunAt: NOW });
-    repo.close();
-    const db = new DatabaseSync(dbPath);
-    db.prepare(
-      "UPDATE automations SET model = ?, provider = 'glm', thought_level = 'high', model_selection = NULL WHERE automation_id = ?",
-    ).run(legacyModel, created.automationId);
-    db.exec("DELETE FROM tasks_schema_migration WHERE id='0002_provider_selection'");
-    db.close();
-    repo = new AutomationRepo(dbPath);
-    const expected = {
-      providerId: "account:zai-individual-coding-plan",
-      modelId: "GLM-5.3-Flash",
-      options: { reasoningLevel: "high" },
-    };
-    expect((await repo.get(created.automationId))?.modelSelection).toEqual(expected);
-    await repo.update(created.automationId, { title: "Edited title" });
-    repo.close();
-    const persistedDb = new DatabaseSync(dbPath);
-    const row = persistedDb
-      .prepare(
-        "SELECT model, provider, thought_level, model_selection FROM automations WHERE automation_id = ?",
-      )
-      .get(created.automationId);
-    persistedDb.close();
-    expect(row).toMatchObject({ model: legacyModel, provider: "glm", thought_level: "high" });
-    expect(JSON.parse(String(row?.model_selection))).toEqual(expected);
-    repo = new AutomationRepo(dbPath);
-    expect((await repo.get(created.automationId))?.modelSelection).toEqual(expected);
-  });
-
   it.each(["null", "{}", "{broken"])(
     "新选择 %s 不回读旧模型，清空后重启也不复活",
     async (modelSelection) => {
       const created = await repo.create(makeParams(), { nextRunAt: NOW });
       repo.close();
       const db = new DatabaseSync(dbPath);
-      db.prepare(
-        "UPDATE automations SET model = 'personal:p/m', provider = 'glm', thought_level = 'low', model_selection = ? WHERE automation_id = ?",
-      ).run(modelSelection, created.automationId);
+      db.prepare("UPDATE automations SET model_selection = ? WHERE automation_id = ?").run(
+        modelSelection,
+        created.automationId,
+      );
       db.close();
       repo = new AutomationRepo(dbPath);
       expect((await repo.get(created.automationId))?.modelSelection).toBeUndefined();
@@ -303,7 +245,7 @@ describe("AutomationRepo 调度状态机", () => {
     expect(automations.map((automation) => automation.mode)).toEqual([undefined, undefined]);
   });
 
-  it("升级旧库时用历史 run_count 初始化定时派发计数", async () => {
+  it("重开当前数据库保留定时派发计数并按上限完成", async () => {
     const created = await repo.create(makeParams({ recurring: false, maxRuns: 3 }), {
       nextRunAt: NOW,
     });
@@ -316,11 +258,6 @@ describe("AutomationRepo 调度状态机", () => {
       nextRunAt: NOW + 2 * MINUTE,
     });
     repo.close();
-
-    const db = new DatabaseSync(dbPath);
-    db.exec("ALTER TABLE automations DROP COLUMN scheduled_run_count");
-    db.exec("DELETE FROM tasks_schema_migration");
-    db.close();
 
     repo = new AutomationRepo(dbPath);
     expect(await repo.getScheduledRunCount(created.automationId)).toBe(2);

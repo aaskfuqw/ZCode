@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  isProviderStartupSyncPending,
   shouldEnableProviderAvailabilityLoginEntryGuard,
   shouldResolveProviderStartupState,
   shouldBlockRootRender,
@@ -64,20 +63,21 @@ describe("Root startup gate", () => {
     ).toBe(false);
   });
 
-  it("provider 启动同步未完成时会延后首屏放行", () => {
-    const providerStartupSyncPending = isProviderStartupSyncPending({
-      providerFamilyDomainMigrationComplete: false,
-      modelSelectionViewHydrated: true,
+  it.each([false, true])("uses current provider readiness for startup blocking (%s)", (pending) => {
+    const isResolvingProviderStartupState = shouldResolveProviderStartupState({
+      isWebRemoteControlRoot: false,
+      providerStartupSyncPending: pending,
+      providerAvailabilityStartupCheckCompleted: true,
     });
-    expect(providerStartupSyncPending).toBe(true);
+    expect(isResolvingProviderStartupState).toBe(pending);
     expect(
       shouldBlockRootRender({
         isResolvingStartupAuthState: false,
-        isResolvingProviderStartupState: providerStartupSyncPending,
+        isResolvingProviderStartupState,
         isRestoring: false,
         isBootstrappingInitialWorkspace: false,
       }),
-    ).toBe(true);
+    ).toBe(pending);
   });
 
   it("Web 远控 Root 不运行 provider 登录入口守卫", () => {

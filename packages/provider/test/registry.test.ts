@@ -184,25 +184,18 @@ describe("ProviderRegistry", () => {
     ).toEqual({ ok: true });
   });
 
-  it("旧关闭值只在意图解析中迁移，精确执行校验不能接受别名", () => {
+  it("意图解析和精确执行均拒绝旧关闭值", () => {
     const registry = new ProviderRegistry([provider("A", "a", ["disabled", "enabled"])]);
     const original = { providerId: "A", modelId: "a", options: { reasoningLevel: "off" } };
     const resolved = resolveEffectiveModelSelection({
       selection: original,
       registry: registry.getView(),
       classifyProvider: () => "ordinary",
-      resolveLegacyReasoningLevel: () => "disabled",
     });
-    expect(resolved.effectiveSelection?.options?.reasoningLevel).toBe("disabled");
+    expect(resolved.selectionIssue).toBe("reasoning-level-not-supported");
+    expect(resolved.effectiveSelection?.options).toBeUndefined();
+    expect(original.options.reasoningLevel).toBe("off");
     expect(registry.validateSelection(original).ok).toBe(false);
-    expect(registry.validateSelection(resolved.effectiveSelection!).ok).toBe(true);
-    const unsupported = resolveEffectiveModelSelection({
-      selection: original,
-      registry: registry.getView(),
-      classifyProvider: () => "ordinary",
-      resolveLegacyReasoningLevel: () => "unsupported",
-    });
-    expect(unsupported.selectionIssue).toBe("reasoning-level-not-supported");
   });
   it("原子替换有序 View、索引和 revision，并让旧快照保持不变", () => {
     const registry = new ProviderRegistry([provider("A", "a")]);

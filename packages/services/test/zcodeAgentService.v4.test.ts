@@ -1,3 +1,4 @@
+import { withCurrentProtocolAgent } from "./helpers/currentProtocolAgent.js";
 import { channelReplyHostRequestSchema, type ChannelReplyHostRequest } from "@zcode/shared";
 // v4 conversation 通道 host 转发面测试（M3 竖切，docs/v4-refactor/01-topology §host 通道层）。
 // 验证 host 只做透传：subscribe/unsubscribe/command 转发给 CLI v4 方法，
@@ -27,7 +28,7 @@ import { TaskIndexRepo } from "../src/session/taskIndexRepo.js";
 // - v4/conversation/unsubscribe → 返回 {}；
 // - v4/command → 返回 CommandAck accepted。
 // 所有入站请求写入 logPath 供断言转发参数。
-const V4_FAKE_AGENT = `
+const V4_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const logPath = process.argv[2];
 let buf = "";
@@ -314,7 +315,7 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
 function readRequests(logPath: string): Array<{ method: string; params: Record<string, unknown> }> {
   if (!existsSync(logPath)) {
@@ -498,6 +499,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
           protocolVersion: 3,
           clientId: "debug",
           appVersion: "test",
+          capabilities: { workflowRunDeltas: true },
         });
         await scope.service.subscribeConversationV4(target);
         expect(await scope.service.readSessionDebug(target)).toEqual({
@@ -642,6 +644,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
           protocolVersion: 3,
           clientId: "bash-query",
           appVersion: "test",
+          capabilities: { workflowRunDeltas: true },
         });
         expect(await scope.service.backgroundBashOutputV4(target)).toEqual({
           kind: "unavailable",
@@ -713,47 +716,35 @@ describe("zcodeAgentService v4 conversation channel", () => {
     }
   });
 
-  // `workflowRunDeltas` 与 `clientMode` 同族（10 §3.1）：可信 host 从连接的 clientHello 注入，
-  // UI 面的 subscribe 入参碰不到它——一个客户端认不认得 `workflowRun.*` 增量是**连接**的事实。
-  it.each([true, false])(
-    "subscribe 的 workflowRunDeltas 只由 clientHello 声明决定（declared=%s）",
-    async (declared) => {
-      const { service, workspacePath, logPath } = setupService();
+  it("does not forward a retired workflow encoding override", async () => {
+    const { service, workspacePath, logPath } = setupService();
+    try {
       const scope = createZCodeAgentConnectionScope(service, {
-        connectionId: "workflow-run-deltas",
+        connectionId: "current",
         clientMode: "desktop-continuous",
       });
-      try {
-        const hello = await scope.service.helloConversationV4();
-        expect(hello.capabilities.workflowRunDeltas).toBe(true);
-        await scope.service.initializeConversationV4({
-          kind: "clientHello",
-          protocolVersion: 3,
-          clientId: "workflow-run-deltas",
-          appVersion: "test",
-          ...(declared ? { capabilities: { workflowRunDeltas: true } } : {}),
-        });
-        await scope.service.subscribeConversationV4({
-          workspacePath,
-          sessionId: "workflow-run-deltas-session",
-          // 调用方自报的同名字段：必须被可信值整个顶掉，两种声明下都不能生效。
-          workflowRunDeltas: !declared,
-        } as never);
-
-        const params = readRequests(logPath).find(
-          (entry) => entry.method === "v4/conversation/subscribe",
-        )?.params;
-        if (declared) {
-          expect(params).toMatchObject({ workflowRunDeltas: true });
-        } else {
-          expect(params).not.toHaveProperty("workflowRunDeltas");
-        }
-      } finally {
-        scope.dispose();
-        await service.disposeAllAndWait();
-      }
-    },
-  );
+      await scope.service.helloConversationV4();
+      await scope.service.initializeConversationV4({
+        kind: "clientHello",
+        protocolVersion: 3,
+        clientId: "current",
+        appVersion: "any",
+        capabilities: { workflowRunDeltas: true },
+      });
+      await scope.service.subscribeConversationV4({
+        workspacePath,
+        sessionId: "session-1",
+        workflowRunDeltas: false,
+      } as never);
+      const requests = readRequests(logPath);
+      expect(
+        requests.find((request) => request.method === "v4/conversation/subscribe").params,
+      ).not.toHaveProperty("workflowRunDeltas");
+      await scope.dispose();
+    } finally {
+      await service.disposeAllAndWait();
+    }
+  });
 
   it("forwards task-local thought only as a V4 cold-resume hint", async () => {
     const { service, workspacePath, logPath } = setupService();
@@ -807,6 +798,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "client-1",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       expect(hello).toMatchObject({
         clientMode: "desktop-continuous",
@@ -864,6 +856,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "origin-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       await scope.service.sendConversationCommandV4({
         workspacePath,
@@ -1008,6 +1001,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "mobile-flow-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       await scope.service.subscribeConversationV4({ workspacePath, sessionId: "s-flow" });
 
@@ -1054,6 +1048,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "mobile-upload-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       const common = { workspacePath, sessionId: "s-upload", uploadId: "upload-1" };
       await scope.service.attachmentBeginV4({
@@ -1112,6 +1107,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
           protocolVersion: 3,
           clientId,
           appVersion: "4.0.0",
+          capabilities: { workflowRunDeltas: true },
         });
       }
       const input = {
@@ -1172,6 +1168,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "desktop-preview-failed-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       await expect(
         desktop.service.attachmentPreviewSourceV4({
@@ -1215,6 +1212,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
           protocolVersion: 3,
           clientId: "owned-consumer",
           appVersion: "4.0.0",
+          capabilities: { workflowRunDeltas: true },
         });
         const candidates: ConversationTopicWireCandidate[] = [];
         const disposable = scope.service.onDynamicConversationFrame({ workspacePath })((wire) =>
@@ -1415,6 +1413,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "mobile-rewind-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       await scope.service.subscribeConversationV4({
         workspacePath,
@@ -1496,6 +1495,7 @@ describe("zcodeAgentService v4 conversation channel", () => {
         protocolVersion: 3,
         clientId: "query-wire-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       const result = await scope.service.queryConversationCommandsV4({ workspacePath, commands });
       expect(result.results.map((item) => item.key.commandId)).toEqual(

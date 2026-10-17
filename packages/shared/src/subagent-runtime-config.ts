@@ -17,6 +17,29 @@ export const subagentRuntimeStateSchema = z
   .strict();
 export type SubagentRuntimeState = z.infer<typeof subagentRuntimeStateSchema>;
 
+/** Persisted state uses current fields only; absent fields have current empty defaults. */
+export const subagentStateFileSchema = subagentRuntimeStateSchema.extend({
+  disabledAgentIds: z.array(z.string().trim().min(1)).default([]),
+  builtInModelSelectionOverrides:
+    subagentRuntimeStateSchema.shape.builtInModelSelectionOverrides.default({}),
+  pluginAgentModelSelectionOverrides: z
+    .record(z.string().startsWith("plugin:"), modelSelectionSchema)
+    .default({}),
+});
+export type SubagentStateFile = z.infer<typeof subagentStateFileSchema>;
+
+export class InvalidSubagentStateError extends Error {
+  constructor(path: string, cause: unknown) {
+    super(
+      `Invalid current Subagent state format: ${path}. Repair this file, or close ZCode Next ` +
+        "and manually move only this file aside to reset model overrides and disabled state. " +
+        "Keep Agent Markdown, project, and workspace files.",
+      { cause },
+    );
+    this.name = "InvalidSubagentStateError";
+  }
+}
+
 /** snapshot 已经解析；读取失败的回退与 RPC 断连错误不能混为一谈。 */
 export const subagentRuntimeConfigSchema = z.discriminatedUnion("kind", [
   z

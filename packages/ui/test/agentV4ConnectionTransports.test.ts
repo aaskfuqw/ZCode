@@ -38,6 +38,7 @@ function setupAgent() {
         localTerminal: true,
         binaryFrames: false,
         compression: "none" as const,
+        workflowRunDeltas: true as const,
       },
       auth: {},
     })),
@@ -782,21 +783,18 @@ describe("agent V4 connection transports", () => {
     });
   });
 
-  // `workflowRunDeltas` 的声明是单向的（shared transport.ts）：clientHello 的 capabilities 是
-  // `.strict()` 的，向一台没宣告这个位的旧 Host 发它 = 整条 clientHello 解析失败、连接握不上手。
-  // 两条用例把「只在宣告之后才回声明」钉住，因为出错的代价不是降级而是会话打不开。
-  it("Host 未宣告 workflowRunDeltas 时 clientHello 不带这个键", async () => {
+  it("rejects a Host without the current workflow contract before initialization", async () => {
     const agent = setupAgent();
-
-    await ensureAgentV4ConnectionHandshake(agent as never);
-
-    const clientHello = agent.initializeConversationV4.mock.calls[0]?.[0] as
-      | { capabilities?: Record<string, unknown> }
-      | undefined;
-    expect(clientHello?.capabilities).toEqual({ workspaceHookReviewUi: true });
+    const hello = await agent.helloConversationV4();
+    const { workflowRunDeltas: _retired, ...capabilities } = hello.capabilities;
+    agent.helloConversationV4.mockResolvedValue({ ...hello, capabilities } as never);
+    await expect(ensureAgentV4ConnectionHandshake(agent as never)).rejects.toThrow(
+      "Update or redeploy",
+    );
+    expect(agent.initializeConversationV4).not.toHaveBeenCalled();
   });
 
-  it("Host 宣告 workflowRunDeltas 后 clientHello 回声明，与既有 review 能力并存", async () => {
+  it("declares the required workflow contract with the current review capability", async () => {
     const agent = setupAgent();
     const hello = await agent.helloConversationV4();
     agent.helloConversationV4.mockResolvedValue({

@@ -1,7 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMcpSyncService } from "../src/mcp-sync/mcpSyncService.js";
 
@@ -9,29 +9,17 @@ function makeHome() {
   return mkdtempSync(join(tmpdir(), "zcode-mcp-sync-home-"));
 }
 
-async function writeZcodeUserMcp(
-  home: string,
-  servers: Record<string, Record<string, unknown>>,
-) {
+async function writeZcodeUserMcp(home: string, servers: Record<string, Record<string, unknown>>) {
   const configPath = join(home, ".zcode-next", "cli", "config.json");
   await mkdir(join(home, ".zcode-next", "cli"), { recursive: true });
-  await writeFile(
-    configPath,
-    `${JSON.stringify({ mcp: { servers } }, null, 2)}\n`,
-  );
+  await writeFile(configPath, `${JSON.stringify({ mcp: { servers } }, null, 2)}\n`);
   return configPath;
 }
 
-async function writeAgentsUserMcp(
-  home: string,
-  servers: Record<string, Record<string, unknown>>,
-) {
+async function writeAgentsUserMcp(home: string, servers: Record<string, Record<string, unknown>>) {
   const configPath = join(home, ".agents", "mcp.json");
   await mkdir(join(home, ".agents"), { recursive: true });
-  await writeFile(
-    configPath,
-    `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`,
-  );
+  await writeFile(configPath, `${JSON.stringify({ mcpServers: servers }, null, 2)}\n`);
   return configPath;
 }
 
@@ -41,6 +29,27 @@ async function readRemoteZcodeServers(home: string) {
     mcp?: { servers?: Record<string, Record<string, unknown>> };
   };
   return parsed.mcp?.servers ?? {};
+}
+
+async function writeObsoleteZcodeMcp(
+  configPath: string,
+  kind: "server enable" | "directory override",
+) {
+  const raw = JSON.stringify({
+    model: { provider: "current-provider", model: "current-model" },
+    mcp: {
+      servers: {
+        context7: {
+          command: "npx",
+          ...(kind === "server enable" ? { enable: false } : {}),
+        },
+      },
+      ...(kind === "directory override" ? { [dirname(configPath)]: { context7: false } } : {}),
+    },
+  });
+  await mkdir(dirname(configPath), { recursive: true });
+  await writeFile(configPath, raw);
+  return raw;
 }
 
 describe("mcp sync service", () => {
@@ -102,10 +111,9 @@ describe("mcp sync service", () => {
     expect(result.candidates[0]).toMatchObject({ name: "context7", enabled: false });
   });
 
-  it("clears a stale enabled flag when toggling a server", async () => {
+  it("writes only current enabled state when toggling a server", async () => {
     const home = makeHome();
     process.env.HOME = home;
-    // 线上配置里 enable 与 enabled 并存，切换开关后不能再留下自相矛盾的字段。
     await writeZcodeUserMcp(home, {
       context7: {
         command: "npx",
@@ -141,58 +149,89 @@ describe("mcp sync service", () => {
     });
   });
 
-  it("migrates a legacy enable flag to enabled when listing candidates", async () => {
-    const home = makeHome();
-    process.env.HOME = home;
-    // 存量配置只有桌面端历史写入的 enable；同步侧读取时应就地迁移成契约字段 enabled。
-    await writeZcodeUserMcp(home, {
-      context7: {
-        command: "npx",
-        args: ["-y", "@upstash/context7-mcp"],
-        enable: false,
-      },
+  describe.each(["server enable", "directory override"] as const)("obsolete %s", (kind) => {
+    it("rejects user reads and saves with the actual path without changing the file", async () => {
+      const home = makeHome();
+      process.env.HOME = home;
+      const configPath = join(home, ".zcode-next", "cli", "config.json");
+      const raw = await writeObsoleteZcodeMcp(configPath, kind);
+      const service = createMcpSyncService();
+      const operations = [
+        () => service.loadMcpFromUserDirectory(),
+        () => service.listLocalUserMcpCandidates(),
+        () => service.listRemoteUserMcpStatuses({ names: ["context7"] }),
+        () => service.exportMcpServers({ serverIds: [] }),
+        () => service.importMcpServers({ servers: [], localHomeDir: home, overwrite: false }),
+        () =>
+          service.saveMcpToUserDirectory({
+            action: "upsert",
+            source: "zcodeagentmcp",
+            name: "context7",
+            config: { command: "current-command" },
+          }),
+        () =>
+          service.saveMcpToUserDirectory({
+            action: "delete",
+            source: "zcodeagentmcp",
+            name: "context7",
+          }),
+        () =>
+          service.saveMcpToUserDirectory({
+            action: "set-enabled",
+            source: "zcodeagentmcp",
+            name: "context7",
+            enabled: true,
+          }),
+      ];
+
+      for (const operation of operations) {
+        await expect(operation()).rejects.toThrow(
+          `Incompatible ZCode Next MCP configuration: ${configPath}. Manually replace obsolete`,
+        );
+        await expect(readFile(configPath, "utf-8")).resolves.toBe(raw);
+      }
     });
-    const service = createMcpSyncService();
 
-    const result = await service.listLocalUserMcpCandidates();
+    it("rejects workspace reads and saves without changing either scope", async () => {
+      const home = makeHome();
+      process.env.HOME = home;
+      const userConfigPath = await writeZcodeUserMcp(home, {
+        userOnly: { command: "current-command" },
+      });
+      const userRaw = await readFile(userConfigPath, "utf-8");
+      const workspace = join(home, "workspace");
+      const configPath = join(workspace, ".zcode-next", "config.json");
+      const raw = await writeObsoleteZcodeMcp(configPath, kind);
+      const service = createMcpSyncService();
+      const operations = [
+        () => service.loadMcpFromUserDirectory({ workspacePath: workspace }),
+        ...(["upsert", "delete", "set-enabled"] as const).map(
+          (action) => () =>
+            service.saveMcpToUserDirectory({
+              action,
+              source: "zcodeagentmcp",
+              name: "context7",
+              projectPath: workspace,
+              config: { command: "current-command" },
+              enabled: true,
+            }),
+        ),
+      ];
 
-    expect(result.candidates[0]).toMatchObject({ name: "context7", enabled: false });
-    expect((await readRemoteZcodeServers(home)).context7).toEqual({
-      command: "npx",
-      args: ["-y", "@upstash/context7-mcp"],
-      enabled: false,
+      for (const operation of operations) {
+        await expect(operation()).rejects.toThrow(
+          `Incompatible ZCode Next MCP configuration: ${configPath}. Manually replace obsolete`,
+        );
+        await expect(readFile(configPath, "utf-8")).resolves.toBe(raw);
+        await expect(readFile(userConfigPath, "utf-8")).resolves.toBe(userRaw);
+      }
     });
   });
 
-  it("keeps a candidate disabled when legacy enable:false collides with enabled:true", async () => {
+  it("reads current user MCP through all read APIs without rewriting the file", async () => {
     const home = makeHome();
     process.env.HOME = home;
-    // 线上事故配置：停用写了 enable:false，但外部导入残留 enabled:true。迁移必须保住停用语义。
-    await writeZcodeUserMcp(home, {
-      context7: {
-        command: "npx",
-        args: ["-y", "@upstash/context7-mcp"],
-        enable: false,
-        enabled: true,
-      },
-    });
-    const service = createMcpSyncService();
-
-    const result = await service.listLocalUserMcpCandidates();
-
-    expect(result.candidates[0]).toMatchObject({ name: "context7", enabled: false });
-    expect((await readRemoteZcodeServers(home)).context7).toEqual({
-      command: "npx",
-      args: ["-y", "@upstash/context7-mcp"],
-      enabled: false,
-    });
-  });
-
-  it("leaves the config file untouched when no legacy enable flag exists", async () => {
-    const home = makeHome();
-    process.env.HOME = home;
-    // 迁移必须幂等：没有残留字段时不能重写文件，否则每次列举候选都会动用户的配置。
-    // 故意用非规范化的紧凑 JSON 落盘，任何重写都会改变字节内容。
+    // 紧凑 JSON 可以揭示读取时发生的格式化写回。
     const configPath = join(home, ".zcode-next", "cli", "config.json");
     await mkdir(join(home, ".zcode-next", "cli"), { recursive: true });
     const raw = JSON.stringify({
@@ -209,8 +248,17 @@ describe("mcp sync service", () => {
     await writeFile(configPath, raw);
     const service = createMcpSyncService();
 
-    await service.listLocalUserMcpCandidates();
+    const candidates = await service.listLocalUserMcpCandidates();
+    const loaded = await service.loadMcpFromUserDirectory();
+    const exported = await service.exportMcpServers({
+      serverIds: candidates.candidates.map((candidate) => candidate.id),
+    });
+    const statuses = await service.listRemoteUserMcpStatuses({ names: ["context7"] });
 
+    expect(candidates.candidates[0]?.enabled).toBe(false);
+    expect(loaded.servers[0]?.enabled).toBe(false);
+    expect(exported.servers[0]?.enabled).toBe(false);
+    expect(statuses.statuses).toEqual([{ name: "context7", exists: true, path: configPath }]);
     await expect(readFile(configPath, "utf-8")).resolves.toBe(raw);
   });
 
@@ -241,26 +289,133 @@ describe("mcp sync service", () => {
     expect(result.error).toBeTruthy();
   });
 
-  it("falls back to user agents MCP servers when zcode user MCP is empty", async () => {
+  it.each([
+    { configFlags: { enable: false }, enabled: true },
+    { configFlags: { enable: true, enabled: false }, enabled: false },
+  ])(
+    "reads third-party agents MCP using current enabled=$enabled without rewriting it",
+    async ({ configFlags, enabled }) => {
+      const home = makeHome();
+      process.env.HOME = home;
+      const configPath = await writeAgentsUserMcp(home, {
+        docs: {
+          type: "http",
+          url: "https://mcp.example.com/mcp",
+          ...configFlags,
+        },
+      });
+      const raw = await readFile(configPath, "utf-8");
+      const service = createMcpSyncService();
+
+      const result = await service.listLocalUserMcpCandidates();
+      const loaded = await service.loadMcpFromUserDirectory();
+      const exported = await service.exportMcpServers({
+        serverIds: result.candidates.map((candidate) => candidate.id),
+      });
+      const statuses = await service.listRemoteUserMcpStatuses({ names: ["docs"] });
+
+      expect(result.candidates).toMatchObject([
+        {
+          name: "docs",
+          source: "agents",
+          path: configPath,
+          config: configFlags,
+          enabled,
+        },
+      ]);
+      expect(loaded.servers[0]).toMatchObject({ name: "docs", config: configFlags, enabled });
+      expect(exported.servers[0]).toMatchObject({ name: "docs", config: configFlags, enabled });
+      expect(statuses.statuses).toEqual([{ name: "docs", exists: true, path: configPath }]);
+      await expect(readFile(configPath, "utf-8")).resolves.toBe(raw);
+      await expect(stat(join(home, ".zcode-next"))).rejects.toMatchObject({ code: "ENOENT" });
+    },
+  );
+
+  it.each([true, false])(
+    "rejects obsolete upsert and import input before writing (existing file: %s)",
+    async (existingFile) => {
+      const home = makeHome();
+      process.env.HOME = home;
+      const configPath = join(home, ".zcode-next", "cli", "config.json");
+      if (existingFile) {
+        await writeZcodeUserMcp(home, { current: { command: "current-command", enabled: false } });
+      }
+      const raw = existingFile ? await readFile(configPath, "utf-8") : undefined;
+      const service = createMcpSyncService();
+      const config = { command: "obsolete-command", enable: false };
+      const operations = [
+        () =>
+          service.saveMcpToUserDirectory({
+            action: "upsert",
+            source: "zcodeagentmcp",
+            name: "obsolete",
+            config,
+          }),
+        () =>
+          service.importMcpServers({
+            servers: [
+              {
+                id: "obsolete",
+                name: "obsolete",
+                source: "zcode",
+                path: "/local/.zcode-next/cli/config.json",
+                config,
+                enabled: true,
+              },
+            ],
+            localHomeDir: "/local",
+            overwrite: false,
+          }),
+      ];
+
+      for (const operation of operations) {
+        await expect(operation()).rejects.toThrow(
+          `Incompatible ZCode Next MCP configuration: ${configPath}. Manually replace obsolete`,
+        );
+        if (existingFile) {
+          await expect(readFile(configPath, "utf-8")).resolves.toBe(raw);
+        } else {
+          await expect(stat(join(home, ".zcode-next"))).rejects.toMatchObject({ code: "ENOENT" });
+        }
+      }
+      expect(config).toEqual({ command: "obsolete-command", enable: false });
+    },
+  );
+
+  it("toggles workspace MCP without cleaning up an unrelated user config", async () => {
     const home = makeHome();
     process.env.HOME = home;
-    await writeAgentsUserMcp(home, {
-      docs: {
-        type: "http",
-        url: "https://mcp.example.com/mcp",
+    const workspace = join(home, "workspace");
+    const service = createMcpSyncService();
+    await service.saveMcpToUserDirectory({
+      action: "upsert",
+      source: "zcodeagentmcp",
+      name: "context7",
+      projectPath: workspace,
+      config: { command: "current-command" },
+    });
+    const userConfigPath = join(home, ".zcode-next", "cli", "config.json");
+    const raw = JSON.stringify({
+      mcp: {
+        [join(workspace, ".zcode-next")]: { context7: false },
       },
     });
-    const service = createMcpSyncService();
+    await mkdir(dirname(userConfigPath), { recursive: true });
+    await writeFile(userConfigPath, raw);
 
-    const result = await service.listLocalUserMcpCandidates();
+    await service.saveMcpToUserDirectory({
+      action: "set-enabled",
+      source: "zcodeagentmcp",
+      name: "context7",
+      projectPath: workspace,
+      enabled: false,
+    });
 
-    expect(result.candidates).toMatchObject([
-      {
-        name: "docs",
-        source: "agents",
-        path: join(home, ".agents", "mcp.json"),
-      },
-    ]);
+    const saved = JSON.parse(
+      await readFile(join(workspace, ".zcode-next", "config.json"), "utf-8"),
+    );
+    expect(saved.mcp.servers.context7).toEqual({ command: "current-command", enabled: false });
+    await expect(readFile(userConfigPath, "utf-8")).resolves.toBe(raw);
   });
 
   it("imports stdio and HTTP MCP servers while preserving secrets", async () => {
@@ -277,6 +432,7 @@ describe("mcp sync service", () => {
         type: "http",
         url: "https://mcp.example.com/mcp",
         headers: { Authorization: "Bearer secret-token" },
+        enabled: false,
       },
     });
     const localService = createMcpSyncService();
@@ -308,6 +464,7 @@ describe("mcp sync service", () => {
     expect(remoteServers.docsApi).toMatchObject({
       url: "https://mcp.example.com/mcp",
       headers: { Authorization: "Bearer secret-token" },
+      enabled: false,
     });
   });
 
@@ -341,8 +498,7 @@ describe("mcp sync service", () => {
         overwrite: false,
       });
 
-      const configMode = (await stat(join(remoteHome, ".zcode-next", "cli", "config.json")))
-        .mode;
+      const configMode = (await stat(join(remoteHome, ".zcode-next", "cli", "config.json"))).mode;
       expect(configMode & 0o777).toBe(0o600);
     } finally {
       process.umask(previousUmask);
@@ -411,9 +567,7 @@ describe("mcp sync service", () => {
         },
       },
     ]);
-    expect(result.servers[0]?.file?.filePath).toBe(
-      join(home, ".zcode-next", "cli", "config.json"),
-    );
+    expect(result.servers[0]?.file?.filePath).toBe(join(home, ".zcode-next", "cli", "config.json"));
   });
 
   it("loads workspace MCP before user MCP using the same directory precedence", async () => {
@@ -433,6 +587,7 @@ describe("mcp sync service", () => {
               workspaceOnly: {
                 type: "http",
                 url: "https://workspace.example.test/mcp",
+                enabled: false,
               },
             },
           },
@@ -441,6 +596,8 @@ describe("mcp sync service", () => {
         2,
       ),
     );
+    const workspaceConfigPath = join(workspace, ".zcode-next", "config.json");
+    const workspaceRaw = await readFile(workspaceConfigPath, "utf-8");
     const service = createMcpSyncService();
 
     const result = await service.loadMcpFromUserDirectory({ workspacePath: workspace });
@@ -449,6 +606,8 @@ describe("mcp sync service", () => {
       "workspace:workspaceOnly",
       "user:userOnly",
     ]);
+    expect(result.servers[0]?.enabled).toBe(false);
+    await expect(readFile(workspaceConfigPath, "utf-8")).resolves.toBe(workspaceRaw);
   });
 
   it("rewrites filesystem MCP home and workspace paths for the remote host", async () => {

@@ -415,19 +415,9 @@ export class SqliteSessionStore
       const persistedChild = sessionRepository.createSession(this.db, child);
       this.maybeThrowForkCommitFault("afterChild");
       for (const message of bundle.messages) {
-        const messageSource = bundle.copySources?.messages[message.info.id];
-        await messageRepository.saveMessage(
-          this.db,
-          message.info,
-          messageSource ? { sessionID: child.parentID, id: messageSource } : undefined,
-        );
+        await messageRepository.saveMessage(this.db, message.info);
         for (const part of message.parts) {
-          const partSource = bundle.copySources?.parts[part.id];
-          await messageRepository.savePart(
-            this.db,
-            part,
-            partSource ? { sessionID: child.parentID, id: partSource } : undefined,
-          );
+          await messageRepository.savePart(this.db, part);
         }
       }
       this.maybeThrowForkCommitFault("afterMessages");
@@ -606,12 +596,9 @@ export class SqliteSessionStore
     return sessionRepository.repairRemoteSessionPaths(this.db, input);
   }
 
-  async saveMessage(
-    input: MessageInfo,
-    copyFrom?: Parameters<SessionStorePort["saveMessage"]>[1],
-  ): Promise<void> {
+  async saveMessage(input: MessageInfo): Promise<void> {
     this.throwBeforeWrite();
-    return messageRepository.saveMessage(this.db, input, copyFrom);
+    return messageRepository.saveMessage(this.db, input);
   }
 
   async removeMessage(input: { sessionID: SessionId; messageID: MessageId }): Promise<void> {
@@ -619,12 +606,9 @@ export class SqliteSessionStore
     return messageRepository.removeMessage(this.db, input);
   }
 
-  async savePart(
-    input: MessagePart,
-    copyFrom?: Parameters<SessionStorePort["savePart"]>[1],
-  ): Promise<void> {
+  async savePart(input: MessagePart): Promise<void> {
     this.throwBeforeWrite();
-    return messageRepository.savePart(this.db, input, copyFrom);
+    return messageRepository.savePart(this.db, input);
   }
 
   async removePart(input: {

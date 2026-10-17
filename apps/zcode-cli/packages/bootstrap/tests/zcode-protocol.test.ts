@@ -1,3 +1,7 @@
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  V4_METHODS as ADMISSION_METHODS,
+} from "@zcode/shared/zcode-protocol-v4";
 import { createHash } from "node:crypto";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -1487,7 +1491,7 @@ describe("ZCodeProtocolAgentServer", () => {
       output,
       takePostResponseBatch: (requestId) => server.takePostResponseBatch(requestId),
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.end(
       `${JSON.stringify({
         id: "aligned-resume",
@@ -1552,7 +1556,7 @@ describe("ZCodeProtocolAgentServer", () => {
       output,
       takePostResponseBatch: (requestId) => server.takePostResponseBatch(requestId),
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.end(
       `${JSON.stringify({
         id: "same-sub-resync",
@@ -3863,12 +3867,18 @@ describe("ZCodeProtocolAgentServer", () => {
           void server.handleMessage({
             id: message.id,
             result: {
-              documents: [{ path: "/agents/reviewer.md", source: "user", content }],
-              state: {
-                disabledAgentIds: [],
-                builtInModelSelectionOverrides: {},
-                pluginAgentModelSelectionOverrides: {},
-              },
+              kind: "ready",
+              profiles: [
+                {
+                  path: "/agents/reviewer.md",
+                  source: "user",
+                  name: "reviewer",
+                  description: "Review",
+                  systemPrompt: content,
+                },
+              ],
+              builtInModelSelectionOverrides: {},
+              pluginAgentModelSelectionOverrides: {},
             },
           });
         }
@@ -3894,9 +3904,15 @@ describe("ZCodeProtocolAgentServer", () => {
         signal: new AbortController().signal,
         traceContext: { traceId: createTraceId(), sessionId: options[0]!.sessionId! },
       };
-      expect((await reader!(input)).documents[0]?.content).toBe("old");
+      expect(await reader!(input)).toMatchObject({
+        kind: "ready",
+        profiles: [{ systemPrompt: "old" }],
+      });
       content = "new";
-      expect((await reader!(input)).documents[0]?.content).toBe("new");
+      expect(await reader!(input)).toMatchObject({
+        kind: "ready",
+        profiles: [{ systemPrompt: "new" }],
+      });
       expect(reads).toEqual([
         { sessionId: options[0]!.sessionId },
         { sessionId: options[0]!.sessionId },
@@ -3927,7 +3943,7 @@ describe("ZCodeProtocolAgentServer", () => {
     expect(createdAppOptions[0]?.runtimeConfig?.modelContextBudgetStrategy).toBe("preflight-v1");
   });
 
-  it("defaults Memory off for an old Host but rejects other preference failures", async () => {
+  it("rejects an old Host and other preference failures before creating a runtime", async () => {
     const oldHostOptions: ZCodeAppOptions[] = [];
     const oldHostServer = new ZCodeProtocolAgentServer({
       createZCodeApp: (options) => {
@@ -3949,14 +3965,13 @@ describe("ZCodeProtocolAgentServer", () => {
       }
     });
 
-    await requestResult(oldHostServer, {
+    const oldHostResult = await oldHostServer.handleMessage({
       id: 1,
       method: zcodeProtocolMethods.sessionCreate,
       params: { workspace },
     });
-    expect(oldHostOptions[0]?.runtimeConfig?.nativeSearchEnhancementsEnabled).toBe(true);
-    expect(oldHostOptions[0]?.runtimeConfig?.memory?.enabled).toBe(false);
-    expect(oldHostOptions[0]?.runtimeConfig?.modelContextBudgetStrategy).toBe("preflight-v1");
+    expect(oldHostResult).toMatchObject({ error: { code: -32601 } });
+    expect(oldHostOptions).toHaveLength(0);
 
     for (const response of [
       { error: { code: -32603, message: "setting read failed" } },
@@ -4092,7 +4107,7 @@ describe("ZCodeProtocolAgentServer", () => {
       takePostResponseBatch: (requestId) => server.takePostResponseBatch(requestId),
     });
     server.setNotificationSink((message) => connection.send(message));
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.write(
       [
         {
@@ -4810,12 +4825,15 @@ describe("ZCodeProtocolAgentServer", () => {
     expect(snapshot?.revision).toBe("account-1");
     expect(snapshot?.basedOnZCodeBuiltinRevision).toBe("zcode-builtin:1");
     expect(snapshot?.states?.["account:zai-individual-coding-plan"].current).toBe(false);
-    expect(snapshot?.providers.toJSON()).toEqual({
-      "account:zai-individual-coding-plan": {
-        access: { type: "zhipu-account", entitled: true },
-        builtinModelIds: ["GLM-5.2"],
+    expect(snapshot?.providers.toJSON()).toEqual([
+      {
+        providerId: "account:zai-individual-coding-plan",
+        config: {
+          access: { type: "zhipu-account", entitled: true },
+          builtinModelIds: ["GLM-5.2"],
+        },
       },
-    });
+    ]);
   });
 
   it("workspace presentation rejects legacy runtimeModel", async () => {
@@ -8127,4 +8145,25 @@ function createShellRecordingFakeApp(
       return app.sendInput(input, sendOptions);
     },
   };
+}
+
+function startCurrentConnection(
+  connection: ZCodeProtocolNdjsonConnection,
+  input: PassThrough,
+  output: PassThrough,
+): void {
+  const write = output.write;
+  output.write = (() => true) as typeof output.write;
+  try {
+    connection.start();
+    input.write(
+      JSON.stringify({
+        id: "protocol-setup",
+        method: ADMISSION_METHODS.connectionInitialize,
+        params: CURRENT_PROTOCOL_CONTRACT,
+      }) + "\n",
+    );
+  } finally {
+    output.write = write;
+  }
 }

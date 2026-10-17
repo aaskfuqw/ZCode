@@ -35,14 +35,10 @@ export function resolveLoginApiKeyProviderFamilyDomain(
 export function buildLoginApiKeySkipSettings(
   choice: ApiKeyProviderChoice,
   now: number,
-): Pick<
-  AppSettings,
-  "providerFamilyDomain" | "providerFamilyDomainUpdatedAt" | "providerFamilyDomainMigrated"
-> {
+): Pick<AppSettings, "providerFamilyDomain" | "providerFamilyDomainUpdatedAt"> {
   return {
     providerFamilyDomain: resolveLoginApiKeyProviderFamilyDomain(choice),
     providerFamilyDomainUpdatedAt: now,
-    providerFamilyDomainMigrated: true,
   };
 }
 

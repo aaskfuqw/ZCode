@@ -2,6 +2,8 @@
 
 _Status: accepted_
 
+The frozen historical-migration requirement below is superseded by [ADR 0006](0006-retire-pre-release-compatibility-debt.md) during pre-release development. The Off-Peak removal and retained capability boundaries remain in effect.
+
 This personal fork removes Off-Peak tasks because they depend on the vendor's spare-compute scheduling service and introduce dedicated execution state throughout the task framework. The implementation removes the capability and its dedicated integration instead of retaining a disabled implementation, and restores shared responsibilities to their existing owners.
 
 This decision supersedes the OffPeak preservation sentence in [ADR 0003](0003-remove-in-app-marketing.md). It does not remove ordinary conversations, scheduled automations, background work, subagents, Highspeed, account authentication, provider selection, or request verification. Highspeed keeps execution-scoped model selection, but its Coding Plan credential resolution moves to a neutral account service.

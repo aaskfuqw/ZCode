@@ -28,8 +28,6 @@ import {
 export interface AccountProviderConnectionSettings {
   readonly providerFamilyDomain: ProviderFamilyDomain | null;
   readonly selections: ProviderFamilyConnectionSelectionSettings;
-  /** Host 旧连接导入尚不能确定身份；仅运行时事实，不写入配置或协议。 */
-  readonly unresolvedFamilies?: readonly ProviderFamilyDomain[];
 }
 
 export interface AccountProviderFamilyAvailabilityInput {
@@ -109,19 +107,9 @@ export function createAccountProviderConnectionResolver(
         );
       if (configured.length === 0) continue;
 
-      // 旧团队身份补全只限制付费访问，Start 只依赖当前登录账号。
-      const queryable = configured.filter(({ providerId, planKind }) => {
-        if (settings.unresolvedFamilies?.includes(family) && planKind !== "start-plan") {
-          availabilityByProviderId.set(providerId, { kind: "unknown" });
-          return false;
-        }
-        return true;
-      });
-      if (queryable.length === 0) continue;
-
       const accountIdentity = await loadAccountIdentity(family);
       if (!accountIdentity) {
-        for (const { providerId } of queryable) {
+        for (const { providerId } of configured) {
           availabilityByProviderId.set(providerId, {
             kind: "unavailable",
             reason: "coding_plan_not_connected",
@@ -131,7 +119,7 @@ export function createAccountProviderConnectionResolver(
       }
 
       const availabilityProviders = await Promise.all(
-        queryable.map(async ({ providerId, planKind }) => ({
+        configured.map(async ({ providerId, planKind }) => ({
           providerId,
           family,
           planKind,
@@ -148,7 +136,7 @@ export function createAccountProviderConnectionResolver(
         providers: availabilityProviders,
         selections: settings.selections,
       });
-      for (const { providerId } of queryable) {
+      for (const { providerId } of configured) {
         availabilityByProviderId.set(providerId, resolved[providerId] ?? { kind: "unknown" });
       }
     }

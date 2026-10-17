@@ -431,8 +431,30 @@ describe("native subagent Host watchers", () => {
     await f.both({ kind: "ready", profiles: [] });
   }, 15000);
 
+  it("rejects incompatible state observed by both Hosts and resumes after manual repair", async () => {
+    const f = await pair(async (homeDir) => {
+      const root = join(homeDir, ".zcode-next", "v2");
+      await mkdir(root, { recursive: true });
+      await writeFile(join(root, "agents-state.json"), JSON.stringify({ disabledAgentIds: [] }));
+    });
+    const { agent } = await f.a.createAgent({ config: config() });
+    await f.both({ kind: "ready", profiles: [{ name: "researcher" }] });
+    const path = join(f.homeDir, ".zcode-next", "v2", "agents-state.json");
+    const original = JSON.stringify({ builtInModelOverrides: { Explore: "custom:p:m" } });
+    await writeFile(path, original);
+    await until(async () => {
+      await expect(f.a.readRuntimeConfig(f.workspace)).rejects.toThrow(path);
+      await expect(f.b.readRuntimeConfig(f.workspace)).rejects.toThrow(
+        "manually move only this file",
+      );
+    });
+    expect(await readFile(path, "utf8")).toBe(original);
+    await writeFile(path, JSON.stringify({ disabledAgentIds: [agent.id] }));
+    await f.both({ kind: "ready", profiles: [] });
+  }, 15000);
+
   it.skipIf(process.platform === "win32")(
-    "publishes initial fallback when state cannot be read, including its migration",
+    "publishes initial fallback when state cannot be read",
     async () => {
       const homeDir = await mkdtemp(join(tmpdir(), "subagent-initial-state-"));
       cleanup.push(() => rm(homeDir, { recursive: true, force: true }));
@@ -461,7 +483,7 @@ describe("native subagent Host watchers", () => {
       await f.both({ profiles: [] });
       await f.a.setEnabled({ agentId: agent.id, enabled: true });
       await f.both({ profiles: [{ name: "researcher" }] });
-      // state 无读取权限使迁移失败；先写入的新 Markdown 是真实磁盘事实，watcher 仍会观察。
+      // state 无读取权限；先写入的新 Markdown 是真实磁盘事实，watcher 仍会观察。
       const statePath = join(f.homeDir, ".zcode-next", "v2", "agents-state.json");
       await mkdir(join(f.homeDir, ".zcode-next", "v2"), { recursive: true });
       await writeFile(statePath, JSON.stringify({ disabledAgentIds: [] }));

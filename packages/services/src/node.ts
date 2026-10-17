@@ -10,6 +10,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   createNodeProviderRuntimePathEnv,
+  createNodeProviderConfigRuntime,
   NodeModelSelectionConfigRepository,
   PERSONAL_PROVIDER_CONFIG_FILE_NAME,
 } from "@zcode/provider-node";
@@ -91,10 +92,7 @@ export { createGitCheckpointService } from "./git/gitCheckpointService.js";
 export { createSystemService } from "./system/systemService.js";
 export { listSSHConfigAliasesFromLocalConfig } from "./system/sshConfigAlias.js";
 export { createTerminalService } from "./terminal/terminalService.js";
-export {
-  createSettingService,
-  createSettingServiceWithMigrations,
-} from "./setting/settingService.js";
+export { createSettingService } from "./setting/settingService.js";
 export { createCredentialService } from "./credential/credentialService.js";
 export { createBroadcastService } from "./broadcast/broadcastService.js";
 export { createZCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
@@ -146,7 +144,6 @@ export type {
   AccountProviderCredentialStore,
   AccountProviderCredentialStoreOptions,
 } from "./model-provider/accountProviderCredentialStore.js";
-export { importLegacyPersonalProviderConfig } from "./model-provider/legacyPersonalProviderConfigImporter.js";
 export {
   createAccountProviderConfigSource,
   createAccountProviderConnectionResolver,
@@ -336,9 +333,8 @@ import { GitCommitMessageGenerator } from "./git/gitCommitMessageGenerator.js";
 import { createGitCheckpointService } from "./git/gitCheckpointService.js";
 import { createSystemService } from "./system/systemService.js";
 import { createTerminalService } from "./terminal/terminalService.js";
-import { createSettingServiceWithMigrations } from "./setting/settingService.js";
+import { createSettingService } from "./setting/settingService.js";
 import { createOnboardingRecordService } from "./onboarding/onboardingRecordService.js";
-import { createLegacyTeamOrganizationResolver } from "./model-provider/legacyTeamOrganizationResolver.js";
 import { createObservableSettingService } from "./setting/observableSettingService.js";
 import { createCredentialService } from "./credential/credentialService.js";
 import { createBroadcastService } from "./broadcast/broadcastService.js";
@@ -360,7 +356,6 @@ import {
 } from "#src/oauth/oauthUnauthorizedRequest.js";
 import { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
 import { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
-import { readLegacyZCodeConfigProviders } from "./model-provider/legacyZCodeConfigProviderReader.js";
 import { resolveAccountTeamPlanRuntimeMaterial } from "./model-provider/accountProviderTeamPlanRequestKey.js";
 import { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 import { createAccountProviderCredentialService } from "./model-provider/accountProviderCredentialService.js";
@@ -374,7 +369,6 @@ import { bindAccountProviderInvalidation } from "./model-provider/accountProvide
 import { AccountProviderApiClient } from "./model-provider/accountProviderApiClient.js";
 import { createAccountProjectTokenClient } from "./model-provider/accountProjectTokenClient.js";
 import { AccountProviderApiKeyResolver } from "./model-provider/accountProviderApiKeyResolver.js";
-import { createProviderConfigRuntime } from "./model-provider/providerConfigRuntime.js";
 import { fetchZCodeBuiltinRemoteRelease } from "./model-provider/zcodeBuiltinRemoteConfig.js";
 import {
   createProviderRuntimeFromConfigRuntime,
@@ -1068,10 +1062,6 @@ export function createLocalServices(options: {
   parentPort?: Parameters<typeof createBroadcastService>[0];
   /** Host 装配层注入的设置权威；与网络 transport 必须来自同一 Window Host 生命周期。 */
   settingService?: ISettingService;
-  /** 与注入的本地 Setting 共用写队列；外部远端 Setting 不传，由其权威 Host 完成迁移。 */
-  prepareLegacyAccountConnections?: ReturnType<
-    typeof createSettingServiceWithMigrations
-  >["prepareLegacyAccountConnections"];
   /** 注入后由 ServiceCollection 接管释放，并供 Host 其它 app-managed 下载复用。 */
   hostApiNetworkTransport?: HostApiNetworkTransport;
   /** Desktop Host 请求 Main 登记 Agent 已授权的精确本地视频路径。 */
@@ -1178,9 +1168,8 @@ export function createLocalServices(options: {
     console.error(formatLogPrefix("appCaCert", process.pid), "ensure app CA cert failed:", error);
   }
 
-  const localSettings = options?.settingService ? null : createSettingServiceWithMigrations();
   const settingService = createObservableSettingService(
-    options?.settingService ?? localSettings!.service,
+    options?.settingService ?? createSettingService(),
   );
   const resolveCurrentZCodeEndpointOrigin = async () =>
     resolveRuntimeZCodeEndpointOrigin(process.env, {
@@ -1270,22 +1259,11 @@ export function createLocalServices(options: {
         rejectedProjectTokenFingerprint,
       ),
   });
-  const resolveLegacyTeamOrganization = createLegacyTeamOrganizationResolver({
-    apiClient,
-    loadOAuthTokenSet: (family) =>
-      oauthCredentialRepo.loadTokenSet(family === "zai" ? ZAI_PROVIDER_ID : BIGMODEL_PROVIDER_ID),
-  });
   const readAccountProviderSettings = async () => {
-    // 迁移只在账号事实入口协调。ApiClient 的代理/端点仍读普通 Setting，不递归等待迁移。
-    // 外部注入的 Setting（远端 attachment）由其所属 Host 管理，不读取本机旧文件。
-    const prepare =
-      options?.prepareLegacyAccountConnections ?? localSettings?.prepareLegacyAccountConnections;
-    const unresolvedFamilies = (await prepare?.(resolveLegacyTeamOrganization)) ?? [];
     const settings = await settingService.get();
     return {
       providerFamilyDomain: settings.providerFamilyDomain ?? null,
       selections: settings.providerFamilyConnectionSelections ?? {},
-      unresolvedFamilies,
     };
   };
   const loadAccountIdentity = async (family: ProviderFamilyDomain) => {
@@ -1328,7 +1306,8 @@ export function createLocalServices(options: {
   );
   const providerConfigLog = createServiceLogger("provider-config");
   const clientConfigPlatform = resolveClientConfigPlatform();
-  const providerConfigRuntime = createProviderConfigRuntime({
+  const providerConfigRuntime = createNodeProviderConfigRuntime({
+    personalFilePath: join(resolveAppConfigDir(), PERSONAL_PROVIDER_CONFIG_FILE_NAME),
     zcodeBuiltinFilePath: options.zcodeBuiltinProviderConfigFilePath,
     zcodeBuiltinEnvironment: {
       environmentConfigRoot: resolveAppConfigDir(),
@@ -1355,7 +1334,7 @@ export function createLocalServices(options: {
     onPersonalConfigRecovery: (event) => {
       providerConfigLog.warn(
         undefined,
-        "Personal Provider Config 加载失败，已保留磁盘状态并以内存空配置降级",
+        "Personal Provider Config 初始化失败，已保留原文件；请按错误中的路径手动修复或重置配置",
         {
           error: event.error,
         },
@@ -1367,9 +1346,6 @@ export function createLocalServices(options: {
         error,
       });
     },
-    // 已发布 config.json 保存的是 ZCode 用户配置；清理第三方 ACP 不能移除这条升级路径。
-    // Repository 仅在新 Personal 配置不存在时导入，并保留旧文件以便回滚。
-    readLegacyProviders: () => readLegacyZCodeConfigProviders(),
   });
   const accountProviderConfigSource = createAccountProviderConfigSource({
     configSource: providerConfigRuntime.configService,

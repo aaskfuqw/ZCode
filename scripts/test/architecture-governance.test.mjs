@@ -61,6 +61,27 @@ global:
 
 const POLICY_UNDECLARED = POLICY.replace("requires: [beta]", "requires: []");
 
+test("declared public entrypoints must exist in unmanaged modules too", async () => {
+  await fixture(
+    {
+      "architecture-policy.yaml": `version: 1
+modules:
+  - id: legacy
+    roots: [src/legacy]
+    managed: false
+    publicEntrypoints: [src/legacy/missing.ts]
+`,
+      "src/legacy/current.ts": "export {};\n",
+    },
+    async (cwd) => {
+      const result = await checkArchitecture({ cwd, changedFiles: [] });
+      assert.equal(result.newViolations.length, 1);
+      assert.equal(result.newViolations[0].rule, "missing-public-entrypoint");
+      assert.equal(result.newViolations[0].global, true);
+    },
+  );
+});
+
 test("managed module documents satisfy artifacts without being checked as source", async () => {
   const files = { "architecture-policy.yaml": POLICY };
   for (const module of ["alpha", "beta"]) {

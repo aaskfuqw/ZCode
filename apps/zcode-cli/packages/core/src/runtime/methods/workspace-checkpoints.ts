@@ -75,7 +75,6 @@ export async function copySessionMessagesForFork(
         nextMessageId,
       }),
       options.traceContext,
-      { sessionID: message.info.sessionID, id: message.info.id },
     );
 
     for (const part of message.parts) {
@@ -86,7 +85,6 @@ export async function copySessionMessagesForFork(
           messageIdMap,
         }),
         options.traceContext,
-        { sessionID: part.sessionID, id: part.id },
       );
     }
     copied += 1;

@@ -7,6 +7,7 @@ import {
   type SubagentRuntimeState,
 } from "@zcode/shared";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
+import { InvalidSubagentStateError } from "./subagentState.js";
 import {
   createSubagentConfigScope,
   type SubagentFileChanges,
@@ -97,6 +98,9 @@ export function createSubagentRuntimeConfigCache(reader: ConfigReader) {
   const assertActive = () => {
     if (disposed) throw new Error("Subagent runtime configuration cache is disposed");
   };
+  function assertValidState() {
+    if (state?.scope.error instanceof InvalidSubagentStateError) throw state.scope.error;
+  }
   function publish() {
     if (disposed || !user || !state) return;
     for (const [workspaceKey, project] of workspaces) {
@@ -205,14 +209,17 @@ export function createSubagentRuntimeConfigCache(reader: ConfigReader) {
         initializing.push(project);
       }
       await waitForInitialScopes(initializing);
+      assertValidState();
       publish();
       if (workspace && !snapshots.has(key(workspace)))
         snapshots.set(key(workspace), { kind: "built-in-fallback" });
     },
     async read(workspace: Workspace): Promise<SubagentRuntimeConfig> {
       const scopes = required(workspace);
+      assertValidState();
       if (!snapshots.has(key(workspace))) {
         await waitForInitialScopes(scopes);
+        assertValidState();
         publish();
         if (!snapshots.has(key(workspace)))
           snapshots.set(key(workspace), { kind: "built-in-fallback" });

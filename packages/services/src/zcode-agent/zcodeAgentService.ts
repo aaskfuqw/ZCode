@@ -263,6 +263,7 @@ import {
   V4_WIRE_PROTOCOL_VERSION,
   PROTOCOL_V4_LIMITS,
   clientHelloSchema,
+  parseCurrentProtocolHandshake,
   commandAckSchema,
   commandPayloadSchemas,
   commandsQueryParamsSchema,
@@ -5350,7 +5351,7 @@ export function createZCodeAgentService(
     },
 
     async initializeConversationV4(rawClientHello) {
-      clientHelloSchema.parse(rawClientHello);
+      parseCurrentProtocolHandshake(clientHelloSchema, rawClientHello);
     },
 
     async setConnectionFlowStateV4(params: ZCodeAgentConnectionFlowParams) {
@@ -5401,10 +5402,6 @@ export function createZCodeAgentService(
           topic,
           connectionId: connection.connectionId,
           clientMode: connection.clientMode,
-          // 与 clientMode 同族的可信位（10 §3.1）：只由这里从连接的 clientHello 注入。
-          // 缺席即 CLI 按旧消费者发整键 patch，并先裁到旧界——重订阅、recovery、手机
-          // relay attachment 都走这一条 subscribe，所以这一处写全即可。
-          ...(connection.workflowRunDeltas === true ? { workflowRunDeltas: true } : {}),
           // Bug 根因：冷订阅过去只传 sessionId，CLI 只能从历史 session.path 反推
           // workspace 身份；该路径已可能被 path.resolve 改写。当前 attachment 才是权威来源。
           workspace: buildWorkspaceRef(params),

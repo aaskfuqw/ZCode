@@ -1,25 +1,13 @@
 // File Config Adapter - Load and patch JSON configuration files
 
-import {
-  existsSync,
-  readFileSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import type { RuntimeConfigPatch, UiLocale } from "@zcode/contracts";
 import { z } from "zod";
-import {
-  CANONICAL_CUA_PLUGIN_ID,
-  canonicalizePluginId,
-  LEGACY_CUA_PLUGIN_ID,
-  parseConfigFileToRuntimePatchWithDiagnostics,
-  pluginIdAliases,
-  type ConfigDiagnostic,
-} from "./schema.js";
+import { assertCurrentCliConfig } from "./obsolete-model-config.js";
+import { parseConfigFileToRuntimePatchWithDiagnostics, type ConfigDiagnostic } from "./schema.js";
 
 interface FileConfigOptions {
   baseDir?: string;
@@ -91,14 +79,17 @@ export function loadFileConfig(filePath?: string, options: FileConfigOptions = {
     };
   }
 
+  let parsed: unknown;
   try {
     const content = readFileSync(resolvedPath, "utf-8");
-    const parsed = JSON.parse(content);
-    const migrated = migratePluginConfigInFile(parsed);
-    if (migrated) {
-      // 仅装载态归一化会让旧 key 永久留在磁盘，后续版本无法安全删除迁移逻辑。
-      persistPluginConfigMigration(resolvedPath, migrated);
-    }
+    parsed = JSON.parse(content);
+  } catch (error) {
+    return invalidFileConfig(error, resolvedPath);
+  }
+
+  // Obsolete Next-owned data must fail before runtime normalization can drop old fields.
+  assertCurrentCliConfig(parsed, resolvedPath);
+  try {
     const result = parseConfigFileToRuntimePatchWithDiagnostics(parsed);
 
     return {
@@ -108,79 +99,17 @@ export function loadFileConfig(filePath?: string, options: FileConfigOptions = {
       loaded: true,
     };
   } catch (error) {
-    return {
-      config: {},
-      diagnostics: [createConfigFileInvalidDiagnostic(error, resolvedPath)],
-      path: resolvedPath,
-      loaded: false,
-    };
+    return invalidFileConfig(error, resolvedPath);
   }
 }
 
-function migratePluginConfigInFile(value: unknown): Record<string, unknown> | undefined {
-  if (!isRecord(value) || !isRecord(value.plugins)) return undefined;
-  const plugins = value.plugins;
-  const nextPlugins = { ...plugins };
-  let changed = false;
-
-  if (isRecord(plugins.enabledPlugins)) {
-    const enabledPlugins = { ...plugins.enabledPlugins };
-    for (const [id, enabled] of Object.entries(plugins.enabledPlugins)) {
-      if (id === LEGACY_CUA_PLUGIN_ID) {
-        const canonicalId = CANONICAL_CUA_PLUGIN_ID;
-        if (enabledPlugins[canonicalId] === undefined) enabledPlugins[canonicalId] = enabled;
-        delete enabledPlugins[id];
-        changed = true;
-      }
-    }
-    if (changed) nextPlugins.enabledPlugins = enabledPlugins;
-  }
-
-  if (Array.isArray(plugins.suppressedBuiltins)) {
-    const suppressedBuiltins = plugins.suppressedBuiltins.map((id) =>
-      id === LEGACY_CUA_PLUGIN_ID ? CANONICAL_CUA_PLUGIN_ID : id,
-    );
-    if (JSON.stringify(suppressedBuiltins) !== JSON.stringify(plugins.suppressedBuiltins)) {
-      nextPlugins.suppressedBuiltins = suppressedBuiltins;
-      changed = true;
-    }
-  }
-
-  if (isRecord(plugins.options)) {
-    const options = { ...plugins.options };
-    for (const [id, pluginOptions] of Object.entries(plugins.options)) {
-      if (id === LEGACY_CUA_PLUGIN_ID) {
-        const canonicalId = CANONICAL_CUA_PLUGIN_ID;
-        if (options[canonicalId] === undefined) options[canonicalId] = pluginOptions;
-        delete options[id];
-        changed = true;
-      }
-    }
-    if (changed) nextPlugins.options = options;
-  }
-
-  return changed ? { ...value, plugins: nextPlugins } : undefined;
-}
-
-function persistPluginConfigMigration(
-  filePath: string,
-  value: Record<string, unknown>,
-): void {
-  const tempPath = `${filePath}.migrate.${process.pid}.${Date.now()}.tmp`;
-  try {
-    writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, {
-      encoding: "utf-8",
-      mode: 0o600,
-    });
-    renameSync(tempPath, filePath);
-  } catch {
-    // 迁移写回是 best-effort 副作用，失败不能改变合法配置的装载语义。
-    try {
-      unlinkSync(tempPath);
-    } catch {
-      // 临时文件清理失败不影响当前配置装载。
-    }
-  }
+function invalidFileConfig(error: unknown, filePath: string): LoadedConfig {
+  return {
+    config: {},
+    diagnostics: [createConfigFileInvalidDiagnostic(error, filePath)],
+    path: filePath,
+    loaded: false,
+  };
 }
 
 function createConfigFileInvalidDiagnostic(error: unknown, filePath: string): ConfigDiagnostic {
@@ -355,16 +284,13 @@ export async function removePluginEnabledFromFileConfig(
   const parsed = await readJsonConfigFileOrEmpty(resolvedPath);
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const enabledPlugins = isRecord(plugins.enabledPlugins) ? plugins.enabledPlugins : {};
-  const aliases = pluginIdAliases(pluginId);
-  const removedEnabled = aliases.some((id) =>
-    Object.prototype.hasOwnProperty.call(enabledPlugins, id),
-  );
+  const removedEnabled = Object.hasOwn(enabledPlugins, pluginId);
   if (!removedEnabled) {
     return { path: resolvedPath, pluginId, removedEnabled: false };
   }
 
   const nextEnabled = { ...enabledPlugins };
-  for (const id of aliases) delete nextEnabled[id];
+  delete nextEnabled[pluginId];
   await atomicWriteJson(resolvedPath, {
     ...parsed,
     plugins: {
@@ -393,18 +319,15 @@ export async function addSuppressedBuiltinInFileConfig(
   const resolvedPath = resolvePath(filePath);
   const parsed = await readJsonConfigFileOrEmpty(resolvedPath);
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
-  const canonicalPluginId = canonicalizePluginId(pluginId);
-  const aliases = pluginIdAliases(canonicalPluginId);
   const current = Array.isArray(plugins.suppressedBuiltins)
     ? (plugins.suppressedBuiltins as unknown[]).filter((v): v is string => typeof v === "string")
     : [];
-  const retained = current.filter((id) => !aliases.includes(id));
-  if (retained.length === current.length && current.includes(canonicalPluginId)) {
+  if (current.includes(pluginId)) {
     return { path: resolvedPath, pluginId, suppressed: true };
   }
   const next = {
     ...parsed,
-    plugins: { ...plugins, suppressedBuiltins: [...retained, canonicalPluginId] },
+    plugins: { ...plugins, suppressedBuiltins: [...current, pluginId] },
   };
   await atomicWriteJson(resolvedPath, next);
   return { path: resolvedPath, pluginId, suppressed: true };
@@ -421,11 +344,10 @@ export async function removeSuppressedBuiltinInFileConfig(
   const resolvedPath = resolvePath(filePath);
   const parsed = await readJsonConfigFileOrEmpty(resolvedPath);
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
-  const aliases = pluginIdAliases(pluginId);
   const current = Array.isArray(plugins.suppressedBuiltins)
     ? (plugins.suppressedBuiltins as unknown[]).filter((v): v is string => typeof v === "string")
     : [];
-  const nextSuppressedBuiltins = current.filter((id) => !aliases.includes(id));
+  const nextSuppressedBuiltins = current.filter((id) => id !== pluginId);
   if (nextSuppressedBuiltins.length === current.length) {
     return { path: resolvedPath, pluginId, suppressed: false };
   }
@@ -504,17 +426,14 @@ function patchPluginEnabled(
 ): Record<string, unknown> {
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const enabledPlugins = isRecord(plugins.enabledPlugins) ? plugins.enabledPlugins : {};
-  const canonicalPluginId = canonicalizePluginId(pluginId);
-  const nextEnabledPlugins = { ...enabledPlugins };
-  for (const id of pluginIdAliases(canonicalPluginId)) delete nextEnabledPlugins[id];
 
   return {
     ...parsed,
     plugins: {
       ...plugins,
       enabledPlugins: {
-        ...nextEnabledPlugins,
-        [canonicalPluginId]: enabled,
+        ...enabledPlugins,
+        [pluginId]: enabled,
       },
     },
   };
@@ -528,16 +447,7 @@ function patchPluginOptions(
 ): Record<string, unknown> {
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const currentOptions = isRecord(plugins.options) ? plugins.options : {};
-  const canonicalPluginId = canonicalizePluginId(pluginId);
-  const aliases = pluginIdAliases(canonicalPluginId);
-  const legacyPluginId = aliases.length > 1 ? aliases[1] : undefined;
-  const currentPluginOptions = isRecord(currentOptions[canonicalPluginId])
-    ? currentOptions[canonicalPluginId]
-    : legacyPluginId && isRecord(currentOptions[legacyPluginId])
-      ? currentOptions[legacyPluginId]
-      : {};
-  const nextOptions = { ...currentOptions };
-  for (const id of aliases) delete nextOptions[id];
+  const currentPluginOptions = isRecord(currentOptions[pluginId]) ? currentOptions[pluginId] : {};
   const clearedOptionKeySet = new Set(clearOptionKeys);
   const retainedPluginOptions = Object.fromEntries(
     Object.entries(currentPluginOptions).filter(([key]) => !clearedOptionKeySet.has(key)),
@@ -548,12 +458,12 @@ function patchPluginOptions(
     plugins: {
       ...plugins,
       options: {
-        ...nextOptions,
+        ...currentOptions,
         // 敏感字段按脱敏合同不会回传 UI，二次保存普通字段时请求中自然缺少
         // 已存 secret。这里按 option key 合并，避免整对象替换把同 scope 的密钥静默清空。
         // 显式清除走 clearOptionKeys，先删除指定键，再合并本次输入；不会连带删除启用状态
         // 或同插件的其他配置。
-        [canonicalPluginId]: {
+        [pluginId]: {
           ...retainedPluginOptions,
           ...options,
         },
@@ -569,17 +479,16 @@ function patchPluginRemoved(
   const plugins = isRecord(parsed.plugins) ? parsed.plugins : {};
   const enabledPlugins = isRecord(plugins.enabledPlugins) ? plugins.enabledPlugins : {};
   const options = isRecord(plugins.options) ? plugins.options : {};
-  const aliases = pluginIdAliases(pluginId);
-  const removedEnabled = aliases.some((id) => id in enabledPlugins);
-  const removedOptions = aliases.some((id) => id in options);
+  const removedEnabled = Object.hasOwn(enabledPlugins, pluginId);
+  const removedOptions = Object.hasOwn(options, pluginId);
   if (!removedEnabled && !removedOptions) {
     return { next: parsed, removedEnabled, removedOptions };
   }
 
   const nextEnabled = { ...enabledPlugins };
-  for (const id of aliases) delete nextEnabled[id];
+  delete nextEnabled[pluginId];
   const nextOptions = { ...options };
-  for (const id of aliases) delete nextOptions[id];
+  delete nextOptions[pluginId];
 
   return {
     next: {

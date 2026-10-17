@@ -31,7 +31,30 @@ function pluginMetadata(input: { enabled?: boolean; id: string; name: string; ro
 }
 
 describe("loadZCodeAgentProfiles", () => {
-  it("一次读取迁移后的插件覆盖注入规范名和别名，不修改插件文件或串用另一插件覆盖", async () => {
+  it.each([
+    "{broken",
+    JSON.stringify({ builtInModelOverrides: { Explore: "old/model" } }),
+    JSON.stringify({
+      builtInModelSelectionOverrides: { ignored: { providerId: "p", modelId: "m" } },
+    }),
+  ])("rejects incompatible persisted state with its path and preserves the file", async (raw) => {
+    const root = await mkdtemp(join(tmpdir(), "next-subagent-state-"));
+    const path = join(root, "v2", "agents-state.json");
+    try {
+      await mkdir(join(root, "v2"), { recursive: true });
+      await writeFile(path, raw);
+      await expect(
+        loadZCodeAgentProfiles({ storageRoot: root, workingDirectory: root }),
+      ).rejects.toThrow(path);
+      await expect(
+        loadZCodeAgentProfiles({ storageRoot: root, workingDirectory: root }),
+      ).rejects.toThrow("manually move only this file");
+      expect(await readFile(path, "utf8")).toBe(raw);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+  it("一次读取当前插件覆盖注入规范名和别名，不修改插件文件或串用另一插件覆盖", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-plugin-selection-"));
     try {
       const storageRoot = join(root, "state");
@@ -46,8 +69,13 @@ describe("loadZCodeAgentProfiles", () => {
       await writeFile(
         join(storageRoot, "v2", "agents-state.json"),
         JSON.stringify({
-          pluginAgentModelOverrides: { [agentId]: "custom:builtin%3Azai-coding-plan:GLM" },
-          pluginAgentThoughtLevelOverrides: { [agentId]: "high" },
+          pluginAgentModelSelectionOverrides: {
+            [agentId]: {
+              providerId: "account:zai-individual-coding-plan",
+              modelId: "GLM",
+              options: { reasoningLevel: "high" },
+            },
+          },
         }),
       );
       const state = await loadZCodeAgentProfiles({ storageRoot, workingDirectory: root });
@@ -276,10 +304,6 @@ description: 用户级运行 agent
               modelId: "gpt-5.4",
               options: { reasoningLevel: "high" },
             },
-            ignored: {
-              providerId: "custom-openai",
-              modelId: "ignored",
-            },
           },
           disabledAgentIds: [],
         }),
@@ -309,8 +333,8 @@ description: 用户级运行 agent
 });
 
 describe("loadPluginAgentProfiles", () => {
-  it("SA97-09：用户迁移和重新加载不改项目/插件文件或其显式旧身份", async () => {
-    const root = await mkdtemp(join(tmpdir(), "zcode-subagent-scope-migration-"));
+  it("重新加载保留用户、项目和插件文件及其显式身份", async () => {
+    const root = await mkdtemp(join(tmpdir(), "zcode-subagent-scope-"));
     const storageRoot = join(root, "storage");
     const workingDirectory = join(root, "workspace");
     const pluginRoot = join(root, "plugin");
@@ -339,7 +363,7 @@ describe("loadPluginAgentProfiles", () => {
         expect(plugins.diagnostics).toEqual([]);
         expect(
           local.profiles.find((profile) => profile.source === "user")?.modelSelection?.providerId,
-        ).toBe("account:zai-individual-coding-plan");
+        ).toBe("builtin:zai-coding-plan");
         expect(
           local.profiles.find((profile) => profile.source === "project")?.modelSelection
             ?.providerId,
@@ -351,13 +375,7 @@ describe("loadPluginAgentProfiles", () => {
             options: { reasoningLevel: "high" },
           });
         expect(plugins.profiles.length).toBeGreaterThan(0);
-        expect(await readFile(paths[0]!, "utf8")).toBe(
-          markdown.replace(
-            "model: builtin:zai-coding-plan",
-            "model: account:zai-individual-coding-plan",
-          ),
-        );
-        for (const path of paths.slice(1)) expect(await readFile(path, "utf8")).toBe(markdown);
+        for (const path of paths) expect(await readFile(path, "utf8")).toBe(markdown);
       }
     } finally {
       await rm(root, { force: true, recursive: true });
@@ -427,13 +445,16 @@ thoughtLevel: low
       await writeFile(
         join(storageRoot, "v2", "agents-state.json"),
         JSON.stringify({
-          pluginAgentModelOverrides: {
-            "plugin:document-skills@zcode-plugins-official:code-architect":
-              "custom:custom-openai:glm-5.2",
-            "plugin:other@zcode-plugins-official:code-architect": "custom:custom-openai:ignored",
-          },
-          pluginAgentThoughtLevelOverrides: {
-            "plugin:document-skills@zcode-plugins-official:code-architect": "high",
+          pluginAgentModelSelectionOverrides: {
+            "plugin:document-skills@zcode-plugins-official:code-architect": {
+              providerId: "custom-openai",
+              modelId: "glm-5.2",
+              options: { reasoningLevel: "high" },
+            },
+            "plugin:other@zcode-plugins-official:code-architect": {
+              providerId: "custom-openai",
+              modelId: "ignored",
+            },
           },
         }),
         "utf8",
@@ -476,9 +497,11 @@ thoughtLevel: low
       await writeFile(
         join(storageRoot, "v2", "agents-state.json"),
         JSON.stringify({
-          pluginAgentModelOverrides: {
-            "plugin:document-skills@zcode-plugins-official:code-architect":
-              "custom:custom-openai:glm-5.2",
+          pluginAgentModelSelectionOverrides: {
+            "plugin:document-skills@zcode-plugins-official:code-architect": {
+              providerId: "custom-openai",
+              modelId: "glm-5.2",
+            },
           },
         }),
         "utf8",

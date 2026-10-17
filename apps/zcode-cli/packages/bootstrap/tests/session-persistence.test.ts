@@ -23,10 +23,10 @@ import {
 import { createNodeWorkflowStore } from "@zcode/adapters/workflow";
 import { DEFAULT_EXPERT_WORKFLOW_STRATEGY } from "@zcode/core";
 import { createNodeProviderRuntimePathEnv } from "@zcode/provider-node";
+import { zcodeStorageStartupStateSchema } from "@zcode/shared";
 import {
   LogLevel,
   SESSION_ENTRY_BASH_SHELL_SELECTION,
-  SESSION_ENTRY_MODEL_SELECTION,
   type LogContext,
   type Logger,
   type LoggerFactory,
@@ -1234,7 +1234,6 @@ describe("session persistence", () => {
 
   it("initializes the Bash shell snapshot before direct expert workflow child sessions", async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-bootstrap-workflow-shell-"));
-    const configPath = join(tempRoot, "config.json");
     const shellDir = join(tempRoot, "bin");
     const zshPath = join(shellDir, "zsh");
     const dbPath = join(tempRoot, "session.sqlite");
@@ -1245,24 +1244,6 @@ describe("session persistence", () => {
       await mkdir(shellDir, { recursive: true });
       await writeFile(zshPath, "#!/bin/sh\n");
       await chmod(zshPath, 0o755);
-      await writeFile(
-        configPath,
-        JSON.stringify({
-          provider: {
-            zai: {
-              kind: "openai-compatible",
-              options: {
-                apiKey: "zai-secret",
-                baseURL: "https://api.z.ai/api/coding/v1",
-              },
-              models: {
-                "glm-main": {},
-              },
-            },
-          },
-          model: "zai/glm-main",
-        }),
-      );
 
       const app = await createZCodeApp({
         env: {
@@ -1288,8 +1269,12 @@ describe("session persistence", () => {
             };
           },
         } as never,
-        projectConfigPath: configPath,
         runtimeConfig: {
+          modelSelection: {
+            providerId: "zai",
+            modelId: "glm-main",
+            options: { reasoningLevel: "high" },
+          },
           workingDirectory: tempRoot,
         },
         sessionId: createSessionId("bootstrap-workflow-shell-snapshot"),
@@ -1312,6 +1297,7 @@ describe("session persistence", () => {
 
   it("reads built-in expert workflow snapshots without requiring an external expert definition file", async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-bootstrap-workflow-builtin-"));
+    const store = createSqliteSessionStore({ dbPath: join(tempRoot, "session.sqlite") });
     const workflowStore = createNodeWorkflowStore({
       rootDir: join(tempRoot, "cli", "workflows"),
     });
@@ -1377,6 +1363,7 @@ describe("session persistence", () => {
           workingDirectory: tempRoot,
         },
         sessionId: createSessionId("bootstrap-workflow-builtin"),
+        sessionStore: store,
         skipUserConfig: true,
       });
 
@@ -1389,6 +1376,7 @@ describe("session persistence", () => {
         status: "completed",
       });
     } finally {
+      store.close();
       await rm(tempRoot, { recursive: true, force: true });
     }
   });
@@ -1439,7 +1427,7 @@ describe("session persistence", () => {
           },
           skipUserConfig: true,
         }),
-      ).rejects.toThrow(/SQLite migration checksum mismatch for 0001_base_session_store/);
+      ).rejects.toThrow(/Incompatible ZCode Next CLI session database/);
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
@@ -1473,8 +1461,19 @@ describe("session persistence", () => {
           input: createNeverEndingReadable(),
           output,
         }),
-      ).rejects.toThrow(/SQLite migration checksum mismatch for 0001_base_session_store/);
-      expect(output.output()).toBe("");
+      ).rejects.toThrow(/Incompatible ZCode Next CLI session database/);
+      const startupMessages = output
+        .output()
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(startupMessages.every((message) => message.method === "startup/storageState")).toBe(
+        true,
+      );
+      expect(startupMessages.at(-1)?.params).toMatchObject({
+        phase: "failed",
+        errorCode: "checksum_mismatch",
+      });
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
@@ -1509,7 +1508,7 @@ describe("session persistence", () => {
 
       expect(startupCompletedIndex).toBeGreaterThanOrEqual(0);
       expect(retentionScheduledIndex).toBeGreaterThan(startupCompletedIndex);
-      expect(output.output()).toBe("");
+      expectOnlyStorageStartupFrames(output.output());
     } finally {
       await rm(tempRoot, { recursive: true, force: true });
     }
@@ -1544,7 +1543,7 @@ describe("session persistence", () => {
         });
       }
 
-      expect(output.output()).toBe("");
+      expectOnlyStorageStartupFrames(output.output());
       const logEntries = await readLogEntries(logDir);
       expect(logEntries.some((entry) => entry.event === "model.sdk.warning")).toBe(true);
     } finally {
@@ -2013,6 +2012,7 @@ describe("session persistence", () => {
 
   it("keeps sendInput(auto) queued until the command layer promotes it", async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-send-input-steer-"));
+    const store = createSqliteSessionStore({ dbPath: join(tempRoot, "session.sqlite") });
     const modelStarted = deferred();
     const finishFirstModel = deferred();
     const liveEventTypes: string[] = [];
@@ -2056,6 +2056,8 @@ describe("session persistence", () => {
           workingDirectory: tempRoot,
         },
         sessionId: createSessionId("send-input-steer"),
+        sessionStore: store,
+        skipUserConfig: true,
       });
 
       const pendingTurn = app.submitPrompt("first prompt", {
@@ -2078,6 +2080,7 @@ describe("session persistence", () => {
       expect(liveEventTypes).toContain(SessionEventType.TurnSteerQueued);
       expect(liveEventTypes).not.toContain(SessionEventType.TurnSteerDrained);
     } finally {
+      store.close();
       await rm(tempRoot, { recursive: true, force: true });
     }
   });
@@ -2399,27 +2402,32 @@ describe("session persistence", () => {
       const storedMessages = await store.messages({ sessionID: sessionId });
 
       expect(result.response).toBe("second answer");
-      expect(storedMessages).toHaveLength(4);
-      expect(capturedMessages.map((message) => message.role)).toEqual([
-        "system",
-        "system",
-        "system",
-        "user",
-        "user",
-        "user",
-        "assistant",
-        "user",
+      expect(
+        storedMessages.filter((message) => message.info.semantics?.uiVisibility === "visible"),
+      ).toHaveLength(4);
+      await expect(secondApp.loadSessionTranscript()).resolves.toEqual([
+        { content: "first prompt", role: "user" },
+        { content: "first answer", role: "agent" },
+        { content: "second prompt", role: "user" },
+        { content: "second answer", role: "agent" },
       ]);
-      expect(capturedMessages.map((message) => message.content)).toEqual([
+      expect(capturedMessages.slice(0, 3).map((message) => message.content)).toEqual([
         expect.stringContaining("You are ZCode"),
-        // 修复原因：resume 使用现行 static # Harness + dynamic # Environment prompt 布局。
         expect.stringContaining("# Harness"),
         expect.stringContaining("# Environment"),
-        expect.stringContaining("The following skills are available"),
-        expect.stringContaining("<system-reminder>"),
-        "first prompt",
-        "first answer",
-        "second prompt",
+      ]);
+      expect(
+        capturedMessages
+          .filter(
+            (message) =>
+              message.role !== "system" &&
+              !(message.role === "user" && message.content.startsWith("<system-reminder>")),
+          )
+          .map(({ role, content }) => ({ role, content })),
+      ).toEqual([
+        { content: "first prompt", role: "user" },
+        { content: "first answer", role: "assistant" },
+        { content: "second prompt", role: "user" },
       ]);
     } finally {
       store.close();
@@ -2484,30 +2492,43 @@ describe("session persistence", () => {
         sessionStore: store,
       });
 
+      const persistedMessages = await store.messages({ sessionID: sessionId });
       const resume = await secondApp.resume({
         onEvent: (event) => {
           liveEventTypes.push(event.type);
         },
       });
+      await expect(secondApp.loadSessionTranscript()).resolves.toEqual([
+        { content: "first prompt", role: "user" },
+        { content: "first answer", role: "agent" },
+      ]);
       const result = await secondApp.submitPrompt("second prompt");
 
-      expect(resume.messageCount).toBe(2);
-      expect(resume.appliedMessageCount).toBe(2);
+      expect(resume.messageCount).toBe(persistedMessages.length);
+      expect(resume.appliedMessageCount).toBe(persistedMessages.length);
       expect(result.response).toBe("second answer");
       // 冷恢复会先补齐持久标题事件，再发布 SessionResumed。
       expect(liveEventTypes).toEqual([
         SessionEventType.SessionTitleUpdated,
         SessionEventType.SessionResumed,
       ]);
-      expect(capturedMessages.map((message) => message.content)).toEqual([
+      expect(capturedMessages.slice(0, 3).map((message) => message.content)).toEqual([
         expect.stringContaining("You are ZCode"),
         expect.stringContaining("# Harness"),
         expect.stringContaining("# Communicating with the user"),
-        expect.stringContaining("The following skills are available"),
-        expect.stringContaining("<system-reminder>"),
-        "first prompt",
-        "first answer",
-        "second prompt",
+      ]);
+      expect(
+        capturedMessages
+          .filter(
+            (message) =>
+              message.role !== "system" &&
+              !(message.role === "user" && message.content.startsWith("<system-reminder>")),
+          )
+          .map(({ role, content }) => ({ role, content })),
+      ).toEqual([
+        { content: "first prompt", role: "user" },
+        { content: "first answer", role: "assistant" },
+        { content: "second prompt", role: "user" },
       ]);
     } finally {
       store.close();
@@ -2841,18 +2862,25 @@ async function createProtocolProviderEnv(root: string): Promise<Record<string, s
   const personalFilePath = join(root, "provider-personal.json");
   const emptyBuiltinRelease = JSON.stringify({
     // 此处测试启动/存储顺序，不测试旧版 Release 迁移；使用当前正式结构。
-    schemaVersion: 3,
+    schemaVersion: 1,
     revision: 1,
     config: {
-      providers: {},
-      providerTemplates: {},
-      modelConfigRules: { matchRules: [], templateModelRules: [], providerModelRules: [] },
+      providerConfigRules: { providerRules: [], templateRules: [] },
+      modelConfigRules: {
+        modelRules: [],
+        modelApiRules: [],
+        providerSiteRules: [],
+        templateModelRules: [],
+        builtinProviderModelRules: [],
+      },
     },
   });
   const emptyPersonalConfig = JSON.stringify({
     schemaVersion: 1,
-    providers: {},
-    modelConfigRules: [],
+    config: {
+      providerConfigRules: { providerRules: [] },
+      modelConfigRules: { manualProviderModelRules: [], providerModelRules: [] },
+    },
   });
   await Promise.all([
     writeFile(zcodeBuiltinFilePath, emptyBuiltinRelease),
@@ -2971,4 +2999,16 @@ function createMemoryWritable(): NodeJS.WritableStream & { output(): string } {
   }) as NodeJS.WritableStream & { output(): string };
   stream.output = () => output;
   return stream;
+}
+
+function expectOnlyStorageStartupFrames(output: string): void {
+  const frames = output
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  const states = frames.map((frame) => {
+    expect(frame.method).toBe("startup/storageState");
+    return zcodeStorageStartupStateSchema.parse(frame.params);
+  });
+  expect(states.at(-1)?.phase).toBe("ready");
 }

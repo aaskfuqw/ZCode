@@ -1,5 +1,5 @@
 // publisher 对 workflowRun 键级增量的两条纯规则（src/zcode-protocol-v4/conversation-workflow-run-deltas.ts）。
-// 一条决定旧消费者还能不能看见 run，一条决定 16MiB 闸门算得松不松——两条都不能靠"看起来对"。
+// Verify the conservative growth bound used by the 16MiB frame gate.
 import { describe, expect, it } from "vitest";
 import type {
   ConversationDelta,
@@ -7,39 +7,11 @@ import type {
   WorkflowRunsState,
 } from "@zcode/shared/zcode-protocol-v4";
 import {
-  WORKFLOW_RUNS_LEGACY_LIMITS,
   diffWorkflowRunsState,
   reduceWorkflowRunsState,
   utf8JsonByteLength,
 } from "@zcode/shared/zcode-protocol-v4";
-import {
-  encodeConversationDeltasForLegacy,
-  workflowRunDeltaGrowthUpperBound,
-} from "../src/zcode-protocol-v4/index.js";
-
-function runState(nodeCount: number, actorCount = 0): WorkflowRunsState {
-  return {
-    revision: 7,
-    runs: [
-      {
-        runId: "dwfrun-1",
-        status: "running",
-        usage: { spentTokens: 0, nodesUsed: nodeCount },
-        actors: Array.from({ length: actorCount }, (_unused, index) => ({
-          siteId: "actor#1",
-          ordinal: index + 1,
-          status: "idle" as const,
-        })),
-        nodes: Array.from({ length: nodeCount }, (_unused, index) => ({
-          siteId: "ask#1",
-          ordinal: index + 1,
-          phase: "dispatched" as const,
-        })),
-        lastEventSequence: nodeCount,
-      },
-    ],
-  };
-}
+import { workflowRunDeltaGrowthUpperBound } from "../src/zcode-protocol-v4/index.js";
 
 function updated(runId: string, revision: number): ConversationDelta {
   return { op: "workflowRun.updated", runId, revision, run: { lastEventSequence: revision } };
@@ -56,61 +28,6 @@ const ROW: ConversationDelta = {
     createdAt: 0,
   },
 };
-
-describe("旧消费者编码", () => {
-  it("没有键级增量的批次原样返回**同一个数组**", () => {
-    const deltas = [
-      ROW,
-      { op: "state.updated", patch: { revision: 3 } } satisfies ConversationDelta,
-    ];
-    expect(encodeConversationDeltasForLegacy(deltas, runState(2))).toBe(deltas);
-  });
-
-  it("整批的键级增量折成一条整键 patch，落在**最后一条**被丢掉的位置上", () => {
-    const tail: ConversationDelta = { op: "state.updated", patch: { revision: 9 } };
-    const deltas: ConversationDelta[] = [
-      updated("dwfrun-1", 5),
-      ROW,
-      updated("dwfrun-1", 6),
-      { op: "workflowRun.removed", runId: "dwfrun-2", revision: 7 },
-      tail,
-    ];
-    const encoded = encodeConversationDeltasForLegacy(deltas, runState(2));
-
-    expect(encoded.map((delta) => delta.op)).toEqual([
-      "row.appended",
-      "state.updated",
-      "state.updated",
-    ]);
-    // 位置在最后一条被丢掉的 op 上：整键替换蕴含这批增量的全部效果，与其余 op 的相对顺序
-    // 因此与逐条投递一致（行 op 与状态键互不相干）。
-    expect(encoded[0]).toBe(ROW);
-    expect(encoded[2]).toBe(tail);
-    const patch = (encoded[1] as { patch: { workflowRuns?: WorkflowRunsState } }).patch;
-    expect(patch.workflowRuns?.revision).toBe(7);
-    expect(patch.workflowRuns?.runs[0]?.nodes).toHaveLength(2);
-  });
-
-  it("超过旧界的表裁到 256 并置 truncated（旧二进制的 .max(256) 会让整帧解析失败）", () => {
-    const state = runState(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes + 40, 300);
-    const encoded = encodeConversationDeltasForLegacy([updated("dwfrun-1", 8)], state);
-    const run = (encoded[0] as { patch: { workflowRuns: WorkflowRunsState } }).patch.workflowRuns
-      .runs[0]!;
-
-    expect(run.nodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-    expect(run.actors).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxActors);
-    expect(run.truncated).toBe(true);
-    // 「前 256 条」不是随手取的：旧归约触界时是拒新，它产出的恰好就是最早那 256 条。
-    expect(run.nodes[0]?.ordinal).toBe(1);
-    expect(run.nodes.at(-1)?.ordinal).toBe(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-  });
-
-  it("投影里还没有 workflowRuns 键时只丢不补（没有能整键替换成的东西）", () => {
-    expect(encodeConversationDeltasForLegacy([ROW, updated("dwfrun-1", 1)], undefined)).toEqual([
-      ROW,
-    ]);
-  });
-});
 
 describe("快路径的增长上界", () => {
   it("整批都是键级增量：给出上界，且不小于这批 op 自己的字节数", () => {
@@ -141,7 +58,7 @@ describe("快路径的增长上界", () => {
   it("整键 workflowRuns patch 不走快路径", () => {
     const wholeKey: ConversationDelta = {
       op: "state.updated",
-      patch: { workflowRuns: runState(300) },
+      patch: { workflowRuns: { revision: 1, runs: [] } },
     };
     expect(workflowRunDeltaGrowthUpperBound([wholeKey])).toBeNull();
     expect(workflowRunDeltaGrowthUpperBound([updated("dwfrun-1", 5), wholeKey])).toBeNull();

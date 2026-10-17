@@ -1411,9 +1411,6 @@ export class ConversationV4Gateway {
       connectionId: params.connectionId,
       base: params.base,
       deliveryProfile: profileName,
-      // 与 clientMode 同族的可信注入：能力位来自该连接的 clientHello，缺席一律按旧消费者办
-      // （整键 patch + 旧界裁剪）。resync / rehydrate 沿用订阅上已记下的这一位，不再重取。
-      workflowRunDeltas: params.workflowRunDeltas === true,
     });
     const routeKey = subscriptionRouteKey(
       params.topic,

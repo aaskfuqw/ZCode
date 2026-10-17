@@ -315,7 +315,6 @@ export function useRootWorkspaceActions({
     await updateAppSettings({
       providerFamilyDomain: (nextProviderFamilyDomain ?? "") as AppSettings["providerFamilyDomain"],
       providerFamilyDomainUpdatedAt: Date.now(),
-      providerFamilyDomainMigrated: true,
     });
     if (!nextProviderFamilyDomain) {
       onProviderFamilyDomainClearedAfterLogout?.();

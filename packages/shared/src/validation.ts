@@ -212,7 +212,6 @@ export const webRemoteControlPlatformMethodSchema = z.enum([
   "listSSHConfigAliases",
   "loadMcpFromUserDirectory",
   "saveMcpToUserDirectory",
-  "migrateLegacyCommonMcp",
 ]);
 
 const webRemoteControlAppPayloadSchemas = [
@@ -418,19 +417,10 @@ export const remoteTargetSchema = z.discriminatedUnion("kind", [
   serverConnectOptionsSchema,
 ]);
 
-export const helloMessageSchema = z.object({
-  type: z.literal("zcode-hello"),
-  version: z.string(),
-  platform: z.string(),
-  arch: z.string(),
-  pid: z.number().int(),
-});
-
-export const helloAckMessageSchema = z.object({
-  type: z.literal("zcode-hello-ack"),
-  version: z.string(),
-  clientId: nonEmptyStringSchema,
-});
+export {
+  remoteHelloMessageSchema as helloMessageSchema,
+  remoteHelloAckMessageSchema as helloAckMessageSchema,
+} from "./handshake.js";
 
 export const rendererLogPayloadSchema = z.object({
   level: z.enum(["info", "warn", "error"]),

@@ -90,7 +90,7 @@ const enUS: Record<string, string> = {
   "startup.global.error.corrupt":
     "The database appears damaged. Preserve your data and diagnostics and contact support. Do not delete the database.",
   "startup.global.error.checksum_mismatch":
-    "The migration records do not match this app version. Preserve your data and diagnostics and contact support.",
+    "This database is incompatible with the current development build. Close all ZCode Next processes using it, back up and manually move only the database identified in diagnostics and its -wal/-shm files, then restart. Keep project and workspace files.",
   "startup.global.error.open_failed":
     "The database could not be opened. Check that the data directory exists and is accessible, then retry.",
   "startup.global.error.lock_timeout":

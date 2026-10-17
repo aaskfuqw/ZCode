@@ -202,40 +202,10 @@ export function resolveCloseToTraySupported(input: {
   return false;
 }
 
-/**
- * Linux 默认值归位（spec：设置项一节）。
- * shared 的 migrateCloseToTrayOnWindowsDefault 无平台概念，存量 Linux 用户已被归位为 true；
- * 但 Linux 此前没有设置入口，存量 true 不可能是用户显式选择，首次启动强制归位为默认关。
- */
-export function resolveCloseToTrayBootstrapValue(input: {
+/** Current platform default; an explicit stored choice always wins. */
+export function resolveCloseToTrayValue(input: {
   platform: NodeJS.Platform;
   stored: boolean | undefined;
-  linuxMigrationInitialized: boolean | undefined;
-}): { value: boolean; needsLinuxMigration: boolean } {
-  if (input.platform !== "linux") {
-    return { value: input.stored ?? true, needsLinuxMigration: false };
-  }
-  if (input.linuxMigrationInitialized !== true) {
-    return { value: false, needsLinuxMigration: true };
-  }
-  return { value: input.stored ?? false, needsLinuxMigration: false };
-}
-
-/**
- * 迁移持久化失败后的运行时值裁决（CR-02）：持久层不可写（磁盘满/只读等）时，
- * 内存值回退为持久化文件的当前值，维持"文件是唯一可信来源"——否则 main 按 false
- * 处理而设置页读到文件里的 true，重新形成双数据源。迁移在下次启动重试；
- * 失败期间 Linux 用户保持旧行为（迁移未完成态），可接受。
- */
-export function resolveCloseToTrayRuntimeValue(input: {
-  platform: NodeJS.Platform;
-  stored: boolean | undefined;
-  linuxMigrationInitialized: boolean | undefined;
-  migrationPersisted: boolean;
 }): boolean {
-  const bootstrap = resolveCloseToTrayBootstrapValue(input);
-  if (bootstrap.needsLinuxMigration && !input.migrationPersisted) {
-    return input.stored ?? true;
-  }
-  return bootstrap.value;
+  return input.stored ?? input.platform === "win32";
 }

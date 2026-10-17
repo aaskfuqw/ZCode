@@ -13,6 +13,13 @@ import {
   zcodeProtocolNotifications,
 } from "@zcode/shared";
 import type { Logger } from "@zcode/contracts";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  V4_METHODS,
+  ZCodeProtocolContractError,
+  parseCurrentProtocolHandshake,
+  protocolContractSchema,
+} from "@zcode/shared/zcode-protocol-v4";
 
 type ZCodeProtocolOutgoingMessage =
   | ZCodeProtocolError
@@ -74,6 +81,7 @@ export class ZCodeProtocolNdjsonConnection {
   private terminal = false;
   private transportCloseNotified = false;
   private draining = false;
+  private contractAdmitted = false;
   private drainTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly options: ZCodeProtocolNdjsonConnectionOptions) {
@@ -194,6 +202,25 @@ export class ZCodeProtocolNdjsonConnection {
     if (!message) {
       return;
     }
+    if ("id" in message && "method" in message) {
+      if (message.method === V4_METHODS.connectionInitialize) {
+        try {
+          parseCurrentProtocolHandshake(protocolContractSchema, message.params);
+          this.contractAdmitted = true;
+          this.send({ id: message.id, result: CURRENT_PROTOCOL_CONTRACT });
+        } catch (error) {
+          this.contractAdmitted = false;
+          this.rejectIncompatiblePeer(message.id, error);
+        }
+        return;
+      }
+      if (!this.contractAdmitted) {
+        this.rejectIncompatiblePeer(message.id);
+        return;
+      }
+    } else if ("method" in message && !this.contractAdmitted) {
+      return;
+    }
     if (
       !("id" in message) &&
       "method" in message &&
@@ -309,7 +336,17 @@ export class ZCodeProtocolNdjsonConnection {
     }
   }
 
-  private sendError(id: string, code: number, message: string, data?: unknown): void {
+  private rejectIncompatiblePeer(id: ZCodeProtocolRequestId, cause?: unknown): void {
+    const error = new ZCodeProtocolContractError(cause);
+    this.sendError(id, -32023, error.message, { code: error.code });
+  }
+
+  private sendError(
+    id: ZCodeProtocolRequestId,
+    code: number,
+    message: string,
+    data?: unknown,
+  ): void {
     this.send({
       error: {
         code,

@@ -45,8 +45,14 @@ export function databaseStartupErrorDetails(error: unknown): {
   sqliteCode?: number;
   systemCode?: string;
   migrationId?: string;
+  dbPath?: string;
 } {
-  const result: { sqliteCode?: number; systemCode?: string; migrationId?: string } = {};
+  const result: {
+    sqliteCode?: number;
+    systemCode?: string;
+    migrationId?: string;
+    dbPath?: string;
+  } = {};
   const seen = new Set<unknown>();
   while (error && typeof error === "object" && !seen.has(error) && seen.size < 12) {
     seen.add(error);
@@ -54,6 +60,7 @@ export function databaseStartupErrorDetails(error: unknown): {
       errcode?: unknown;
       code?: unknown;
       migrationId?: unknown;
+      dbPath?: unknown;
       cause?: unknown;
     };
     if (typeof current.errcode === "number" && Number.isSafeInteger(current.errcode))
@@ -65,6 +72,12 @@ export function databaseStartupErrorDetails(error: unknown): {
       /^[a-zA-Z_0-9-]{1,128}$/.test(current.migrationId)
     )
       result.migrationId = current.migrationId;
+    if (
+      typeof current.dbPath === "string" &&
+      current.dbPath.length > 0 &&
+      current.dbPath.length <= 8192
+    )
+      result.dbPath = current.dbPath;
     error = current.cause;
   }
   return result;
@@ -73,6 +86,7 @@ export const databaseStartupErrorDetailsSchema = z.object({
   sqliteCode: z.number().int().optional(),
   systemCode: z.string().max(64).optional(),
   migrationId: z.string().max(128).optional(),
+  dbPath: z.string().min(1).max(8192).optional(),
 });
 
 export const startupDiskSummarySchema = z

@@ -330,6 +330,7 @@ describe("hostResponseMessageSchema", () => {
     const parsed = appSettingsSchema.safeParse({
       recentProjects: [],
       locale: "zh-CN",
+      localePreference: "system",
       lastWorkspaceSession: [
         {
           kind: "local",
@@ -463,44 +464,17 @@ describe("hostResponseMessageSchema", () => {
     ).toBe(false);
   });
 
-  it("首次统一开启消息流 reasoning，迁移后保留用户选择", () => {
-    const defaults = appSettingsSchema.parse({});
-    const migratedMissing = appSettingsSchema.parse({
-      messageStreamShowTodos: true,
-    });
-    const migratedLegacyDisabled = appSettingsSchema.parse({
-      messageStreamShowReasoning: false,
-    });
-    const migratedLegacyEnabled = appSettingsSchema.parse({
-      messageStreamShowReasoning: true,
-    });
-    const explicitDisabled = appSettingsSchema.parse({
-      messageStreamShowReasoning: false,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-    const explicitEnabled = appSettingsSchema.parse({
-      messageStreamShowReasoning: true,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-    const patch = appSettingsPatchSchema.parse({
-      messageStreamShowReasoning: false,
-      messageStreamShowTodos: true,
-    });
-
-    expect(defaults.messageStreamShowReasoning).toBe(true);
-    expect(defaults.messageStreamShowReasoningMigrationInitialized).toBe(true);
-    expect(defaults.messageStreamShowTodos).toBe(false);
-    expect(migratedMissing.messageStreamShowReasoning).toBe(true);
-    expect(migratedMissing.messageStreamShowReasoningMigrationInitialized).toBe(true);
-    expect(migratedMissing.messageStreamShowTodos).toBe(true);
-    expect(migratedLegacyDisabled.messageStreamShowReasoning).toBe(true);
-    expect(migratedLegacyEnabled.messageStreamShowReasoning).toBe(true);
-    expect(explicitDisabled.messageStreamShowReasoning).toBe(false);
-    expect(explicitEnabled.messageStreamShowReasoning).toBe(true);
-    expect(patch).toMatchObject({
-      messageStreamShowReasoning: false,
-      messageStreamShowTodos: true,
-    });
+  it("defaults reasoning to enabled and preserves explicit choices without markers", () => {
+    expect(appSettingsSchema.parse({}).messageStreamShowReasoning).toBe(true);
+    for (const enabled of [false, true]) {
+      expect(
+        appSettingsSchema.parse({ messageStreamShowReasoning: enabled }).messageStreamShowReasoning,
+      ).toBe(enabled);
+      expect(
+        appSettingsPatchSchema.parse({ messageStreamShowReasoning: enabled })
+          .messageStreamShowReasoning,
+      ).toBe(enabled);
+    }
   });
 
   it("defaults tool call grouping preferences by group type", () => {
@@ -524,29 +498,16 @@ describe("hostResponseMessageSchema", () => {
     );
   });
 
-  it("首次统一开启 Windows 关闭到托盘，迁移后保留用户选择", () => {
-    const defaults = appSettingsSchema.parse({});
-    const migratedLegacyDisabled = appSettingsSchema.parse({
-      closeToTrayOnWindows: false,
-    });
-    const migratedLegacyEnabled = appSettingsSchema.parse({
-      closeToTrayOnWindows: true,
-    });
-    const explicitDisabled = appSettingsSchema.parse({
-      closeToTrayOnWindows: false,
-      closeToTrayOnWindowsMigrationInitialized: true,
-    });
-    const explicitEnabled = appSettingsSchema.parse({
-      closeToTrayOnWindows: true,
-      closeToTrayOnWindowsMigrationInitialized: true,
-    });
-
-    expect(defaults.closeToTrayOnWindows).toBe(true);
-    expect(defaults.closeToTrayOnWindowsMigrationInitialized).toBe(true);
-    expect(migratedLegacyDisabled.closeToTrayOnWindows).toBe(true);
-    expect(migratedLegacyEnabled.closeToTrayOnWindows).toBe(true);
-    expect(explicitDisabled.closeToTrayOnWindows).toBe(false);
-    expect(explicitEnabled.closeToTrayOnWindows).toBe(true);
+  it("leaves tray defaults to the platform and preserves explicit choices", () => {
+    expect(appSettingsSchema.parse({}).closeToTrayOnWindows).toBeUndefined();
+    for (const enabled of [false, true]) {
+      expect(appSettingsSchema.parse({ closeToTrayOnWindows: enabled }).closeToTrayOnWindows).toBe(
+        enabled,
+      );
+      expect(
+        appSettingsPatchSchema.parse({ closeToTrayOnWindows: enabled }).closeToTrayOnWindows,
+      ).toBe(enabled);
+    }
   });
 
   it("accepts explicit HTTP proxy and custom CA settings", () => {
@@ -607,44 +568,45 @@ describe("hostResponseMessageSchema", () => {
     });
   });
 
-  it("accepts provider family domain settings and defaults migration marker to false", () => {
-    const defaults = appSettingsSchema.parse({});
+  it("accepts current provider family domain settings without migration state", () => {
+    expect(appSettingsSchema.parse({}).providerFamilyDomain).toBeUndefined();
     const parsed = appSettingsSchema.parse({
       providerFamilyDomain: "zai",
       providerFamilyDomainUpdatedAt: 123,
-      providerFamilyDomainMigrated: true,
     });
+    expect(parsed.providerFamilyDomain).toBe("zai");
+    expect(parsed.providerFamilyDomainUpdatedAt).toBe(123);
     const patch = appSettingsPatchSchema.parse({
       providerFamilyDomain: "",
       providerFamilyDomainUpdatedAt: 456,
-      providerFamilyDomainMigrated: true,
     });
-
-    expect(defaults.providerFamilyDomain).toBeUndefined();
-    expect(defaults.providerFamilyDomainMigrated).toBe(false);
-    expect(parsed.providerFamilyDomain).toBe("zai");
-    expect(parsed.providerFamilyDomainUpdatedAt).toBe(123);
-    expect(parsed.providerFamilyDomainMigrated).toBe(true);
     expect(patch.providerFamilyDomain).toBe("");
     expect(patch.providerFamilyDomainUpdatedAt).toBe(456);
   });
 
-  it("normalizes legacy enabled agent CLI providers to ZCode Agent", () => {
-    const parsed = appSettingsSchema.parse({
-      enabledBuiltinAgentCliProviders: ["claude", "codex", "gemini", "opencode"],
-    });
-    const patch = appSettingsPatchSchema.parse({
-      enabledBuiltinAgentCliProviders: ["claude", "codex"],
-    });
-
-    expect(parsed.enabledBuiltinAgentCliProviders).toEqual(["glm"]);
-    expect(patch.enabledBuiltinAgentCliProviders).toEqual(["glm"]);
+  it("enforces the current single-Agent invariant without importing third-party providers", () => {
+    expect(appSettingsSchema.parse({}).enabledBuiltinAgentCliProviders).toEqual(["glm"]);
+    expect(
+      appSettingsSchema.parse({ enabledBuiltinAgentCliProviders: [] })
+        .enabledBuiltinAgentCliProviders,
+    ).toEqual(["glm"]);
+    expect(
+      appSettingsPatchSchema.parse({ enabledBuiltinAgentCliProviders: [] })
+        .enabledBuiltinAgentCliProviders,
+    ).toEqual(["glm"]);
+    expect(
+      appSettingsSchema.safeParse({ enabledBuiltinAgentCliProviders: ["claude", "glm"] }).success,
+    ).toBe(false);
+    expect(
+      appSettingsPatchSchema.safeParse({ enabledBuiltinAgentCliProviders: ["codex"] }).success,
+    ).toBe(false);
   });
 
-  it("preserves SSH remote asset install mode and drops historical resource packages", () => {
+  it("preserves current SSH remote asset install mode", () => {
     const parsed = appSettingsSchema.safeParse({
       recentProjects: [],
       locale: "zh-CN",
+      localePreference: "system",
       lastWorkspaceSession: [
         {
           kind: "remote",
@@ -656,9 +618,6 @@ describe("hostResponseMessageSchema", () => {
             port: 22,
             username: "root",
             assetInstallMode: "remote-download",
-            resourcePackages: {
-              selectedPackageIds: ["acp-codex", "unknown-retired-runtime"],
-            },
           },
           lastOpenedAt: Date.now(),
           lastConnectionStatus: "connected",
@@ -685,96 +644,28 @@ describe("hostResponseMessageSchema", () => {
     expect(sessionEntry.target).not.toHaveProperty("resourcePackages");
   });
 
-  it("migrates legacy lastOpenTabs and remoteWorkspaceHistory into lastWorkspaceSession", () => {
-    const parsed = appSettingsSchema.safeParse({
-      recentProjects: [],
-      locale: "zh-CN",
-      lastOpenTabs: ["/tmp/local-demo"],
-      lastWorkspaceSession: [{ kind: "remote", historyId: "remote-history-1" }],
-      remoteWorkspaceHistory: [
-        {
-          id: "remote-history-1",
-          workspacePath: "/workspace/demo",
-          target: {
-            kind: "docker",
-            container: "demo",
-          },
-          lastOpenedAt: Date.now(),
-          lastConnectionStatus: "failed",
-        },
-      ],
-    });
-
-    expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.lastWorkspaceSession).toEqual([
-      {
-        kind: "remote",
-        workspacePath: "/workspace/demo",
-        target: {
-          kind: "docker",
-          container: "demo",
-        },
-        lastOpenedAt: expect.any(Number),
-        lastConnectionStatus: "failed",
-      },
-      {
-        kind: "local",
-        workspacePath: "/tmp/local-demo",
-        workspacePurpose: "project",
-      },
-    ]);
-  });
-
-  it("migrates legacy remoteWorkspaceHistory after dropping historical resource packages", () => {
-    const parsed = appSettingsSchema.safeParse({
-      recentProjects: [],
-      locale: "zh-CN",
-      lastWorkspaceSession: [{ kind: "remote", historyId: "remote-history-ssh" }],
-      remoteWorkspaceHistory: [
-        {
-          id: "remote-history-ssh",
-          workspacePath: "/workspace/demo",
-          target: {
-            kind: "ssh",
-            host: "demo.internal",
-            username: "root",
-            resourcePackages: {
-              selectedPackageIds: ["acp-codex", "unknown-retired-runtime"],
-            },
-          },
-          lastOpenedAt: Date.now(),
-          lastConnectionStatus: "connected",
-        },
-      ],
-    });
-
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) {
-      return;
-    }
-
-    const sessionEntry = parsed.data.lastWorkspaceSession[0];
-    expect(sessionEntry).toMatchObject({
-      kind: "remote",
-      workspacePath: "/workspace/demo",
-      target: {
-        kind: "ssh",
-        host: "demo.internal",
-        username: "root",
-      },
-      lastOpenedAt: expect.any(Number),
-      lastConnectionStatus: "connected",
-    });
-    if (sessionEntry?.kind !== "remote") {
-      throw new Error("expected remote workspace session");
-    }
-    expect(sessionEntry.target).not.toHaveProperty("resourcePackages");
+  it.each([
+    { locale: "en-US" },
+    { lastOpenTabs: ["/workspace/demo"] },
+    { remoteWorkspaceHistory: [] },
+    { lastWorkspaceSession: [{ kind: "remote", historyId: "old-history" }] },
+  ])("rejects historical settings rather than importing them: %j", (stored) => {
+    const parsed = appSettingsSchema.safeParse(stored);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success)
+      expect(parsed.error.issues).toContainEqual(
+        expect.objectContaining({
+          code: "custom",
+          params: { incompatibleSettingsFormat: true },
+        }),
+      );
   });
 
   it("drops retired ZCode Agent proxy settings from legacy settings files", () => {
     const parsed = appSettingsSchema.safeParse({
       recentProjects: [],
       locale: "zh-CN",
+      localePreference: "system",
       retiredProxyUrl: "127.0.0.1:7890",
       retiredProxyUseSystemCa: true,
       retiredProxyCaCertPath: "C:\\Users\\test\\proxy-ca.pem",

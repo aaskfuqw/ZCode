@@ -33,7 +33,6 @@ describe("LoginApiKeyForm provider update helpers", () => {
     expect(buildLoginApiKeySkipSettings("bigmodel", 300)).toEqual({
       providerFamilyDomain: "bigmodel",
       providerFamilyDomainUpdatedAt: 300,
-      providerFamilyDomainMigrated: true,
     });
   });
 

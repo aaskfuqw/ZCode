@@ -17,6 +17,11 @@ import {
   type ServerConnectOptions,
   type ServerRemoteInfo,
 } from "@zcode/shared";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  ZCodeProtocolContractError,
+  parseCurrentProtocolHandshake,
+} from "@zcode/shared/zcode-protocol-v4";
 
 export interface ServerRemoteEndpoints {
   infoUrl: string;
@@ -176,12 +181,10 @@ async function fetchServerInfo(
   if (!response.ok) {
     throw new Error(`Server info request failed: ${response.status}`);
   }
-  const rawBody = await response.json();
-  const parsed = serverRemoteInfoSchema.safeParse(rawBody);
-  if (!parsed.success) {
-    throw new Error("Server info response is invalid");
-  }
-  return parsed.data;
+  return parseCurrentProtocolHandshake(
+    serverRemoteInfoSchema,
+    await response.json().catch(() => undefined),
+  );
 }
 
 async function fetchHostCapability(
@@ -191,8 +194,13 @@ async function fetchHostCapability(
 ): Promise<string> {
   const response = await fetchImpl(authenticatedUrl(capabilityUrl, target), {
     method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ protocolContract: CURRENT_PROTOCOL_CONTRACT }),
   });
   if (!response.ok) {
+    if (response.status === 409) {
+      throw new ZCodeProtocolContractError(await response.json().catch(() => undefined));
+    }
     throw new Error(`Host capability request failed: ${response.status}`);
   }
   const parsed = serverRemoteHostCapabilitySchema.safeParse(await response.json());

@@ -1,11 +1,7 @@
 import { access, readFile, mkdir, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type {
-  AppSettings,
-  ProviderFamilyDomain,
-  ProviderFamilyConnectionSelectionSettings,
-} from "@zcode/shared";
+import type { AppSettings } from "@zcode/shared";
 import {
   appSettingsPatchSchema,
   appSettingsSchema,
@@ -19,14 +15,6 @@ import { isEffectiveDevelopmentNodeEnv } from "../runtime-tools/nodeEnv.js";
 import { maybeThrowInjectedFsFault } from "../fs/fsFaultInjection.js";
 import { atomicWriteText } from "../fs/atomicFileUtils.js";
 import { withSettingsWriteQueueTimeout } from "./settingsWriteQueue.js";
-import {
-  migrateLegacyAccountConnectionSettings,
-  needsLegacyAccountConnectionMigration,
-  readLegacyAccountConnectionSettingsFile,
-  readIncompleteLegacyTeamConnections,
-  retainLegacyAccountConnectionFields,
-  type LegacyTeamConnection,
-} from "#src/setting/legacyAccountConnectionSettings.js";
 const MAX_RECENT_PROJECTS = 10;
 const DEFAULT_PROJECT_NAME = "ZCodeNextProject";
 const SETTINGS_PARSE_RETRY_DELAY_MS = 300;
@@ -64,6 +52,19 @@ function defaultSettings(): AppSettings {
   return appSettingsSchema.parse({});
 }
 
+class IncompatibleSettingsError extends Error {
+  readonly code = "INCOMPATIBLE_SETTINGS_FORMAT";
+
+  constructor(readonly settingsFile: string) {
+    super(
+      `Incompatible settings format in "${settingsFile}". ` +
+        `Quit ZCode Next, back up and remove only "${settingsFile}", then restart to reset settings. ` +
+        "Keep project and workspace files unchanged.",
+    );
+    this.name = "IncompatibleSettingsError";
+  }
+}
+
 function buildCorruptSettingsBackupPath(settingsFile: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `${settingsFile}.corrupt-${timestamp}`;
@@ -97,23 +98,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function shouldPersistSettingsMigrations(rawValue: unknown): boolean {
-  if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) return false;
-  const raw = rawValue as Record<string, unknown>;
-  return (
-    (needsLegacyAccountConnectionMigration(rawValue) &&
-      readIncompleteLegacyTeamConnections(rawValue).length === 0) ||
-    raw.closeToTrayOnWindowsMigrationInitialized !== true ||
-    raw.messageStreamShowReasoningMigrationInitialized !== true
-  );
-}
-
-interface ReadSettingsResult {
-  settings: AppSettings;
-  needsMigrationPersist: boolean;
-}
-
-async function readSettingsWithMeta(): Promise<ReadSettingsResult> {
+async function readSettings(): Promise<AppSettings> {
   const settingsFile = getSettingsFile();
   try {
     // settingService.get() 会被 UI 和远程会话高频调用。
@@ -138,29 +123,28 @@ async function readSettingsWithMeta(): Promise<ReadSettingsResult> {
       }
       if (rawValue === undefined) {
         await quarantineCorruptSettingsFile(settingsFile, lastParseError);
-        return {
-          settings: defaultSettings(),
-          needsMigrationPersist: false,
-        };
+        return defaultSettings();
       }
     }
-    const result = appSettingsSchema.safeParse(migrateLegacyAccountConnectionSettings(rawValue));
+    const result = appSettingsSchema.safeParse(rawValue);
     if (!result.success) {
+      if (
+        result.error.issues.some(
+          (issue) => issue.code === "custom" && issue.params?.incompatibleSettingsFormat === true,
+        )
+      ) {
+        throw new IncompatibleSettingsError(settingsFile);
+      }
       log(
         "read failed schema validation, returning defaults. error:",
         formatZodError(result.error),
       );
-      return {
-        settings: defaultSettings(),
-        needsMigrationPersist: false,
-      };
+      return defaultSettings();
     }
     debugLog("read result:", JSON.stringify(result.data));
-    return {
-      settings: result.data,
-      needsMigrationPersist: shouldPersistSettingsMigrations(rawValue),
-    };
+    return result.data;
   } catch (err) {
+    if (err instanceof IncompatibleSettingsError) throw err;
     if (
       err &&
       typeof err === "object" &&
@@ -168,23 +152,13 @@ async function readSettingsWithMeta(): Promise<ReadSettingsResult> {
       (err as { code?: string }).code === "ENOENT"
     ) {
       debugLog("settings file missing, using defaults");
-      return {
-        settings: defaultSettings(),
-        needsMigrationPersist: false,
-      };
+      return defaultSettings();
     }
 
     // 文件解析失败等异常兜底返回默认值
     log("read failed, returning defaults. error:", err);
-    return {
-      settings: defaultSettings(),
-      needsMigrationPersist: false,
-    };
+    return defaultSettings();
   }
-}
-
-async function readSettings(): Promise<AppSettings> {
-  return (await readSettingsWithMeta()).settings;
 }
 
 async function writeSettings(
@@ -192,7 +166,6 @@ async function writeSettings(
   shouldCommit: () => boolean = () => true,
   runExclusiveCommit: (commit: () => Promise<void>) => Promise<void> = (commit) => commit(),
   enterCommitPhase: () => void = () => undefined,
-  commitAccountSelection = false,
 ): Promise<void> {
   const settingsDir = getSettingsDir();
   const settingsFile = getSettingsFile();
@@ -203,15 +176,7 @@ async function writeSettings(
   await mkdir(settingsDir, { recursive: true });
   if (!shouldCommit()) return;
   maybeThrowInjectedFsFault({ operation: "writeFile", path: settingsFile });
-  const raw = await readLegacyAccountConnectionSettingsFile(settingsFile);
-  const rollbackFields = retainLegacyAccountConnectionFields(raw);
-  const persisted = { ...rollbackFields, ...settings };
-  // 旧 Team 尚待 OAuth 补组织时，schema 的默认 {} 不是用户的新选择。
-  // 普通偏好保存必须保留新字段缺席；只有迁移提交或用户显式选连接才结束旧导入。
-  if (!commitAccountSelection && readIncompleteLegacyTeamConnections(raw).length > 0) {
-    delete persisted.providerFamilyConnectionSelections;
-  }
-  await atomicWriteText(settingsFile, JSON.stringify(persisted, null, 2), {
+  await atomicWriteText(settingsFile, JSON.stringify(settings, null, 2), {
     beforeRename: () => {
       if (!shouldCommit()) {
         // 提交前超时的旧写只能清理临时文件，不能晚到 rename 覆盖新语言偏好。
@@ -229,16 +194,6 @@ async function writeSettings(
 }
 
 export function createSettingService(): ISettingService {
-  return createSettingServiceWithMigrations().service;
-}
-
-/** Host 私有迁移入口，不加入 Setting RPC；普通 get/update 从不等待 OAuth 查询。 */
-export function createSettingServiceWithMigrations(): {
-  service: ISettingService;
-  prepareLegacyAccountConnections: (
-    resolveOrganization: (connection: LegacyTeamConnection) => Promise<string | null>,
-  ) => Promise<readonly ProviderFamilyDomain[]>;
-} {
   let updateQueue = Promise.resolve();
   let commitQueue = Promise.resolve();
   let writeQueueGeneration = 0;
@@ -277,22 +232,6 @@ export function createSettingServiceWithMigrations(): {
       // 设置切换后可能立即创建或冷恢复 Session；读取若越过已入队写入，
       // runtime 会固定旧开关值。先等待现有写队列，保证启动偏好读取到已提交的选择。
       await updateQueue;
-      const result = await readSettingsWithMeta();
-      if (!result.needsMigrationPersist) {
-        return result.settings;
-      }
-
-      await enqueueSettingsWrite(async (shouldCommit, enterCommitPhase) => {
-        const latest = await readSettingsWithMeta();
-        if (!latest.needsMigrationPersist) {
-          return;
-        }
-
-        // 初始化原因：旧版设置可能已把无法区分来源的默认值落盘；升级后按 schema 统一迁移一次。
-        // 迁移写盘必须进入 updateQueue，并在队列内重读最新文件，避免覆盖并发保存的其他设置。
-        await writeSettings(latest.settings, shouldCommit, runSettingsCommit, enterCommitPhase);
-      });
-
       return readSettings();
     },
 
@@ -324,13 +263,7 @@ export function createSettingServiceWithMigrations(): {
           merged.recentProjects = [...new Set(merged.recentProjects)].slice(0, MAX_RECENT_PROJECTS);
         }
 
-        await writeSettings(
-          merged,
-          shouldCommit,
-          runSettingsCommit,
-          enterCommitPhase,
-          Object.hasOwn(patch, "providerFamilyConnectionSelections"),
-        );
+        await writeSettings(merged, shouldCommit, runSettingsCommit, enterCommitPhase);
       };
 
       await enqueueSettingsWrite(runUpdate);
@@ -376,73 +309,5 @@ export function createSettingServiceWithMigrations(): {
     },
   };
 
-  let inFlight: Promise<readonly ProviderFamilyDomain[]> | null = null;
-  let migrationComplete = false;
-  return {
-    service,
-    prepareLegacyAccountConnections(resolveOrganization) {
-      // 已完成导入后不让每次请求鉴权重复读迁移文件。恢复旧备份需要重启 Host。
-      if (migrationComplete) return Promise.resolve([]);
-      if (inFlight) return inFlight;
-      const run = async (): Promise<readonly ProviderFamilyDomain[]> => {
-        await service.get();
-        const original = await readLegacyAccountConnectionSettingsFile(getSettingsFile());
-        const incomplete = readIncompleteLegacyTeamConnections(original);
-        if (incomplete.length === 0) return [];
-        // 网络在写队列外：代理设置读取及用户操作均可继续，不形成 get -> HTTP -> get 循环。
-        const resolved = await Promise.all(
-          incomplete.map(async (connection) => ({
-            ...connection,
-            organizationId: await resolveOrganization(connection).catch(() => null),
-          })),
-        );
-        await enqueueSettingsWrite(async (shouldCommit, enterCommitPhase) => {
-          const latest = await readLegacyAccountConnectionSettingsFile(getSettingsFile());
-          // 只核对迁移输入，不因普通语言/窗口设置变化丢失合法结果，也不覆盖用户新账号意图。
-          if (
-            Object.hasOwn(latest, "providerFamilyConnectionSelections") ||
-            latest.providerFamilyDomain !== original.providerFamilyDomain ||
-            JSON.stringify(retainLegacyAccountConnectionFields(latest)) !==
-              JSON.stringify(retainLegacyAccountConnectionFields(original))
-          )
-            return;
-          if (resolved.some((entry) => !entry.organizationId?.trim())) return;
-          const migrated = appSettingsSchema.parse(migrateLegacyAccountConnectionSettings(latest));
-          const selections: ProviderFamilyConnectionSelectionSettings = {
-            ...migrated.providerFamilyConnectionSelections,
-          };
-          for (const { family, productId, projectId, organizationId } of resolved) {
-            selections[family] = {
-              kind: "team-coding-plan",
-              productId,
-              projectId,
-              organizationId: organizationId!.trim(),
-            };
-          }
-          await writeSettings(
-            { ...migrated, providerFamilyConnectionSelections: selections },
-            shouldCommit,
-            runSettingsCommit,
-            enterCommitPhase,
-            true,
-          );
-        });
-        return readIncompleteLegacyTeamConnections(
-          await readLegacyAccountConnectionSettingsFile(getSettingsFile()),
-        ).map((entry) => entry.family);
-      };
-      const pending = run();
-      inFlight = pending;
-      void pending.then(
-        (unresolved) => {
-          migrationComplete = unresolved.length === 0;
-          if (inFlight === pending) inFlight = null;
-        },
-        () => {
-          if (inFlight === pending) inFlight = null;
-        },
-      );
-      return pending;
-    },
-  };
+  return service;
 }

@@ -748,10 +748,7 @@ async function saveUserTextMessage(
     role: "user",
     time: { created },
     agent: "zcode-agent",
-    model: {
-      providerID: "glm" as ModelProviderId,
-      modelID: "glm-4-air" as ModelId,
-    },
+    modelSelection: { providerId: "glm", modelId: "glm-4-air" },
     tools: {},
   });
   await store.savePart({
@@ -778,8 +775,8 @@ async function saveAssistantTextMessage(
     role: "assistant",
     time: { created, completed: created },
     parentID: parentMessageId,
-    providerID: "glm" as ModelProviderId,
-    modelID: "glm-4-air" as ModelId,
+    providerId: "glm" as ModelProviderId,
+    modelId: "glm-4-air" as ModelId,
     mode: "build",
     agent: "zcode-agent",
     path: { cwd: WORKSPACE_PATH, root: WORKSPACE_PATH },
@@ -2459,7 +2456,11 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
         sessionID: SESSION_ID,
         type: SESSION_ENTRY_MODEL_SELECTION,
         time: { created: 5, updated: 5 },
-        data: { modelId: "glm-4.6", providerId: "glm", thoughtLevel: "deep" },
+        data: {
+          modelId: "glm-4.6",
+          providerId: "glm",
+          options: { reasoningLevel: "deep" },
+        },
       });
     } finally {
       seedStore.close();
@@ -2483,6 +2484,11 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
       );
       if (frame.payload.kind !== "snapshot") throw new Error("Expected snapshot frame");
       expect(frame.payload.snapshot.config).toMatchObject({
+        modelSelection: {
+          modelId: "glm-4.6",
+          providerId: "glm",
+          options: { reasoningLevel: "deep" },
+        },
         model: "glm-4.6",
         provider: "glm",
         thought: "deep",
@@ -2493,7 +2499,7 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
     }
   });
 
-  it("重启后冷订阅：旧 fork 消息缺档位时不借用相邻消息的档位", async () => {
+  it("重启后冷订阅：fork 的当前选择缺档位时不借用相邻消息的档位", async () => {
     const dbPath = join(tempRoot, "sessions.db");
     const legacyForkSessionId = "sess_legacy_fork_thought" as SessionId;
     const parentSessionId = "sess_legacy_fork_parent";
@@ -2514,16 +2520,23 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
         version: "test-version",
         time: { created: 1, updated: 4 },
       });
+      await seedStore.saveSessionEntry({
+        id: `${legacyForkSessionId}:runtime-model-selection`,
+        sessionID: legacyForkSessionId,
+        type: SESSION_ENTRY_MODEL_SELECTION,
+        time: { created: 3, updated: 3 },
+        data: { modelId: "glm-4-air", providerId: "glm" },
+      });
       await seedStore.saveMessage({
         id: hiddenMessageId,
         sessionID: legacyForkSessionId,
         role: "user",
         time: { created: 1 },
         agent: "zcode-agent",
-        model: {
-          providerID: "glm" as ModelProviderId,
-          modelID: "glm-4-air" as ModelId,
-          variant: "deep",
+        modelSelection: {
+          providerId: "glm",
+          modelId: "glm-4-air",
+          options: { reasoningLevel: "deep" },
         },
         metadata: { forkOrigin },
         semantics: {
@@ -2553,8 +2566,8 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
         role: "assistant",
         time: { created: 2, completed: 2 },
         parentID: hiddenMessageId,
-        providerID: "glm" as ModelProviderId,
-        modelID: "glm-4-air" as ModelId,
+        providerId: "glm" as ModelProviderId,
+        modelId: "glm-4-air" as ModelId,
         mode: "build",
         agent: "zcode-agent",
         path: { cwd: WORKSPACE_PATH, root: WORKSPACE_PATH },
@@ -2601,6 +2614,7 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
       );
       if (frame.payload.kind !== "snapshot") throw new Error("Expected snapshot frame");
       expect(frame.payload.snapshot.config).toMatchObject({
+        modelSelection: { modelId: "glm-4-air", providerId: "glm" },
         model: "glm-4-air",
         provider: "glm",
         thought: "",
@@ -2669,11 +2683,11 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
     }
   });
 
-  it("重启后冷订阅：旧 transcript 无档位时留空，不读取 task-index 提示", async () => {
+  it("重启后冷订阅：无 durable selection 时不从 transcript 或 task-index 提示补选", async () => {
     const dbPath = join(tempRoot, "sessions.db");
     await seedPersistedSession(dbPath);
 
-    const { server, close } = bootRealRestartedServer(dbPath);
+    const { server, apps, close } = bootRealRestartedServer(dbPath);
     try {
       await requestResult(server, {
         id: "subscribe-legacy-thought",
@@ -2682,7 +2696,7 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
           topic: conversationTopic(SESSION_ID),
           connectionId: "conn-legacy-thought",
           clientMode: "desktop-continuous",
-          // 旧消息没有档位，桌面提示不能替用户补选。
+          // 缺少会话选择时，桌面提示不能替用户补选。
           resumeThoughtLevel: "deep",
         },
       });
@@ -2691,11 +2705,18 @@ describe("v4 冷恢复（集成：真 sqlite + server + binder）", () => {
       );
       if (frame.payload.kind !== "snapshot") throw new Error("Expected snapshot frame");
       expect(frame.payload.snapshot.config).toMatchObject({
-        model: "glm-4-air",
-        provider: "glm",
+        model: "",
+        provider: "",
         thought: "",
-        thoughtLevels: ["medium", "deep"],
+        thoughtLevels: [],
       });
+      expect(frame.payload.snapshot.config.modelSelection).toBeUndefined();
+      expect(apps[0].runtime.getSessionModelSelection()).toBeUndefined();
+      expect(
+        frame.payload.snapshot.rows.window.some(
+          (row) => row.kind === "assistantText" && row.text === "历史回答二",
+        ),
+      ).toBe(true);
     } finally {
       await close();
     }

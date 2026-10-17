@@ -498,22 +498,13 @@ export class ProviderSettingsFacade {
 export class ModelSelectionFacade {
   readonly #source: ProviderRegistryFacadeSource;
   readonly #classifyProvider: ModelSelectionProviderClassifier;
-  readonly #resolveLegacyReasoningLevel?: (
-    snapshot: ProviderRegistryServiceSnapshot,
-    selection: ModelSelection,
-  ) => string | undefined;
 
   constructor(
     source: ProviderRegistryFacadeSource,
     classifyProvider: ModelSelectionProviderClassifier = () => "ordinary",
-    resolveLegacyReasoningLevel?: (
-      snapshot: ProviderRegistryServiceSnapshot,
-      selection: ModelSelection,
-    ) => string | undefined,
   ) {
     this.#source = source;
     this.#classifyProvider = classifyProvider;
-    this.#resolveLegacyReasoningLevel = resolveLegacyReasoningLevel;
   }
 
   getView(
@@ -524,23 +515,9 @@ export class ModelSelectionFacade {
     // 账号事实与候选从同一已应用快照读取；不把最新 Settings 配给旧 Registry。
     const snapshot = input ? requireSnapshot(this.#source) : this.#source.getSnapshot();
     const registry = snapshot?.registry ?? this.#source.getView();
-    const resolveLegacyReasoningLevel =
-      snapshot && this.#resolveLegacyReasoningLevel
-        ? (selection: ModelSelection) => this.#resolveLegacyReasoningLevel!(snapshot, selection)
-        : undefined;
-    // 默认偏好只归一化档位，不借此改写账号身份或保存配置。
-    const normalizedDefault =
-      configuredDefault && resolveLegacyReasoningLevel
-        ? (resolveEffectiveModelSelection({
-            selection: configuredDefault,
-            registry,
-            classifyProvider: () => "ordinary",
-            resolveLegacyReasoningLevel,
-          }).effectiveSelection ?? undefined)
-        : configuredDefault;
     const initial = resolveInitialModelSelection({
       registry,
-      configuredDefault: normalizedDefault,
+      configuredDefault,
     });
     return Object.freeze({
       revision: revision ?? registry.revision,
@@ -556,7 +533,6 @@ export class ModelSelectionFacade {
             registry,
             accountStates: snapshot?.account.states,
             classifyProvider: this.#classifyProvider,
-            resolveLegacyReasoningLevel,
           })
         : {}),
     });

@@ -15,7 +15,6 @@ import {
 
 export interface NodePersonalProviderConfigRepositoryOptions {
   readonly filePath: string;
-  readonly importLegacy?: () => Promise<ProviderConfigLayerUpdate | null>;
   readonly onRecovery?: (event: PersonalProviderConfigRecoveryEvent) => void;
   readonly onPollingError?: (error: unknown) => void;
   readonly pollingIntervalMs?: number | false;
@@ -27,7 +26,6 @@ export interface PersonalProviderConfigRecoveryEvent {
 
 export class NodePersonalProviderConfigRepository implements PersonalProviderConfigRepository {
   readonly #filePath: string;
-  readonly #importLegacy?: () => Promise<ProviderConfigLayerUpdate | null>;
   readonly #onRecovery?: (event: PersonalProviderConfigRecoveryEvent) => void;
   readonly #onPollingError?: (error: unknown) => void;
   readonly #pollingIntervalMs: number | false;
@@ -42,7 +40,6 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
   constructor(options: NodePersonalProviderConfigRepositoryOptions) {
     if (!options.filePath.trim()) throw new Error("Personal Provider Config filePath 不能为空");
     this.#filePath = options.filePath;
-    this.#importLegacy = options.importLegacy;
     this.#onRecovery = options.onRecovery;
     this.#onPollingError = options.onPollingError;
     this.#pollingIntervalMs = options.pollingIntervalMs ?? 1_000;
@@ -58,9 +55,8 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
       this.#observedRevision ??= snapshot.revision;
       return snapshot;
     } catch (error) {
-      const snapshot = this.#recoverInvalidFile(error);
-      this.#observedRevision ??= snapshot.revision;
-      return snapshot;
+      this.#reportRecovery({ error });
+      throw error;
     } finally {
       this.#ensurePolling();
     }
@@ -72,7 +68,7 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
     this.#assertNotDisposed();
     try {
       const snapshot = await withFileLock(this.#filePath, async () => {
-        const current = await this.#readLocked();
+        const current = await this.#readCurrent();
         const next = transform(current);
         const update = Object.freeze({
           providers: next.providers,
@@ -111,33 +107,17 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
   async #readCurrent(): Promise<ProviderConfigLayerSnapshot> {
     // 多个进程纯读取也争排他锁，慢 IO 会把轮询放大成锁超时。
     // 正式文件通过同目录临时文件原子替换，纯读可以直接观察已提交的完整文档。
-    const file = await readJsonFileIfExists(this.#filePath);
-    if (file === null && !this.#importLegacy) return snapshotFromUpdate(emptyUpdate());
-    if (file !== null) {
-      const update = decodeProviderConfigFile(file.value);
-      if (JSON.stringify(file.value) === JSON.stringify(encodeProviderConfigFile(update))) {
-        return snapshotFromUpdate(update);
-      }
+    try {
+      const file = await readJsonFileIfExists(this.#filePath);
+      return snapshotFromUpdate(
+        file === null ? emptyUpdate() : decodeProviderConfigFile(file.value),
+      );
+    } catch (cause) {
+      throw new Error(
+        `无法读取当前格式的 Personal Provider Config：${this.#filePath}。请修复该文件，或关闭 ZCode Next 后手动移除该文件并重新配置。`,
+        { cause },
+      );
     }
-    // 导入和规范化仍会写盘。拿锁后必须重读，不能用加锁前的旧内容覆盖其他 writer。
-    return withFileLock(this.#filePath, () => this.#readLocked());
-  }
-
-  async #readLocked(): Promise<ProviderConfigLayerSnapshot> {
-    const file = await readJsonFileIfExists(this.#filePath);
-    if (file === null) {
-      const imported = await this.#importLegacy?.();
-      const update = imported ?? emptyUpdate();
-      if (imported) return snapshotFromUpdate(await this.#writeLocked(update));
-      return snapshotFromUpdate(update);
-    }
-
-    const update = decodeProviderConfigFile(file.value);
-    const encoded = encodeProviderConfigFile(update);
-    if (JSON.stringify(file.value) !== JSON.stringify(encoded)) {
-      await this.#writeLocked(update);
-    }
-    return snapshotFromUpdate(update);
   }
 
   async #writeLocked(update: ProviderConfigLayerUpdate): Promise<ProviderConfigLayerUpdate> {
@@ -148,19 +128,6 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
     await atomicWritePrivateTextFile(this.#filePath, JSON.stringify(encoded, null, 2));
     this.#writeGeneration += 1;
     return canonical;
-  }
-
-  async #readPollingSnapshot(): Promise<ProviderConfigLayerSnapshot> {
-    const file = await readJsonFileIfExists(this.#filePath);
-    if (file === null) return snapshotFromUpdate(emptyUpdate());
-    return snapshotFromUpdate(decodeProviderConfigFile(file.value));
-  }
-
-  #recoverInvalidFile(error: unknown): ProviderConfigLayerSnapshot {
-    // 正式文件无效时必须原样保留，不能备份后覆盖成空配置；本进程仅以内存空
-    // Overlay 降级，等待用户修复原文件。
-    this.#reportRecovery({ error });
-    return snapshotFromUpdate(emptyUpdate());
   }
 
   #reportRecovery(event: PersonalProviderConfigRecoveryEvent): void {
@@ -191,7 +158,7 @@ export class NodePersonalProviderConfigRepository implements PersonalProviderCon
     this.#pollingInFlight = true;
     const writeGeneration = this.#writeGeneration;
     try {
-      const snapshot = await this.#readPollingSnapshot();
+      const snapshot = await this.#readCurrent();
       // 去掉读锁后，旧轮询可能晚于本进程保存返回；丢弃它，避免版本倒退及重复通知。
       if (writeGeneration !== this.#writeGeneration) return;
       this.#pollingErrorActive = false;

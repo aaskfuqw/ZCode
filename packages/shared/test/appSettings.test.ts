@@ -2,6 +2,24 @@ import { describe, expect, it } from "vitest";
 import { appSettingsPatchSchema, appSettingsSchema } from "../src/validationAppSettings.js";
 
 describe("app settings", () => {
+  it("drops initialization markers without overriding explicit current preferences", () => {
+    const markers = {
+      closeToTrayOnWindowsMigrationInitialized: false,
+      closeToTrayLinuxMigrationInitialized: false,
+      messageStreamShowReasoningMigrationInitialized: false,
+      providerFamilyDomainMigrated: true,
+    };
+    const settings = appSettingsSchema.parse({
+      ...markers,
+      closeToTrayOnWindows: false,
+      messageStreamShowReasoning: false,
+    });
+    expect(settings.closeToTrayOnWindows).toBe(false);
+    expect(settings.messageStreamShowReasoning).toBe(false);
+    for (const key of Object.keys(markers)) expect(settings).not.toHaveProperty(key);
+    expect(appSettingsPatchSchema.parse(markers)).toEqual({});
+  });
+
   it("round-trips every structured Provider Family connection selection", () => {
     const selections = {
       zai: { kind: "individual-coding-plan" },
@@ -66,6 +84,7 @@ describe("app settings", () => {
   it("drops only a damaged human Browser preference from stored settings", () => {
     const settings = appSettingsSchema.parse({
       locale: "en-US",
+      localePreference: "en-US",
       recentProjects: ["/workspace/demo"],
       embeddedBrowserViewportPreference: {
         mode: "responsive",
@@ -178,6 +197,7 @@ describe("app settings", () => {
   it("discards a damaged desktop window size without resetting other settings", () => {
     const settings = appSettingsSchema.parse({
       locale: "en-US",
+      localePreference: "en-US",
       recentProjects: ["/workspace/demo"],
       desktopWindowSize: { width: "bad", height: 900, maximized: false },
     });

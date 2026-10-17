@@ -282,6 +282,7 @@ function createWorkflowChildRuntime(
     options.childSessionId,
     {
       ...deps.runtimeConfig,
+      bashShellSelection: deps.runtime.getSessionShellSelection(),
       agentName: options.workflowKind === "expert" ? "zcode-expert" : "zcode-workflow",
       // workflow child 不在 Guarded 合同内；只隔离父任务模式，不继承审批。
       mode: "yolo",

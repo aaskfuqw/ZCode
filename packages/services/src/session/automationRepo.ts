@@ -1,7 +1,4 @@
-import {
-  isTasksStorageMigrated,
-  isTasksStoragePrepared,
-} from "#src/session/tasksDatabase/prepared.js";
+import { isTasksStoragePrepared } from "#src/session/tasksDatabase/prepared.js";
 /* eslint-disable max-lines -- automation 仓库集中维护 automations / automation_runs 的 sqlite schema、
    调度状态机写入与运行历史，稳定后再按读写职责拆分。 */
 import { mkdir } from "node:fs/promises";
@@ -28,7 +25,10 @@ import {
   type ZCodeAutomationUpdateParams,
 } from "@zcode/shared";
 import { getTasksIndexDatabasePath } from "#src/paths.js";
-import { runTasksDatabaseMigrations } from "#src/session/tasksDatabase/migrations.js";
+import {
+  inspectTasksMigrationKind,
+  runTasksDatabaseMigrations,
+} from "#src/session/tasksDatabase/migrations.js";
 
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
@@ -58,10 +58,7 @@ interface AutomationRow {
   title: string;
   cron_expr: string;
   prompt: string;
-  model: string | null;
-  provider: string | null;
   mode: string | null;
-  thought_level: string | null;
   model_selection: string | null;
   workspace_key: string;
   workspace_path: string;
@@ -149,7 +146,6 @@ function rowToAutomation(row: AutomationRow): ZCodeAutomation {
 }
 
 function readAutomationModelSelection(row: AutomationRow): ZCodeAutomation["modelSelection"] {
-  // 旧字段只能经过独立 importer；新字段损坏或明确清空时不能复活旧选择。
   return readSerializedModelSelection(row.model_selection);
 }
 
@@ -280,12 +276,13 @@ export class AutomationRepo {
       this.db = new DatabaseSync(path);
       this.dbPath = path;
       this.db.exec(`PRAGMA busy_timeout = ${this.startupBusyTimeoutMs}`);
+      inspectTasksMigrationKind(this.db);
       this.db.exec("PRAGMA journal_mode = WAL");
       this.db.exec("PRAGMA synchronous = NORMAL");
     }
     // Worker 已完成该路径的原始准备，业务连接不再重复全表修复。
     if (isTasksStoragePrepared(path, this.db)) return;
-    if (!isTasksStorageMigrated(path, this.db)) runTasksDatabaseMigrations(this.db);
+    runTasksDatabaseMigrations(this.db);
   }
 
   private getDatabase(): DatabaseSyncInstance {
@@ -335,22 +332,22 @@ export class AutomationRepo {
       }
       db.prepare(
         `INSERT INTO automations (
-          automation_id, title, cron_expr, prompt, model, provider, model_selection,
+          automation_id, title, cron_expr, prompt, model_selection,
           workspace_key, workspace_path, workspace_identity, target_task_id, bot_delivery_target, location_kind,
           recurring, max_runs, end_at, schedule_rule, schedule_edited_by_user,
           run_count, enabled, lifecycle_status,
           next_run_at, last_run_at, running, claimed_at,
           dispatch_status, dispatch_attempts, retry_at, last_error,
-          mode, thought_level,
+          mode,
           created_at, updated_at
         ) VALUES (
-          @automation_id, @title, @cron_expr, @prompt, @model, @provider, @model_selection,
+          @automation_id, @title, @cron_expr, @prompt, @model_selection,
           @workspace_key, @workspace_path, @workspace_identity, @target_task_id, @bot_delivery_target, 'local',
           @recurring, @max_runs, @end_at, @schedule_rule, 0,
           0, @enabled, @lifecycle_status,
           @next_run_at, NULL, 0, NULL,
           'idle', 0, NULL, NULL,
-          @mode, @thought_level,
+          @mode,
           @created_at, @updated_at
         )`,
       ).run({
@@ -358,12 +355,9 @@ export class AutomationRepo {
         title: params.title,
         cron_expr: params.cronExpr,
         prompt: params.prompt,
-        model: null,
-        provider: null,
-        // 任务配置的显式空值与尚未迁移的 SQL NULL 分开；run 的 SQL NULL 冻结语义不变。
+        // An explicit null follows the workspace selection; run nulls remain unfrozen.
         model_selection: serializeAutomationModelSelection(params.modelSelection) ?? "null",
         mode: params.mode ?? null,
-        thought_level: null,
         workspace_key: workspaceKey,
         workspace_path: params.workspacePath,
         workspace_identity: params.workspaceIdentity ?? null,
@@ -503,15 +497,11 @@ export class AutomationRepo {
       title: params.title ?? existing.title,
       cron_expr: params.cronExpr ?? existing.cron_expr,
       prompt: params.prompt ?? existing.prompt,
-      // 旧三列只供回滚保留；标题等编辑不能清除尚未迁入的旧选择，也不能参与新版运行读取。
-      model: existing.model,
-      provider: existing.provider,
       model_selection:
         params.modelSelection === undefined
           ? existing.model_selection
           : (serializeAutomationModelSelection(params.modelSelection ?? undefined) ?? "null"),
       mode: params.mode === undefined ? existing.mode : params.mode,
-      thought_level: existing.thought_level,
       recurring: params.recurring === undefined ? existing.recurring : params.recurring ? 1 : 0,
       max_runs: params.maxRuns === undefined ? existing.max_runs : params.maxRuns,
       end_at: params.endAt === undefined ? existing.end_at : params.endAt,
@@ -794,11 +784,8 @@ export class AutomationRepo {
             a.title AS a_title,
             a.cron_expr AS a_cron_expr,
             a.prompt AS a_prompt,
-            a.model AS a_model,
-            a.provider AS a_provider,
             a.model_selection AS a_model_selection,
             a.mode AS a_mode,
-            a.thought_level AS a_thought_level,
             a.workspace_key AS a_workspace_key,
             a.workspace_path AS a_workspace_path,
             a.workspace_identity AS a_workspace_identity,
@@ -871,11 +858,8 @@ export class AutomationRepo {
             title: row["a_title"] as string,
             cron_expr: row["a_cron_expr"] as string,
             prompt: row["a_prompt"] as string,
-            model: (row["a_model"] as string | null) ?? null,
-            provider: (row["a_provider"] as string | null) ?? null,
             model_selection: (row["a_model_selection"] as string | null) ?? null,
             mode: (row["a_mode"] as string | null) ?? null,
-            thought_level: (row["a_thought_level"] as string | null) ?? null,
             workspace_key: row["a_workspace_key"] as string,
             workspace_path: row["a_workspace_path"] as string,
             workspace_identity: (row["a_workspace_identity"] as string | null) ?? null,
@@ -1431,9 +1415,9 @@ export class AutomationRepo {
     this.getDatabase()
       .prepare(
         `UPDATE automations SET
-          title = @title, cron_expr = @cron_expr, prompt = @prompt, model = @model, provider = @provider,
+          title = @title, cron_expr = @cron_expr, prompt = @prompt,
           model_selection = @model_selection,
-          mode = @mode, thought_level = @thought_level,
+          mode = @mode,
           recurring = @recurring, max_runs = @max_runs, end_at = @end_at,
           schedule_rule = @schedule_rule,
           schedule_edited_by_user = @schedule_edited_by_user,
@@ -1447,11 +1431,8 @@ export class AutomationRepo {
         title: row.title,
         cron_expr: row.cron_expr,
         prompt: row.prompt,
-        model: row.model,
-        provider: row.provider,
         model_selection: row.model_selection,
         mode: row.mode,
-        thought_level: row.thought_level,
         recurring: row.recurring,
         max_runs: row.max_runs,
         end_at: row.end_at,

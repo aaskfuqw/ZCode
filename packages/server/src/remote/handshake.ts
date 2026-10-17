@@ -1,5 +1,9 @@
 import type { HelloMessage, HelloAckMessage } from "@zcode/shared";
-import { ZCODE_VERSION, formatZodError, helloMessageSchema } from "@zcode/shared";
+import { ZCODE_VERSION, remoteHelloMessageSchema } from "@zcode/shared";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  parseCurrentProtocolHandshake,
+} from "@zcode/shared/zcode-protocol-v4";
 import type { StdioStream } from "./backend.js";
 
 const MAX_HANDSHAKE_DIAGNOSTIC_CHARS = 2048;
@@ -28,13 +32,17 @@ export function performHandshake(
     let stderrText = "";
     let settled = false;
 
-    const rejectWithDiagnostics = (message: string, exitCode?: number) => {
+    const fail = (error: unknown) => {
       if (settled) {
         return;
       }
       settled = true;
       cleanup();
-      reject(
+      reject(error);
+    };
+
+    const rejectWithDiagnostics = (message: string, exitCode?: number) => {
+      fail(
         new Error(
           formatHandshakeFailure(message, {
             exitCode,
@@ -62,46 +70,41 @@ export function performHandshake(
         const line = buffer.slice(0, newlineIdx).trim();
         buffer = buffer.slice(newlineIdx + 1);
 
-        // Try to parse as hello message
+        // Non-JSON lines and unrelated JSON are SSH banner/motd output.
         if (line.startsWith("{")) {
+          let rawValue: unknown;
           try {
-            const rawValue = JSON.parse(line);
-            const result = helloMessageSchema.safeParse(rawValue);
-            if (result.success) {
-              if (settled) {
-                return;
-              }
-              settled = true;
-              cleanup();
-
-              // Send ack
+            rawValue = JSON.parse(line);
+          } catch {
+            continue;
+          }
+          if (
+            rawValue &&
+            typeof rawValue === "object" &&
+            "type" in rawValue &&
+            rawValue.type === "zcode-hello"
+          ) {
+            try {
+              const hello = parseCurrentProtocolHandshake(remoteHelloMessageSchema, rawValue);
               const ack: HelloAckMessage = {
                 type: "zcode-hello-ack",
                 version: ZCODE_VERSION,
                 clientId,
+                protocolContract: CURRENT_PROTOCOL_CONTRACT,
               };
               stream.stdin.write(JSON.stringify(ack) + "\n");
-
+              settled = true;
+              cleanup();
               resolve({
-                hello: result.data as HelloMessage,
+                hello,
                 remaining: buffer.length > 0 ? Buffer.from(buffer, "utf-8") : null,
               });
-              return;
+            } catch (error) {
+              fail(error);
             }
-            if (
-              rawValue &&
-              typeof rawValue === "object" &&
-              "type" in rawValue &&
-              (rawValue as { type?: unknown }).type === "zcode-hello"
-            ) {
-              rejectWithDiagnostics(`Invalid zcode-hello: ${formatZodError(result.error)}`);
-              return;
-            }
-          } catch {
-            // Not JSON, skip (SSH banner line)
+            return;
           }
         }
-        // Non-JSON lines are treated as SSH banner/motd — skip
       }
     };
 

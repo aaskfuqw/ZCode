@@ -208,64 +208,32 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       capabilities: { workspaceHookReview: true },
     });
   });
-  // 增量能力是一条**单向**握手（shared transport.ts）：Host 先在 hello 里宣告，客户端才敢在
-  // `.strict()` 的 clientHello capabilities 里回声明；host 再把这条连接的声明当可信位注入订阅。
-  it("hello 宣告 workflowRunDeltas，clientHello 声明后才成为订阅上的可信位", async () => {
-    const { base } = setupBase();
-    const declared = createZCodeAgentConnectionScope(base, {
-      connectionId: "deltas-declared",
-      clientMode: "desktop-continuous",
-    });
-    const silent = createZCodeAgentConnectionScope(base, {
-      connectionId: "deltas-silent",
-      clientMode: "web-remote-replayable",
-    });
+  it.each([undefined, false])(
+    "rejects incompatible terminal workflow contract %s before subscribe",
+    async (workflowRunDeltas) => {
+      const { base } = setupBase();
+      const scope = createZCodeAgentConnectionScope(base, {
+        connectionId: "old-client",
+        clientMode: "web-remote-replayable",
+      });
+      await scope.service.helloConversationV4();
+      await expect(
+        scope.service.initializeConversationV4({
+          kind: "clientHello",
+          protocolVersion: 3,
+          clientId: "client",
+          appVersion: "any",
+          capabilities: { workflowRunDeltas },
+        } as never),
+      ).rejects.toThrow("Update or redeploy");
+      await expect(
+        scope.service.subscribeConversationV4({ workspacePath: "/repo", sessionId: "session-1" }),
+      ).rejects.toThrow("handshakeRequired");
+      expect(base.subscribeConversationV4).not.toHaveBeenCalled();
+    },
+  );
 
-    await expect(declared.service.helloConversationV4()).resolves.toMatchObject({
-      capabilities: { workflowRunDeltas: true },
-    });
-    await silent.service.helloConversationV4();
-    await declared.service.initializeConversationV4({
-      kind: "clientHello",
-      protocolVersion: 3,
-      clientId: "deltas-client",
-      appVersion: "4.0.0",
-      capabilities: { workflowRunDeltas: true },
-    });
-    await silent.service.initializeConversationV4({
-      kind: "clientHello",
-      protocolVersion: 3,
-      clientId: "deltas-client",
-      appVersion: "4.0.0",
-      capabilities: { workspaceHookReviewUi: true },
-    });
-    await declared.service.subscribeConversationV4({
-      workspacePath: "/repo",
-      sessionId: "session-1",
-      // UI 面自报的同名字段：facade 先清后写，伪造不了能力。
-      workflowRunDeltas: false,
-    } as never);
-    await silent.service.subscribeConversationV4({
-      workspacePath: "/repo",
-      sessionId: "session-1",
-      workflowRunDeltas: true,
-    } as never);
-
-    const calls = vi.mocked(base.subscribeConversationV4).mock.calls;
-    expect(readTrustedZCodeAgentV4Connection(calls[0]?.[0])).toEqual({
-      connectionId: "deltas-declared",
-      clientMode: "desktop-continuous",
-      workflowRunDeltas: true,
-    });
-    expect(calls[0]?.[0]).not.toHaveProperty("workflowRunDeltas");
-    expect(readTrustedZCodeAgentV4Connection(calls[1]?.[0])).toEqual({
-      connectionId: "deltas-silent",
-      clientMode: "web-remote-replayable",
-    });
-    expect(calls[1]?.[0]).not.toHaveProperty("workflowRunDeltas");
-  });
-
-  it("trusted relay 把下游 clientHello 的 workflowRunDeltas 原样带到上游订阅", async () => {
+  it("trusted relay preserves the admitted downstream connection identity and mode", async () => {
     const { base } = setupBase();
     const relay = createZCodeAgentConnectionScope(base, {
       connectionId: "server-upstream",
@@ -290,13 +258,11 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       sessionId: "session-1",
     });
 
-    // relay 自己没有 clientHello（它不消费帧）：这个位只能是下游那一端的事实。
     const forwarded = readTrustedZCodeAgentV4Connection(
       vi.mocked(base.subscribeConversationV4).mock.calls[0]?.[0],
     );
     expect(forwarded).toMatchObject({
       clientMode: "web-remote-replayable",
-      workflowRunDeltas: true,
     });
     expect(forwarded?.connectionId).toContain("mobile-downstream");
   });
@@ -318,6 +284,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId: "rows-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
       await scope.service.conversationRowsRangeV4({
         workspacePath: "/repo",
@@ -472,6 +439,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "physical-overflow-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const seen: ConversationTopicWireFrame[] = [];
     scope.service.onDynamicConversationFrame({ workspacePath: "/repo" })((wire) => seen.push(wire));
@@ -531,6 +499,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       clientId: "same-client-metadata",
       clientKind: "mobileRemote",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const mobileHello = await mobile.service.helloConversationV4();
     await mobile.service.initializeConversationV4({
@@ -539,6 +508,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       clientId: "same-client-metadata",
       clientKind: "desktop",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     expect(desktopHello).toMatchObject({
       connectionId: "desktop-a",
@@ -614,6 +584,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId,
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
     }
     const subscribed = await mobile.service.subscribeConversationV4({
@@ -678,6 +649,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId,
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
     }
 
@@ -748,6 +720,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const conversation = await mobile.service.subscribeConversationV4({
       ...target,
@@ -846,6 +819,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-race-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const subscribing = mobile.service.subscribeConversationV4({
       workspacePath: "/repo",
@@ -896,6 +870,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-cold-start-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const target = {
       workspacePath: "/repo",
@@ -950,6 +925,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "desktop-lifecycle-boundary-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const target = { workspacePath: "/repo" };
 
@@ -1002,6 +978,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "restart-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const seen: string[] = [];
     scope.service.onDynamicConversationFrame({ workspacePath: "/repo" })((wire) =>
@@ -1061,6 +1038,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "workspace-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const seen: string[] = [];
     scope.service.onDynamicConversationFrame({ workspacePath: "/workspace-b" })((wire) =>
@@ -1115,6 +1093,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId: "downstream-client",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
     }
 
@@ -1150,6 +1129,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-flow-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
 
     await scope.setTransportFlowState("saturated");
@@ -1215,6 +1195,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const subscribed = await mobile.service.subscribeConversationV4({
       workspacePath: "/repo",
@@ -1270,6 +1251,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-attachment-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     await mobile.service.attachmentBeginV4({
       workspacePath: "/repo",
@@ -1327,6 +1309,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId,
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
     }
     await desktop.service.subscribeConversationV4({
@@ -1419,6 +1402,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "client-bound",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     await expect(
       scope.service.sendConversationCommandV4({
@@ -1468,6 +1452,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-plugin-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const canonicalText = "请使用 [@Demo](plugin://demo@mkt-a) 完成任务";
     const command = {
@@ -1527,6 +1512,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId: "bash-output",
         appVersion: "test",
+        capabilities: { workflowRunDeltas: true },
       });
       await scope.service.backgroundBashOutputV4(query);
       const forwarded = vi.mocked(base.backgroundBashOutputV4).mock.calls[0]?.[0];
@@ -1561,6 +1547,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "query-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     await scope.service.queryConversationCommandsV4({
       workspacePath: "/clock-only",
@@ -1596,6 +1583,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "attachment-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     await scope.service.attachmentBeginV4({
       workspacePath: "/repo",
@@ -1640,6 +1628,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "attachment-late-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const pending = scope.service.attachmentBeginV4({
       workspacePath: "/repo",
@@ -1677,6 +1666,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "mobile-preview-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const params = {
       workspacePath: "/remote/work",
@@ -1754,6 +1744,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
         protocolVersion: 3,
         clientId,
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       });
     }
 
@@ -1798,6 +1789,7 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       protocolVersion: 3,
       clientId: "desktop-passive-runtime-client",
       appVersion: "4.0.0",
+      capabilities: { workflowRunDeltas: true },
     });
     const target = { workspacePath: "/repo", workspaceIdentity: "ssh:repo" };
 

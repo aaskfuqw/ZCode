@@ -505,7 +505,6 @@ function allowedArtifactFor(
  *
  * 不能按 `error.message` 正则分类：RPC 包装/schema 校验一变就失效——
  * 超大附件的 ZodError 曾因此被误判成「未知」并降级成 deferred，静默丢内容。
- * 仅在 fault 码缺席时保留一条 errno 文本兜底，用于尚未带结构化码的旧 zcode-cli。
  */
 function isDefiniteMissingAttachment(error: unknown): boolean {
   const faultCode = readZCodeAttachmentFaultCode(error);
@@ -515,8 +514,7 @@ function isDefiniteMissingAttachment(error: unknown): boolean {
       faultCode === ZCODE_ATTACHMENT_FAULT_CODES.statNotFile
     );
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return /ENOENT|not found|not_found|statNotFile|is_directory/iu.test(message);
+  return false;
 }
 
 function isAttachmentAuthorizationError(error: unknown): boolean {
@@ -529,8 +527,7 @@ function isAttachmentAuthorizationError(error: unknown): boolean {
       faultCode === ZCODE_ATTACHMENT_FAULT_CODES.shareReadConnectionUntrusted
     );
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return /shareStatNotAuthorized|shareReadNotAuthorized|connectionUntrusted/iu.test(message);
+  return false;
 }
 
 /** 附件体积超出协议/通道可承载范围：选择阶段就应作为确定阻断呈现。 */

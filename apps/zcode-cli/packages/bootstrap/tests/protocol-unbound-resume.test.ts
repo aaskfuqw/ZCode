@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSqliteSessionStore } from "@zcode/adapters/storage";
-import { createLegacySelectionStoreFixture } from "./helpers/legacy-selection-store.js";
+import { createCurrentSelectionStoreFixture } from "./helpers/current-selection-store.js";
 import { ProviderRegistry } from "@zcode/provider";
 import {
   createSessionId,
@@ -144,17 +144,9 @@ describe.each(["desktop-continuous", "web-remote-replayable"] as const)(
         model: identity.modelId,
       },
       { stored: {}, provider: "", model: "" },
-      {
-        stored: {
-          providerId: "builtin:bigmodel-coding-plan",
-          modelId: identity.modelId,
-        },
-        provider: "account:bigmodel-individual-coding-plan",
-        model: identity.modelId,
-      },
     ])("当前选择 $stored 不被消息或恢复提示替换", async ({ stored, provider, model }) => {
-      const fixture = await createLegacySelectionStoreFixture();
-      let { store } = fixture;
+      const fixture = await createCurrentSelectionStoreFixture();
+      const { store } = fixture;
       const sessionID = createSessionId("protocol-unbound");
       const messageID = createMessageId("protocol-history");
       await store.createSession({
@@ -180,17 +172,13 @@ describe.each(["desktop-continuous", "web-remote-replayable"] as const)(
         type: "text",
         text: "Existing history",
       });
-      if ("providerId" in stored && stored.providerId?.startsWith("builtin:")) {
-        fixture.seedLegacy(sessionID, { providerId: stored.providerId, modelId: stored.modelId });
-        store = fixture.store;
-      } else
-        await store.saveSessionEntry({
-          id: `${sessionID}:runtime-model-selection`,
-          sessionID,
-          type: SESSION_ENTRY_MODEL_SELECTION,
-          time: { created: 2, updated: 2 },
-          data: stored,
-        });
+      await store.saveSessionEntry({
+        id: `${sessionID}:runtime-model-selection`,
+        sessionID,
+        type: SESSION_ENTRY_MODEL_SELECTION,
+        time: { created: 2, updated: 2 },
+        data: stored,
+      });
       const apps: Awaited<ReturnType<typeof createRegistryBackedTestApp>>[] = [];
       const legacyProviderResolveRequests: unknown[] = [];
       const server = new ZCodeProtocolAgentServer({

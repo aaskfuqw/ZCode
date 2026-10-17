@@ -20,9 +20,7 @@ export async function setProviderFamilyDomain(
   await settingService.update({
     providerFamilyDomain: domain,
     providerFamilyDomainUpdatedAt: Date.now(),
-    providerFamilyDomainMigrated: true,
-    // WelcomeScreen OAuth 登录表示用户选择的是同 family 的 Coding Plan/OAuth 模式。
-    // 只写 providerFamilyDomain 会保留之前 API Key 入口写入的 apiKey mode，导致登录成功后仍停在 API Key。
+    // OAuth 登录选择当前 family 的个人 Coding Plan，保留其他 family 的连接选择。
     providerFamilyConnectionSelections: buildOAuthProviderFamilySelections(
       domain,
       currentSettings.providerFamilyConnectionSelections,
@@ -30,7 +28,7 @@ export async function setProviderFamilyDomain(
   });
 }
 
-export function buildOAuthProviderFamilySelections(
+function buildOAuthProviderFamilySelections(
   domain: ProviderFamilyDomain,
   currentSelections: ProviderFamilyConnectionSelectionSettings | null | undefined,
 ): ProviderFamilyConnectionSelectionSettings {
@@ -48,6 +46,5 @@ export async function clearProviderFamilyDomain(
     // settingService 会把空串归一成 undefined，确保退出/解绑后不会继续过滤到旧 domain。
     providerFamilyDomain: "" as AppSettings["providerFamilyDomain"],
     providerFamilyDomainUpdatedAt: Date.now(),
-    providerFamilyDomainMigrated: true,
   });
 }

@@ -24,7 +24,7 @@ describe("env model config", () => {
     expect(config).not.toHaveProperty("model");
   });
 
-  it("does not let legacy env or file model config enter RuntimeConfig", async () => {
+  it("rejects obsolete file model config with its actual path and manual recovery guidance", async () => {
     const dir = await mkdtemp(join(tmpdir(), "zcode-env-model-"));
     const path = join(dir, "config.json");
 
@@ -32,37 +32,23 @@ describe("env model config", () => {
       await writeFile(
         path,
         JSON.stringify({
-          model: {
-            main: "deepseek/deepseek-v4-pro",
-            lite: "deepseek/deepseek-chat",
-          },
-          provider: {
-            deepseek: {
-              kind: "openai-compatible",
-              options: {
-                apiKey: "file-secret",
-                baseURL: "https://api.deepseek.com",
-              },
-              models: {
-                "deepseek-chat": {},
-                "deepseek-v4-pro": {},
-              },
-            },
-          },
+          model: "fixture/model",
+          provider: { fixture: { kind: "openai-compatible" } },
         }),
       );
 
-      const result = createConfig({
-        env: {
-          ZCODE_BASE_URL: "https://api.env.example/anthropic",
-          ZCODE_MODEL: "env-model",
-        },
-        userConfigPath: path,
-      });
+      const load = () =>
+        createConfig({
+          env: {
+            ZCODE_BASE_URL: "https://api.env.example/anthropic",
+            ZCODE_MODEL: "env-model",
+          },
+          userConfigPath: path,
+        });
 
-      expect(result.sources.env).toBe(false);
-      expect(result.config).not.toHaveProperty("model");
-      expect(result.config).not.toHaveProperty("modelCatalog");
+      expect(load).toThrow(path);
+      expect(load).toThrow("provider_config.json");
+      expect(load).toThrow("manually remove the obsolete model/provider keys");
     } finally {
       await rm(dir, { force: true, recursive: true });
     }

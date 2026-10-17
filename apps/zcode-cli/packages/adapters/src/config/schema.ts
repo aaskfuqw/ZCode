@@ -1,9 +1,9 @@
-/* eslint-disable max-lines -- zcode-cli 配置 schema 需要集中维护文件解析和 provider 继承，拆散会让配置语义更难对齐。 */
+/* eslint-disable max-lines -- Keep current CLI config schemas and parsing together. */
 import { z } from "zod";
 import type { RuntimeConfigPatch } from "@zcode/contracts";
 
 const stringRecordSchema = z.record(z.string(), z.string());
-const unknownRecordSchema = z.record(z.string(), z.unknown());
+
 const positiveNumberSchema = z.number().finite().positive();
 const positiveIntegerSchema = z.number().int().positive();
 const modelStreamSchema = z.object({
@@ -165,27 +165,11 @@ const pluginsSchema = z.object({
   dirs: z.array(z.string().min(1)).optional(),
   enabledPlugins: z.record(z.string(), z.boolean()).optional(),
   extraKnownMarketplaces: z
-    .record(
-      z.string().min(1),
-      z.object({ source: pluginMarketplaceSourceSchema }).strict(),
-    )
+    .record(z.string().min(1), z.object({ source: pluginMarketplaceSourceSchema }).strict())
     .optional(),
   options: z.record(z.string(), z.record(z.string(), pluginOptionValueSchema)).optional(),
   suppressedBuiltins: z.array(z.string().min(1)).optional(),
 });
-
-export const LEGACY_CUA_PLUGIN_ID = "zcode-cua@zcode-plugins-official";
-export const CANONICAL_CUA_PLUGIN_ID = "computer-use@zcode-plugins-official";
-
-export function canonicalizePluginId(pluginId: string): string {
-  return pluginId === LEGACY_CUA_PLUGIN_ID ? CANONICAL_CUA_PLUGIN_ID : pluginId;
-}
-
-export function pluginIdAliases(pluginId: string): readonly string[] {
-  return canonicalizePluginId(pluginId) === CANONICAL_CUA_PLUGIN_ID
-    ? [CANONICAL_CUA_PLUGIN_ID, LEGACY_CUA_PLUGIN_ID]
-    : [pluginId];
-}
 
 const skillToggleSchema = z.object({
   enable: z.boolean().optional(),
@@ -344,17 +328,6 @@ function normalizeMcpServerConfigInput(value: unknown): unknown {
   }
   delete server.environment;
 
-  if (typeof server.enable === "boolean" || typeof server.enabled === "boolean") {
-    // 历史遗留兜底：桌面端早期把停用状态写成 enable，而契约字段一直是 enabled。
-    // 桌面端与 mcp-sync 现在只写 enabled，并在加载配置时把存量 enable 就地迁移落盘；
-    // CLI 是只读解析、不能写盘，这里只覆盖「用户先跑 CLI、还没开过桌面端」的窗口。
-    // 冲突时以「停用」为准：桌面端写 enable:false 时不会清理外部导入残留的 enabled:true，
-    // 按 enabled 取值会把用户关掉的 server 重新拉起（停用了还在被调用）。
-    // 存量配置迁移完毕后，这段连同下面的 delete 可以整块删除。
-    server.enabled = server.enable === false ? false : (server.enabled ?? true);
-  }
-  delete server.enable;
-
   // External MCP configs may carry provider-specific timeout fields. ZCode does not migrate
   // those values, but the strict runtime schema should still accept old imported entries.
   delete server.timeout;
@@ -408,7 +381,7 @@ function parsedConfigFileToRuntimePatch(parsed: ZCodeConfigFile): RuntimeConfigP
   if (parsed.features) config.features = parsed.features;
   if (parsed.memory) config.memory = parsed.memory;
   if (parsed.mcp) config.mcp = parsed.mcp;
-  if (parsed.plugins) config.plugins = normalizePluginConfig(parsed.plugins);
+  if (parsed.plugins) config.plugins = parsed.plugins;
   const skillsConfig = parseSkillsRuntimeConfig(parsed.skills);
   if (skillsConfig) config.skills = skillsConfig;
   const skillOverrides = mergeSkillCommandOverrides(
@@ -424,46 +397,6 @@ function parsedConfigFileToRuntimePatch(parsed: ZCodeConfigFile): RuntimeConfigP
   if (parsed.hooks) config.hooks = parsed.hooks;
 
   return config;
-}
-
-function normalizePluginConfig(
-  plugins: ZCodeConfigFile["plugins"],
-): NonNullable<RuntimeConfigPatch["plugins"]> {
-  if (!plugins) return {};
-  const enabledPlugins = plugins.enabledPlugins ? { ...plugins.enabledPlugins } : undefined;
-  if (enabledPlugins?.[LEGACY_CUA_PLUGIN_ID] !== undefined) {
-    if (enabledPlugins[CANONICAL_CUA_PLUGIN_ID] === undefined) {
-      enabledPlugins[CANONICAL_CUA_PLUGIN_ID] = enabledPlugins[LEGACY_CUA_PLUGIN_ID];
-    }
-    delete enabledPlugins[LEGACY_CUA_PLUGIN_ID];
-  }
-  const suppressedBuiltins = plugins.suppressedBuiltins
-    ? plugins.suppressedBuiltins.reduce<string[]>((ids, id) => {
-        const canonicalId =
-          id === LEGACY_CUA_PLUGIN_ID ? CANONICAL_CUA_PLUGIN_ID : id;
-        if (
-          canonicalId === CANONICAL_CUA_PLUGIN_ID &&
-          ids.includes(CANONICAL_CUA_PLUGIN_ID)
-        ) {
-          return ids;
-        }
-        ids.push(canonicalId);
-        return ids;
-      }, [])
-    : undefined;
-  const options = plugins.options ? { ...plugins.options } : undefined;
-  if (options?.[LEGACY_CUA_PLUGIN_ID] !== undefined) {
-    if (options[CANONICAL_CUA_PLUGIN_ID] === undefined) {
-      options[CANONICAL_CUA_PLUGIN_ID] = options[LEGACY_CUA_PLUGIN_ID];
-    }
-    delete options[LEGACY_CUA_PLUGIN_ID];
-  }
-  return {
-    ...plugins,
-    ...(enabledPlugins ? { enabledPlugins } : {}),
-    ...(suppressedBuiltins ? { suppressedBuiltins } : {}),
-    ...(options ? { options } : {}),
-  };
 }
 
 function normalizeConfigFileInput(value: unknown, diagnostics: ConfigDiagnostic[]): unknown {
@@ -525,10 +458,6 @@ function formatMcpServerError(error: z.ZodError): string {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readPositiveNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function parseSkillsRuntimeConfig(

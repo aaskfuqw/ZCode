@@ -1,13 +1,22 @@
-export interface HelloMessage {
-  type: "zcode-hello";
-  version: string;
-  platform: string;
-  arch: string;
-  pid: number;
-}
+import { z } from "zod";
+import { protocolContractSchema } from "./zcode-protocol-v4/connection-contract.js";
 
-export interface HelloAckMessage {
-  type: "zcode-hello-ack";
-  version: string;
-  clientId: string;
-}
+export const remoteHelloMessageSchema = z.object({
+  type: z.literal("zcode-hello"),
+  version: z.string(),
+  platform: z.string(),
+  arch: z.string(),
+  pid: z.number().int(),
+  protocolContract: protocolContractSchema,
+});
+
+export type HelloMessage = z.infer<typeof remoteHelloMessageSchema>;
+
+export const remoteHelloAckMessageSchema = z.object({
+  type: z.literal("zcode-hello-ack"),
+  version: z.string(),
+  clientId: z.string().trim().min(1),
+  protocolContract: protocolContractSchema,
+});
+
+export type HelloAckMessage = z.infer<typeof remoteHelloAckMessageSchema>;

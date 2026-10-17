@@ -395,7 +395,7 @@ describe("@zcode/provider-node", () => {
       pollingIntervalMs: 10,
     });
     repository.onDidChange((reason) => reasons.push(reason));
-    await repository.read();
+    await expect(repository.read()).rejects.toThrow(filePath);
 
     await vi.waitFor(() => expect(pollingErrors).toHaveLength(1));
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -417,104 +417,61 @@ describe("@zcode/provider-node", () => {
     repository.dispose();
   });
 
-  it("Personal Repository 轮询不会重复执行 Legacy importer 或写迁移文件", async () => {
+  it("Personal Repository 轮询缺失文件不会创建配置或迁移文件", async () => {
     const root = await temporaryDirectory();
     const filePath = join(root, "provider-config.json");
-    const importLegacy = vi.fn(async () => null);
     const repository = new NodePersonalProviderConfigRepository({
       filePath,
-      importLegacy,
       pollingIntervalMs: 10,
     });
 
     await repository.read();
     await new Promise((resolve) => setTimeout(resolve, 40));
 
-    expect(importLegacy).toHaveBeenCalledOnce();
+    expect(await readdir(root)).toEqual([]);
     repository.dispose();
   });
 
-  it("Node Config Runtime 在新目标缺失时调用外部 Legacy Importer 并不产生备份", async () => {
+  it("Node Config Runtime 仅通过当前 Personal 配置写入和重启恢复", async () => {
     const root = await temporaryDirectory();
     const zcodeBuiltinFilePath = join(root, "zcodeBuiltin.json");
     const personalFilePath = join(root, "provider_config.json");
     await writeZCodeBuiltin(zcodeBuiltinFilePath, "zcodeBuiltin-model");
-    const importLegacy = vi.fn(async () => {
-      return Object.freeze({
-        providers: new ProviderConfigMap([["legacy", personalProviderConfig(false)]]),
-        models: ModelConfigRules.empty(),
-      });
-    });
     const runtime = new NodeProviderConfigRuntime({
       zcodeBuiltinFilePath,
       personalFilePath,
-      importLegacy,
       watch: false,
     });
 
     expect(await runtime.start()).toBeUndefined();
-    const snapshot = await runtime.configService.read();
-
-    expect(importLegacy).toHaveBeenCalledOnce();
-    expect(snapshot.personalProviders.keys()).toEqual(["legacy"]);
+    expect((await runtime.configService.read()).personalProviders.keys()).toEqual([]);
+    await expect(readFile(personalFilePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await runtime.personalRepository.update(() => ({
+      providers: new ProviderConfigMap([["personal", personalProviderConfig(false)]]),
+      models: ModelConfigRules.empty(),
+    }));
     expect(JSON.parse(await readFile(personalFilePath, "utf8"))).toMatchObject({
       schemaVersion: 1,
       config: {
         providerConfigRules: {
-          providerRules: [{ providerId: "legacy", config: { group: "standard-personal" } }],
+          providerRules: [{ providerId: "personal", config: { group: "standard-personal" } }],
         },
       },
     });
     expect((await readdir(root)).some((name) => name.endsWith(".bak"))).toBe(false);
     runtime.dispose();
 
-    const repeatedImport = vi.fn(async () => {
-      throw new Error("已有 Personal Config 时不应再次导入旧 Provider Store");
-    });
     const restartedRuntime = new NodeProviderConfigRuntime({
       zcodeBuiltinFilePath,
       personalFilePath,
-      importLegacy: repeatedImport,
       watch: false,
     });
 
     expect(await restartedRuntime.start()).toBeUndefined();
     const restartedSnapshot = await restartedRuntime.configService.read();
 
-    expect(repeatedImport).not.toHaveBeenCalled();
-    expect(restartedSnapshot.personalProviders.keys()).toEqual(["legacy"]);
+    expect(restartedSnapshot.personalProviders.keys()).toEqual(["personal"]);
     restartedRuntime.dispose();
-  });
-
-  it("多个进程并发首次读取时只在目标文件锁内导入一次", async () => {
-    const root = await temporaryDirectory();
-    const personalFilePath = join(root, "provider_config.json");
-    const importLegacy = vi.fn(async () =>
-      Object.freeze({
-        providers: new ProviderConfigMap([["legacy", personalProviderConfig(false)]]),
-        models: ModelConfigRules.empty(),
-      }),
-    );
-    const first = new NodePersonalProviderConfigRepository({
-      filePath: personalFilePath,
-      importLegacy,
-      pollingIntervalMs: false,
-    });
-    const second = new NodePersonalProviderConfigRepository({
-      filePath: personalFilePath,
-      importLegacy,
-      pollingIntervalMs: false,
-    });
-
-    const snapshots = await Promise.all([first.read(), second.read()]);
-
-    expect(importLegacy).toHaveBeenCalledOnce();
-    expect(snapshots.map((snapshot) => snapshot.providers.keys())).toEqual([
-      ["legacy"],
-      ["legacy"],
-    ]);
-    first.dispose();
-    second.dispose();
   });
 
   it("Endpoint-scoped Config Runtime 向 Agent 暴露当前 Endpoint 的 Active 路径", async () => {
@@ -553,27 +510,26 @@ describe("@zcode/provider-node", () => {
     runtime.dispose();
   });
 
-  it("正式 Personal Config 损坏时保留原文件且不误调 Legacy Importer", async () => {
+  it("正式 Personal Config 损坏时启动明确报错，保留原文并允许手动重置后重试", async () => {
     const root = await temporaryDirectory();
     const zcodeBuiltinFilePath = join(root, "zcodeBuiltin.json");
     const personalFilePath = join(root, "provider_config.json");
     const invalidText = JSON.stringify({ provider: { unsupported: {} } }, null, 2);
     await writeZCodeBuiltin(zcodeBuiltinFilePath, "zcodeBuiltin-model");
     await writeFile(personalFilePath, invalidText, "utf8");
-    const importLegacy = vi.fn(async () => emptyUpdate());
     const runtime = new NodeProviderConfigRuntime({
       zcodeBuiltinFilePath,
       personalFilePath,
-      importLegacy,
       watch: false,
     });
 
-    await expect(runtime.start()).resolves.toBeUndefined();
-    await expect(runtime.start()).resolves.toBeUndefined();
-    expect((await runtime.configService.read()).personalProviders.keys()).toEqual([]);
-    expect(importLegacy).not.toHaveBeenCalled();
+    await expect(runtime.start()).rejects.toThrow(personalFilePath);
+    await expect(runtime.start()).rejects.toThrow("手动移除该文件");
+    await expect(runtime.configService.read()).rejects.toThrow(personalFilePath);
     expect(await readFile(personalFilePath, "utf8")).toBe(invalidText);
     expect((await readdir(root)).some((name) => name.endsWith(".bak"))).toBe(false);
+    await rm(personalFilePath);
+    await expect(runtime.start()).resolves.toBeUndefined();
     runtime.dispose();
   });
 

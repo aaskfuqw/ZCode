@@ -1,8 +1,4 @@
-import {
-  ProviderConfigService,
-  type ProviderConfigLayerSnapshot,
-  type ProviderConfigLayerUpdate,
-} from "@zcode/provider";
+import { ProviderConfigService } from "@zcode/provider";
 import { NodeZCodeBuiltinProviderConfigSource } from "./zcode-builtin-provider-config-source.js";
 import {
   EndpointScopedZCodeBuiltinSource,
@@ -31,9 +27,6 @@ export interface NodeProviderConfigRuntimeOptions {
   readonly onPersonalConfigPollingError?: (error: unknown) => void;
   readonly personalFilePath: string;
   readonly personalPollingIntervalMs?: number | false;
-  readonly importLegacy?: (
-    zcodeBuiltin: ProviderConfigLayerSnapshot,
-  ) => Promise<ProviderConfigLayerUpdate | null>;
   readonly watch?: boolean;
 }
 
@@ -77,11 +70,6 @@ export class NodeProviderConfigRuntime {
       onRecovery: options.onPersonalConfigRecovery,
       onPollingError: options.onPersonalConfigPollingError,
       pollingIntervalMs: options.personalPollingIntervalMs,
-      ...(options.importLegacy
-        ? {
-            importLegacy: async () => options.importLegacy!(await this.#zcodeBuiltinSource.read()),
-          }
-        : {}),
     });
     this.configService = new ProviderConfigService({
       zcodeBuiltinSource: this.#zcodeBuiltinSource,

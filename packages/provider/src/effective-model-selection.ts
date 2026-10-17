@@ -19,7 +19,6 @@ export function resolveEffectiveModelSelection(input: {
   readonly registry: ProviderRegistryView;
   readonly accountStates?: AccountProviderStates;
   readonly classifyProvider: ModelSelectionProviderClassifier;
-  readonly resolveLegacyReasoningLevel?: (selection: ModelSelection) => string | undefined;
 }): EffectiveModelSelectionResult {
   const original = input.selection;
   if (!original)
@@ -46,24 +45,12 @@ export function resolveEffectiveModelSelection(input: {
   }
   const model = provider.models.find((candidate) => candidate.modelId === original.modelId);
   if (!model) return Object.freeze({ effectiveSelection: null, selectionIssue: "model-not-found" });
-  let normalized = original;
-  let validation = validateModelSelectionOptions(model, normalized);
-  if (!validation.ok && validation.code === "reasoning-level-not-supported") {
-    const reasoningLevel = input.resolveLegacyReasoningLevel?.({ ...original, providerId });
-    if (reasoningLevel !== undefined) {
-      const candidate = { ...original, options: { ...original.options, reasoningLevel } };
-      const checked = validateModelSelectionOptions(model, candidate);
-      if (checked.ok) {
-        normalized = candidate;
-        validation = checked;
-      }
-    }
-  }
+  const validation = validateModelSelectionOptions(model, original);
   const selection = Object.freeze({
     providerId,
     modelId: original.modelId,
-    ...(validation.ok && normalized.options
-      ? { options: Object.freeze({ ...normalized.options }) }
+    ...(validation.ok && original.options
+      ? { options: Object.freeze({ ...original.options }) }
       : {}),
   });
   return Object.freeze({

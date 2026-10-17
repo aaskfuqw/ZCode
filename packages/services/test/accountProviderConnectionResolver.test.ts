@@ -6,7 +6,6 @@ import {
 } from "@zcode/provider";
 import {
   BUILTIN_MODEL_PROVIDER_IDS,
-  migrateLegacyModelProviderId,
   zcodeProviderUpdateAccountConfigParamsSchema,
   type ProviderFamilyDomain,
 } from "@zcode/shared";
@@ -267,18 +266,26 @@ describe("createAccountProviderConnectionResolver", () => {
       ).toBe(true);
     },
   );
-  it("旧团队待补全只限制付费访问，Start 与其他 Family 继续查询", async () => {
-    const availability = vi.fn<AccountProviderFamilyAvailabilityResolver>(async () => ({
-      [BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan]: { kind: "available", models: ["glm-5"] },
-    }));
+  it("当前 Team 连接直接参与权益查询，Start 与另一 Family 继续独立解析", async () => {
+    const selections = {
+      bigmodel: {
+        kind: "team-coding-plan" as const,
+        productId: "product",
+        organizationId: "organization",
+        projectId: "project",
+      },
+    };
+    const availability = vi.fn<AccountProviderFamilyAvailabilityResolver>(async ({ providers }) =>
+      Object.fromEntries(providers.map(({ providerId }) => [providerId, { kind: "available" }])),
+    );
+    const loadApiKey = vi.fn(async () => "key");
     const resolve = createAccountProviderConnectionResolver({
       readSettings: async () => ({
         providerFamilyDomain: "bigmodel",
-        selections: {},
-        unresolvedFamilies: ["bigmodel"],
+        selections,
       }),
       loadAccountIdentity: async () => "account",
-      loadCodingPlanApiKey: async () => "key",
+      loadCodingPlanApiKey: loadApiKey,
       resolveFamilyAvailability: availability,
     });
     const results = await resolve({
@@ -287,18 +294,26 @@ describe("createAccountProviderConnectionResolver", () => {
     });
     expect(availability).toHaveBeenCalledTimes(2);
     expect(availability.mock.calls[1]?.[0].providers.map((p) => p.providerId)).toEqual([
+      BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan,
+      BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
       BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
     ]);
-    expect(availability.mock.calls[0]?.[0]).toMatchObject({ family: "zai" });
+    expect(availability.mock.calls[0]?.[0]).toMatchObject({ family: "zai", selections });
+    expect(availability.mock.calls[1]?.[0]).toMatchObject({ family: "bigmodel", selections });
+    expect(loadApiKey).not.toHaveBeenCalledWith(
+      BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
     for (const result of results.filter((entry) =>
       entry.providerId.startsWith("account:bigmodel-"),
     )) {
       expect(result).toMatchObject({
-        status:
-          result.providerId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan
-            ? "available"
-            : "unknown",
-        current: result.providerId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan,
+        status: "available",
+        current:
+          result.providerId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan ||
+          result.providerId === BUILTIN_MODEL_PROVIDER_IDS.bigmodelTeamCodingPlan,
       });
     }
   });
@@ -425,47 +440,6 @@ describe("createAccountProviderConnectionResolver", () => {
       current: true,
     });
   });
-  it.each(["bigmodel", "zai"] as const)(
-    "%s 登录连接仍单独解析，但不决定旧 Selection 迁移落点",
-    async (family) => {
-      const settings = {
-        providerFamilyDomain: family,
-        selections: {
-          [family]: {
-            kind: "team-coding-plan" as const,
-            productId: "product",
-            organizationId: "org",
-            projectId: "project",
-          },
-        },
-      };
-      const input = {
-        access: {
-          type: "zhipu-account" as const,
-          accountType: family,
-          mode: "team-coding-plan" as const,
-        },
-        readSettings: async () => settings,
-      };
-      const connected = await resolveCurrentAccountAccess({
-        ...input,
-        loadAccountIdentity: async () => "account",
-      });
-      expect(connected?.planKind).toBe("team-coding-plan");
-      expect(migrateLegacyModelProviderId(`builtin:${family}-coding-plan`)).toBe(
-        `account:${family}-individual-coding-plan`,
-      );
-      const loggedOut = await resolveCurrentAccountAccess({
-        ...input,
-        loadAccountIdentity: async () => null,
-      });
-      expect(loggedOut).toBeNull();
-      expect(migrateLegacyModelProviderId(`builtin:${family}-coding-plan`)).toBe(
-        `account:${family}-individual-coding-plan`,
-      );
-    },
-  );
-
   it("请求期从当前 Team 连接解析动态 scope", async () => {
     await expect(
       resolveCurrentAccountAccess({

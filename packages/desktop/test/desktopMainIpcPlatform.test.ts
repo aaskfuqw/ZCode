@@ -1,5 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { PlatformChannels } from "@zcode/shared";
+import { PlatformChannels, type SaveCliMcpToUserDirectoryRequest } from "@zcode/shared";
+import {
+  loadCliMcpFromUserDirectory,
+  saveCliMcpToUserDirectory,
+} from "../src/main/mcpUserDirectory/index.js";
 
 type IpcHandler = (...args: unknown[]) => unknown;
 
@@ -86,7 +90,6 @@ vi.mock("../src/main/desktopWindowButtonPosition.js", () => ({
 
 vi.mock("../src/main/mcpUserDirectory/index.js", () => ({
   loadCliMcpFromUserDirectory: vi.fn(),
-  migrateLegacyCommonMcp: vi.fn(),
   saveCliMcpToUserDirectory: vi.fn(),
 }));
 
@@ -105,6 +108,72 @@ describe("registerPlatformIpcHandlers", () => {
     electronMocks.ipcOn.mockClear();
     electronMocks.browserWindowFromWebContents.mockReset();
     electronMocks.browserWindowFromWebContents.mockReturnValue(null);
+    vi.mocked(loadCliMcpFromUserDirectory).mockReset();
+    vi.mocked(saveCliMcpToUserDirectory).mockReset();
+  });
+
+  it("keeps current MCP directory IO and removes legacy MCP import IPC", async () => {
+    const { registerPlatformIpcHandlers } = await import("../src/main/desktopMainIpcPlatform.js");
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    registerPlatformIpcHandlers({
+      logger,
+      applyApplicationLocale: vi.fn(async () => {}),
+      resolveSystemLocale: () => "en-US",
+      focusWorkspaceInExistingWindow: vi.fn(() => ({ activated: false })),
+      windowWorkspaceMap: new Map(),
+      windowUnreadCountMap: new Map(),
+      currentApplicationLocale: () => "en-US",
+      executeDesktopCommand: vi.fn(async () => {}),
+      syncActiveTaskSession: vi.fn(),
+      syncTaskRealtimeWorkspaceKeys: vi.fn(),
+      restorePreviouslyEnabledWebRemoteControl: vi.fn(),
+      syncWebRemoteControlWorkspaces: vi.fn(),
+      syncWebRemoteControlTasks: vi.fn(),
+      getDesktopSessionActivity: () => ({ runningAgentSessionCount: 0 }),
+      syncAppSettings: vi.fn(),
+      refreshCloseToTrayCapability: vi.fn(),
+      deviceMid: "test-device-mid",
+    });
+    const payload: SaveCliMcpToUserDirectoryRequest = {
+      action: "upsert",
+      source: "zcodeagentmcp",
+      name: "current",
+      config: { command: "node", args: ["current-mcp.mjs"] },
+      projectPath: "/workspace/current",
+    };
+    const servers = [
+      {
+        name: payload.name,
+        config: payload.config!,
+        source: payload.source,
+        scope: "workspace" as const,
+      },
+    ];
+    vi.mocked(loadCliMcpFromUserDirectory).mockResolvedValueOnce({ servers });
+    vi.mocked(saveCliMcpToUserDirectory).mockResolvedValueOnce();
+
+    expect(PlatformChannels).not.toHaveProperty("MigrateLegacyCommonMcp");
+    expect(electronMocks.handlers.has("zcode:migrate-legacy-common-mcp")).toBe(false);
+    const load = electronMocks.handlers.get(PlatformChannels.LoadMcpFromUserDirectory);
+    const save = electronMocks.handlers.get(PlatformChannels.SaveMcpToUserDirectory);
+    expect(load).toBeDefined();
+    expect(save).toBeDefined();
+    await expect(load?.({}, { workspacePath: payload.projectPath })).resolves.toEqual({ servers });
+    expect(loadCliMcpFromUserDirectory).toHaveBeenCalledWith({
+      workspacePath: payload.projectPath,
+    });
+    await expect(save?.({}, payload)).resolves.toEqual({ success: true });
+    expect(saveCliMcpToUserDirectory).toHaveBeenCalledWith(payload);
+
+    vi.mocked(saveCliMcpToUserDirectory).mockRejectedValueOnce(new Error("read-only directory"));
+    await expect(save?.({}, payload)).resolves.toEqual({
+      success: false,
+      error: "read-only directory",
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      "[mcp-user-directory] save failed",
+      "read-only directory",
+    );
   });
 
   it("allows creating folders from the workspace directory picker", async () => {

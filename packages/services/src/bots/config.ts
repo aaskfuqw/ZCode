@@ -11,13 +11,8 @@ import {
 } from "@zcode/shared";
 export { BOT_BIND_CODE_TTL_MS } from "@zcode/shared";
 
-// 回滚兼容：旧 App 对 Options 严格解析，旧文件仅作升级前快照，不得持续回写。
 export const BOTS_CONFIG_FILE = "bot-config.v3.json";
-export const BOTS_LEGACY_CONFIG_FILE = "bot-config.json";
-export const BOTS_LEGACY_STATE_FILE = "bot-state.json";
-export const BOTS_V2_STATE_FILE = "bot-state.v2.json";
 export const BOTS_STATE_FILE = "bot-state.v3.json";
-export const BOTS_LEGACY_MODEL_CACHE_FILE = "bots-model-cache.json";
 export const BOTS_MODEL_CACHE_FILE = "bots-model-cache.v2.json";
 const BOT_CREDENTIAL_PREFIX = "bot";
 

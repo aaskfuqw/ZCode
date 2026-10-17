@@ -4,10 +4,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import {
   createAgentStateId,
   createPluginAgentStateId,
-  parsePluginSubagentModelSelectionOverrides,
   DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS,
   ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-  modelSelectionSchema,
   type SubagentRuntimeConfig,
   type AgentCreateParams,
   type AgentDeleteParams,
@@ -20,7 +18,6 @@ import {
   type BuiltInSubagentModelOverrideParams,
   type BuiltInSubagentModelSelectionOverrides,
   type PluginSubagentModelOverrideParams,
-  type PluginSubagentModelSelectionOverrides,
   type SubAgentConfig,
   type SubagentsListMode,
   type ZCodeProvider,
@@ -37,25 +34,10 @@ import {
 } from "./subagentStorage.js";
 import type { ISubagentsService } from "./subagents.js";
 import { atomicWriteText } from "#src/fs/atomicFileUtils.js";
-import {
-  migrateUserSubagentMarkdown,
-  migrateSubagentStateFile,
-  scanOfficialPluginCacheRoots,
-} from "@zcode/shared/node";
-import { createServiceLogger } from "#src/logger/serviceLogger.js";
+import { scanOfficialPluginCacheRoots } from "@zcode/shared/node";
 
 import { createSubagentRuntimeConfigCache } from "./subagentRuntimeConfig.js";
-
-const subagentLogger = createServiceLogger("subagents");
-
-interface AgentsStateFile {
-  builtInModelSelectionOverrides: BuiltInSubagentModelSelectionOverrides;
-  pluginAgentModelSelectionOverrides: PluginSubagentModelSelectionOverrides;
-  disabledAgentIds: string[];
-  // 仅供旧版本回滚保留；新版存在选择字段后，禁止再从这两个字段恢复覆盖。
-  builtInModelOverrides?: unknown;
-  builtInThoughtLevelOverrides?: unknown;
-}
+import { readSubagentState, type AgentsStateFile } from "./subagentState.js";
 
 interface InstalledPluginsStateFile {
   plugins?: unknown;
@@ -141,14 +123,6 @@ function createBuiltInAgents(
   ];
 }
 
-function emptyAgentsState(): AgentsStateFile {
-  return {
-    builtInModelSelectionOverrides: {},
-    pluginAgentModelSelectionOverrides: {},
-    disabledAgentIds: [],
-  };
-}
-
 async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
@@ -159,39 +133,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 async function readAgentStateFile(options?: SubagentsServiceOptions): Promise<AgentsStateFile> {
-  return readAgentStateAtPath(await resolveSubagentStateFile(options));
-}
-
-async function readAgentStateAtPath(stateFile: string): Promise<AgentsStateFile> {
-  await migrateSubagentStateFile(stateFile);
-  try {
-    const raw = await readFile(stateFile, "utf-8");
-    const parsed = JSON.parse(raw) as {
-      builtInModelSelectionOverrides?: unknown;
-      pluginAgentModelSelectionOverrides?: unknown;
-      builtInModelOverrides?: unknown;
-      builtInThoughtLevelOverrides?: unknown;
-      disabledAgentIds?: unknown;
-    };
-    const selections = normalizeBuiltInSelectionOverrides(parsed.builtInModelSelectionOverrides);
-    return {
-      ...parsed,
-      builtInModelSelectionOverrides: selections,
-      pluginAgentModelSelectionOverrides: parsePluginSubagentModelSelectionOverrides(
-        parsed.pluginAgentModelSelectionOverrides,
-      ),
-      disabledAgentIds: Array.isArray(parsed.disabledAgentIds)
-        ? parsed.disabledAgentIds.filter(
-            (id): id is string => typeof id === "string" && id.trim().length > 0,
-          )
-        : [],
-    };
-  } catch (error) {
-    // 文件缺失/损坏沿用既有空覆盖语义；IO 失败不能伪装为空配置并重新启用已禁用 agent。
-    if (error instanceof SyntaxError || (error as NodeJS.ErrnoException).code === "ENOENT")
-      return emptyAgentsState();
-    throw error;
-  }
+  return readSubagentState(await resolveSubagentStateFile(options));
 }
 
 async function writeAgentStateFile(
@@ -539,18 +481,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalizeBuiltInSelectionOverrides(
-  structured: unknown,
-): BuiltInSubagentModelSelectionOverrides {
-  const result: BuiltInSubagentModelSelectionOverrides = {};
-  const structuredRecord = isRecord(structured) ? structured : {};
-  const generalPurpose = modelSelectionSchema.safeParse(structuredRecord["general-purpose"]).data;
-  const explore = modelSelectionSchema.safeParse(structuredRecord.Explore).data;
-  if (generalPurpose) result["general-purpose"] = generalPurpose;
-  if (explore) result.Explore = explore;
-  return result;
-}
-
 export function createSubagentsService(options?: SubagentsServiceOptions): ISubagentsService & {
   /** Host 启动/重启 Agent 前准备配置，不暴露为 Renderer RPC。 */
   prepareRuntimeState(workspace?: {
@@ -572,7 +502,7 @@ export function createSubagentsService(options?: SubagentsServiceOptions): ISuba
   const runtimeConfig = createSubagentRuntimeConfigCache({
     readUserRoot: () => resolveUserSubagentRoot(storageOptions),
     readStatePath: () => resolveSubagentStateFile(storageOptions),
-    readState: readAgentStateAtPath,
+    readState: readSubagentState,
   });
   function enqueue<T>(run: () => Promise<T>): Promise<T> {
     const queued = writeQueue.then(run, run);
@@ -595,15 +525,7 @@ export function createSubagentsService(options?: SubagentsServiceOptions): ISuba
       runtimeConfig.dispose();
     },
     async prepareRuntimeState(workspace?: { workspacePath: string; workspaceIdentity?: string }) {
-      return enqueue(async () => {
-        const markdownMigration = await migrateUserSubagentMarkdown(
-          await resolveUserSubagentRoot(storageOptions),
-        );
-        for (const failure of markdownMigration.failures)
-          subagentLogger.warn(undefined, "用户 Subagent Markdown 迁移失败，保留原文件", failure);
-        // state 的迁移由缓存读取入口统一执行，IO 失败同样发布回退，不能提前阻断 CLI 启动。
-        await runtimeConfig.prepare(workspace);
-      });
+      return enqueue(() => runtimeConfig.prepare(workspace));
     },
 
     async list(params: {
@@ -615,17 +537,6 @@ export function createSubagentsService(options?: SubagentsServiceOptions): ISuba
       const capability = resolveCapabilities(options);
       const mode = params.mode ?? "allRuntimeScopes";
       const diagnostics: AgentDiagnostic[] = [];
-      if (capability.userScopeAvailable) {
-        const migration = await migrateUserSubagentMarkdown(
-          await resolveUserSubagentRoot(storageOptions),
-        );
-        for (const failure of migration.failures)
-          diagnostics.push({
-            code: "agent_read_failed",
-            message: "Subagent Markdown migration failed; original file preserved",
-            path: failure.path,
-          });
-      }
       const state = await readAgentStateFile(storageOptions);
       const builtInAgents = createBuiltInAgents(state.builtInModelSelectionOverrides);
       const fileAgents = await discoverFileAgents({

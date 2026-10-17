@@ -1,21 +1,15 @@
-// workflowRuns 的**界**留下的三样东西：被拒实例的计数器、整键的条目预算、给旧消费者的裁剪。
+// workflowRuns 的**界**留下的两样东西：被拒实例的计数器、整键的条目预算。
 //
 // 改造前 nodes/actors 压在 256，是因为状态键按事件整体重发、无界即 O(N²) 字节；键级增量落地后
 // 那条理由没了，界抬到 1024。但抬界不是免费的：一个 50 路 fan-out 的宽工作流仍然可能把整张表
 // 撑到几 MB，所以多了一条**跨 run 的**条目预算；而触界仍然会拒掉实例，所以读面必须能说出
 // 「有多少步没进表」——这就是两个计数器存在的全部理由。
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
 import {
-  WORKFLOW_RUNS_LEGACY_LIMITS,
   WORKFLOW_RUNS_LIMITS,
   applyConversationDeltas,
-  clampWorkflowRunsForLegacy,
   diffWorkflowRunsState,
   reduceWorkflowRunsState,
-  workflowRunActorSchema,
-  workflowRunNodeSchema,
-  workflowRunSchema,
   workflowRunStepCounts,
   workflowRunsStateSchema,
   type ConversationSnapshot,
@@ -101,10 +95,6 @@ describe("WORKFLOW_RUNS_LIMITS：抬界之后的两条界", () => {
       WORKFLOW_RUNS_LIMITS.maxRuns *
       (WORKFLOW_RUNS_LIMITS.maxNodes + WORKFLOW_RUNS_LIMITS.maxActors);
     expect(WORKFLOW_RUNS_LIMITS.maxTotalEntries).toBeLessThan(worstCaseWithoutBudget);
-  });
-
-  it("旧消费者的界是 256，且**永远不能变**（它是别人编译进去的校验界）", () => {
-    expect(WORKFLOW_RUNS_LEGACY_LIMITS).toEqual({ maxActors: 256, maxNodes: 256 });
   });
 });
 
@@ -353,109 +343,6 @@ describe("条目预算：整键 6144 条，淘汰最旧的终态 run", () => {
     });
     const applied = applyConversationDeltas(snapshotWith(state), deltas);
     expect(JSON.stringify(applied.workflowRuns)).toBe(JSON.stringify(next));
-  });
-});
-
-describe("clampWorkflowRunsForLegacy：没有增量能力的消费者", () => {
-  // 旧消费者编译进去的是 .max(256)：超界的帧会让**整个 state.updated patch** 解析失败、整帧被丢，
-  // 于是那条订阅从此静默。这个裁剪是生产侧的第二道闸，「前 256 条」正是旧归约（拒新）的产物。
-  const legacyStateSchema = z.object({
-    revision: z.number().int().nonnegative(),
-    runs: z
-      .array(
-        workflowRunSchema.extend({
-          actors: z.array(workflowRunActorSchema).max(WORKFLOW_RUNS_LEGACY_LIMITS.maxActors),
-          nodes: z.array(workflowRunNodeSchema).max(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes),
-        }),
-      )
-      .max(WORKFLOW_RUNS_LIMITS.maxRuns),
-  });
-
-  it("每条 run 各裁到前 256，并置 truncated", () => {
-    const state = stateWith(runWith({ runId: "dwfrun-wide" }, 900, 700));
-    const clamped = clampWorkflowRunsForLegacy(state);
-    expect(clamped.runs[0]?.nodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-    expect(clamped.runs[0]?.actors).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxActors);
-    expect(clamped.runs[0]?.truncated).toBe(true);
-    // 夹具里的条目全是终态，没有要先保的 → 留下的正是最早的那些实例。
-    expect(clamped.runs[0]?.nodes[0]?.ordinal).toBe(0);
-    expect(clamped.runs[0]?.nodes.at(-1)?.ordinal).toBe(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes - 1);
-    expect(legacyStateSchema.safeParse(clamped).success).toBe(true);
-  });
-
-  // 裁剪保留的是**还在动的那些**：旧手机收到的是整键快照，而它要画的和新客户端一样是
-  // 「此刻谁在跑」。一刀切前 256 条会让一个宽 run 在旧客户端上永远停在最早那批已结束的身上。
-  it("还在动的先留：未结算的 node 与状态不是 completed 的 actor 不会被裁掉", () => {
-    const live = (ordinal: number, phase: WorkflowRunNode["phase"]) => ({
-      siteId: "ask#1",
-      ordinal,
-      phase,
-    });
-    const nodes: WorkflowRunNode[] = [
-      ...Array.from({ length: 300 }, (_, index) => live(index, "settled")),
-      live(300, "executing"),
-      live(301, "queued"),
-    ];
-    const actors = [
-      ...Array.from({ length: 300 }, (_, index) => ({
-        siteId: "actor#1",
-        ordinal: index,
-        status: "completed" as const,
-      })),
-      { siteId: "actor#1", ordinal: 300, status: "running" as const },
-    ];
-    const clamped = clampWorkflowRunsForLegacy(stateWith(runWith({ nodes, actors }, 0, 0)));
-    const keptNodes = clamped.runs[0]!.nodes;
-    expect(keptNodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-    expect(keptNodes.map((node) => node.ordinal)).toContain(300);
-    expect(keptNodes.map((node) => node.ordinal)).toContain(301);
-    // 输出仍按原表序：留下的两条活节点在最后，剩下的名额按表序补最早的条目。
-    expect(keptNodes.map((node) => node.ordinal)).toEqual([
-      ...Array.from({ length: WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes - 2 }, (_, index) => index),
-      300,
-      301,
-    ]);
-    expect(clamped.runs[0]!.actors.map((actor) => actor.ordinal)).toContain(300);
-    expect(legacyStateSchema.safeParse(clamped).success).toBe(true);
-  });
-
-  it("活条目多过旧界时按表序取前 256 条活的（仍然有界）", () => {
-    const nodes: WorkflowRunNode[] = Array.from({ length: 400 }, (_, index) => ({
-      siteId: "ask#1",
-      ordinal: index,
-      phase: "executing" as const,
-    }));
-    const clamped = clampWorkflowRunsForLegacy(stateWith(runWith({ nodes }, 0, 0)));
-    expect(clamped.runs[0]!.nodes.map((node) => node.ordinal)).toEqual(
-      Array.from({ length: WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes }, (_, index) => index),
-    );
-  });
-
-  it("没什么可裁时返回**同一个对象**（每次 flush 都要跑一遍，身份不能白丢）", () => {
-    const state = stateWith(runWith({}, 10, 10), runWith({ runId: "dwfrun-2" }, 0, 0));
-    expect(clampWorkflowRunsForLegacy(state)).toBe(state);
-  });
-
-  it("只裁该裁的那条 run，其余保持引用", () => {
-    const narrow = runWith({ runId: "dwfrun-narrow" }, 5, 5);
-    const state = stateWith(narrow, runWith({ runId: "dwfrun-wide" }, 400, 0));
-    const clamped = clampWorkflowRunsForLegacy(state);
-    expect(clamped).not.toBe(state);
-    expect(clamped.runs[0]).toBe(narrow);
-    expect(clamped.runs[1]?.nodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-  });
-
-  it("裁剪产物始终过旧界 schema：满界的 8 条 run 也一样", () => {
-    const state: WorkflowRunsState = {
-      revision: 3,
-      runs: Array.from({ length: WORKFLOW_RUNS_LIMITS.maxRuns }, (_, index) =>
-        runWith({ runId: `dwfrun-${index}` }, WORKFLOW_RUNS_LIMITS.maxNodes, 300),
-      ),
-    };
-    const clamped = clampWorkflowRunsForLegacy(state);
-    expect(legacyStateSchema.safeParse(clamped).success).toBe(true);
-    // 新界的 schema 当然也过——裁剪只减不增。
-    expect(workflowRunsStateSchema.safeParse(clamped).success).toBe(true);
   });
 });
 

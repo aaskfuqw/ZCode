@@ -65,7 +65,6 @@ describe("套餐导航名称与身份回归", () => {
                 locale,
                 localePreference: locale,
                 providerFamilyDomain: family,
-                providerFamilyDomainMigrated: true,
                 providerFamilyConnectionSelections: {},
               }),
             );

@@ -126,43 +126,18 @@ describe("Personal 配置纯读取与写锁边界", () => {
     await held.done;
   });
 
-  it.each(["missing", "noncanonical"] as const)(
-    "%s 文件等待写锁后重读，不用旧内容覆盖其他 writer",
-    async (kind) => {
-      if (kind === "missing") await rm(filePath);
-      else {
-        const document = encodeProviderConfigFile(config("original"));
-        await writeFile(filePath, JSON.stringify({ config: document.config, schemaVersion: 1 }));
-      }
-      const importer = vi.fn(async () => config("legacy"));
-      const reader = repository({ importLegacy: importer });
-      const held = await holdLock();
-      const paused = await pauseNextRead();
-      const read = reader.read();
-      pendingReads.push(read);
-      await paused.entered;
-      await atomicWritePrivateTextFile(
-        filePath,
-        JSON.stringify(encodeProviderConfigFile(config("newer"))),
-      );
-      paused.release();
-      held.release();
-      await held.done;
-      expect((await read).providers.keys()).toEqual(["newer"]);
-      expect(importer).not.toHaveBeenCalled();
-      expect(JSON.parse(await readFile(filePath, "utf8"))).toEqual(
-        encodeProviderConfigFile(config("newer")),
-      );
-    },
-  );
-
-  it("规范化确实需要写回时仍然使用写锁", async () => {
+  it("当前格式的字段顺序不触发规范化写回或写锁", async () => {
     const document = encodeProviderConfigFile(config("original"));
-    await writeFile(filePath, JSON.stringify({ config: document.config, schemaVersion: 1 }));
+    const original = JSON.stringify({ config: document.config, schemaVersion: 1 });
+    await writeFile(filePath, original);
     const reader = repository();
+    const held = await holdLock();
+    vi.mocked(mkdir).mockClear();
     await reader.read();
-    expect(vi.mocked(mkdir).mock.calls.some(([path]) => path === `${filePath}.lock`)).toBe(true);
-    expect(await readFile(filePath, "utf8")).toBe(JSON.stringify(document, null, 2));
+    expect(mkdir).not.toHaveBeenCalled();
+    expect(await readFile(filePath, "utf8")).toBe(original);
+    held.release();
+    await held.done;
   });
 
   it("慢轮询期间显式读取不会再启动一轮轮询", async () => {

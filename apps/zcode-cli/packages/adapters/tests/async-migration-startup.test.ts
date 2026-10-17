@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SQLITE_MIGRATIONS } from "../src/storage/session-store/migrations.js";
+import {
+  SQLITE_SESSION_SCHEMA_ID,
+  SQLITE_SESSION_SCHEMA_SQL,
+} from "../src/storage/session-store/schema.js";
 import {
   runSqliteSessionMigrations,
   runSqliteSessionMigrationsAsync,
@@ -26,7 +29,7 @@ afterEach(async () => {
   for (const dir of dirs.splice(0)) await rm(dir, { recursive: true, force: true });
 });
 
-describe("Todo144：迁移启动状态与真实 SQLite 锁", () => {
+describe("session schema startup and SQLite locks", () => {
   it("阶段通知 flush 后才执行 SQL；ready 仅在 commit 之后", async () => {
     const db = open();
     const exec = vi.spyOn(db, "exec");
@@ -42,7 +45,7 @@ describe("Todo144：迁移启动状态与真实 SQLite 锁", () => {
     const migrating = runSqliteSessionMigrationsAsync(db, ":memory:", {
       onProgress: async (state) => {
         states.push(state);
-        if (state.phase === "migrating" && state.migrationId === "0001_base_session_store") {
+        if (state.phase === "migrating" && state.migrationId === SQLITE_SESSION_SCHEMA_ID) {
           observed();
           await barrier;
         }
@@ -57,11 +60,7 @@ describe("Todo144：迁移启动状态与真实 SQLite 锁", () => {
     expect(states[0]?.phase).toBe("checking");
     expect(states.at(-1)?.phase).toBe("ready");
     expect(states.at(-1)?.migration?.lastAppliedMigrationId).toBeNull();
-    // 本 hotfix 不改迁移算法；状态通知不能让执行路径偏离账本对应的冻结原 SQL。
-    const frozenSql = SQLITE_MIGRATIONS.map((migration) => migration.sql);
-    expect(exec.mock.calls.map(([sql]) => sql).filter((sql) => frozenSql.includes(sql))).toEqual(
-      frozenSql,
-    );
+    expect(exec.mock.calls.filter(([sql]) => sql === SQLITE_SESSION_SCHEMA_SQL)).toHaveLength(1);
     for (const state of states) {
       expect(state).not.toHaveProperty("executionRevision");
       expect(state).not.toHaveProperty("implementationHash");
@@ -73,7 +72,7 @@ describe("Todo144：迁移启动状态与真实 SQLite 锁", () => {
       },
     });
     expect(replay.some((s) => s.phase === "migrating")).toBe(false);
-    expect(replay.at(-1)?.migration?.lastAppliedMigrationId).toBe(SQLITE_MIGRATIONS.at(-1)?.id);
+    expect(replay.at(-1)?.migration?.lastAppliedMigrationId).toBe(SQLITE_SESSION_SCHEMA_ID);
   });
 
   it("同库持锁超过旧 5 秒，异步等待不阻塞持有者提交；异库独立就绪", async () => {
@@ -112,11 +111,10 @@ describe("Todo144：迁移启动状态与真实 SQLite 锁", () => {
       runSqliteSessionMigrationsAsync(db, ":memory:", {
         onProgress: async (s) => {
           states.push(s);
-          if (s.phase === "migrating" && s.migrationId === "0020_provider_model_selection")
-            db.exec("DROP TABLE message");
+          if (s.phase === "migrating") db.exec("CREATE TABLE session (id TEXT)");
         },
       }),
-    ).rejects.toMatchObject({ kind: "sql_failed", migrationId: "0020_provider_model_selection" });
+    ).rejects.toMatchObject({ kind: "sql_failed", migrationId: SQLITE_SESSION_SCHEMA_ID });
     expect(states.at(-1)?.phase).toBe("failed");
     expect(states.some((s) => s.phase === "ready")).toBe(false);
     expect(db.isTransaction).toBe(false);
@@ -180,8 +178,8 @@ it("SILENTDB-02/04: reports real migration kind and counts only committed SQL as
   });
   expect(states.at(-1)?.migration).toEqual({
     kind: "initialize",
-    executedCount: SQLITE_MIGRATIONS.length,
-    committedCount: SQLITE_MIGRATIONS.length,
+    executedCount: 1,
+    committedCount: 1,
     lastAppliedMigrationId: null,
   });
   const repeated: SqliteMigrationProgress[] = [];
@@ -194,24 +192,24 @@ it("SILENTDB-02/04: reports real migration kind and counts only committed SQL as
     kind: "none",
     executedCount: 0,
     committedCount: 0,
-    lastAppliedMigrationId: SQLITE_MIGRATIONS.at(-1)?.id,
+    lastAppliedMigrationId: SQLITE_SESSION_SCHEMA_ID,
   });
-  db.exec("DELETE FROM schema_migration WHERE id >= '0020'");
+  const fresh = open();
   const failed: SqliteMigrationProgress[] = [];
   await expect(
-    runSqliteSessionMigrationsAsync(db, ":memory:", {
+    runSqliteSessionMigrationsAsync(fresh, ":memory:", {
       onProgress: async (s) => {
         failed.push(s);
         if (s.phase === "committing") throw new Error("commit barrier failed");
       },
     }),
   ).rejects.toThrow("commit barrier failed");
-  expect(failed.find((s) => s.phase === "migrating")?.migration?.kind).toBe("upgrade");
+  expect(failed.find((s) => s.phase === "migrating")?.migration?.kind).toBe("initialize");
   expect(failed.every((s) => !s.migration?.committedCount)).toBe(true);
-  expect(failed.at(-1)?.migration?.lastAppliedMigrationId).toBe(
-    SQLITE_MIGRATIONS.find((m) => m.id.startsWith("0019"))?.id,
-  );
-  expect(db.prepare("SELECT 1 FROM schema_migration WHERE id >= '0020'").get()).toBeUndefined();
+  expect(failed.at(-1)?.migration?.lastAppliedMigrationId).toBeNull();
+  expect(
+    fresh.prepare("SELECT 1 FROM sqlite_schema WHERE name='schema_migration'").get(),
+  ).toBeUndefined();
 });
 
 it("SILENTDB-03: another writer can finish the observed migrations without this waiter executing any", async () => {
@@ -219,8 +217,7 @@ it("SILENTDB-03: another writer can finish the observed migrations without this 
   dirs.push(dir);
   const path = join(dir, "db.sqlite");
   const holder = open(path);
-  runSqliteSessionMigrations(holder, path);
-  holder.exec("DELETE FROM schema_migration WHERE id >= '0020'; BEGIN IMMEDIATE");
+  holder.exec("PRAGMA journal_mode = wal; BEGIN IMMEDIATE");
   const waiter = open(path);
   const states: SqliteMigrationProgress[] = [];
   const exec = vi.spyOn(waiter, "exec");
@@ -228,23 +225,23 @@ it("SILENTDB-03: another writer can finish the observed migrations without this 
     onProgress: async (state) => {
       states.push(state);
       if (state.phase === "waiting_for_lock") {
-        expect(state.migration?.kind).toBe("upgrade");
+        expect(state.migration?.kind).toBe("initialize");
         holder.exec("COMMIT");
         runSqliteSessionMigrations(holder, path);
       }
     },
   });
   expect(states.at(-1)?.migration).toEqual({
-    kind: "upgrade",
+    kind: "initialize",
     executedCount: 0,
     committedCount: 0,
-    lastAppliedMigrationId: SQLITE_MIGRATIONS.at(-1)?.id,
+    lastAppliedMigrationId: SQLITE_SESSION_SCHEMA_ID,
   });
-  expect(exec.mock.calls.some(([sql]) => SQLITE_MIGRATIONS.some((m) => m.sql === sql))).toBe(false);
+  expect(exec.mock.calls.some(([sql]) => sql === SQLITE_SESSION_SCHEMA_SQL)).toBe(false);
   expect(
     states.find((s) => s.phase === "waiting_for_lock")?.migration?.lastAppliedMigrationId,
   ).toBeUndefined();
-  expect(states.at(-1)?.migration?.lastAppliedMigrationId).toBe(SQLITE_MIGRATIONS.at(-1)?.id);
+  expect(states.at(-1)?.migration?.lastAppliedMigrationId).toBe(SQLITE_SESSION_SCHEMA_ID);
 });
 
 it("publishes confirmed migration demand when lock contention recurs after precheck", async () => {
@@ -254,7 +251,7 @@ it("publishes confirmed migration demand when lock contention recurs after prech
   let journalBusy = true;
   let transactionBusy = true;
   vi.spyOn(db, "prepare").mockImplementation((sql) => {
-    if (journalBusy && sql.toLowerCase().includes("pragma journal_mode")) {
+    if (journalBusy && sql.toLowerCase().includes("sqlite_schema")) {
       journalBusy = false;
       throw Object.assign(new Error("busy before precheck"), { errcode: 5 });
     }
@@ -276,19 +273,21 @@ it("publishes confirmed migration demand when lock contention recurs after prech
   expect(waits.map((state) => state.migration?.kind)).toEqual([undefined, "initialize"]);
 });
 
-it("does not expose malformed ledger IDs in progress events or fail an otherwise prepared database", async () => {
+it("rejects unexpected ledger IDs without exposing them in progress events", async () => {
   const db = open();
   runSqliteSessionMigrations(db, ":memory:");
   db.prepare("INSERT INTO schema_migration VALUES (?, 'external', NULL, 0)").run(
     "private / unexpected ID",
   );
   const states: SqliteMigrationProgress[] = [];
-  await runSqliteSessionMigrationsAsync(db, ":memory:", {
-    onProgress: async (state) => {
-      states.push(state);
-    },
-  });
-  expect(states.at(-1)?.phase).toBe("ready");
+  await expect(
+    runSqliteSessionMigrationsAsync(db, ":memory:", {
+      onProgress: async (state) => {
+        states.push(state);
+      },
+    }),
+  ).rejects.toMatchObject({ kind: "checksum_mismatch" });
+  expect(states.at(-1)?.phase).toBe("failed");
   expect(states.at(-1)?.migration?.lastAppliedMigrationId).toBeUndefined();
   expect(JSON.stringify(states)).not.toContain("private / unexpected ID");
 });

@@ -16,7 +16,6 @@ import type {
   LogoutZCodeCliOptions,
   LogoutZCodeCliResult,
 } from "./auth-login-contract.js";
-import { readLegacyCliPersonalProviderConfig } from "./app/legacy-cli-personal-provider-config-importer.js";
 import {
   hasStandaloneCodingPlanAccess,
   readStandaloneCodingPlanProviders,
@@ -56,10 +55,9 @@ export async function persistStandaloneCodingPlanConnection(input: {
     input.personalProviderConfigPath ??
     input.env[ZCODE_PERSONAL_PROVIDER_CONFIG_FILE_ENV]?.trim() ??
     join(dirname(input.credentialStore.filePath), PERSONAL_PROVIDER_CONFIG_FILE_NAME);
-  // 登录与运行时共享文件和事务；首次写入仍先保留旧用户 Provider，不能仅写默认值。
+  // Login and runtime share the same current Personal Config and transaction.
   const personalRepository = new NodePersonalProviderConfigRepository({
     filePath: path,
-    importLegacy: () => readLegacyCliPersonalProviderConfig({}),
     pollingIntervalMs: false,
   });
   const repository = new NodeModelSelectionConfigRepository({

@@ -28,7 +28,7 @@ describe("迁移前的 stdio 启动控制帧", () => {
         packets.push(packet);
         if (
           packet.params.phase === "migrating" &&
-          packet.params.migrationId === "0001_base_session_store"
+          packet.params.migrationId === "0001_next_session_store"
         ) {
           release = () => callback();
           observed();

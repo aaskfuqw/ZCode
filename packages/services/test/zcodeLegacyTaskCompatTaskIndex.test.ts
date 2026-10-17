@@ -590,38 +590,6 @@ async function seedIndexedTask(
   });
 }
 
-async function seedLegacyAcpSessionId(
-  repo: TaskIndexRepo,
-  params: {
-    workspacePath: string;
-    workspaceIdentity?: string;
-    taskId: string;
-    acpSessionId: string;
-  },
-) {
-  await repo.ensureReady();
-  const db = (
-    repo as unknown as {
-      getDatabase(): {
-        exec(sql: string): unknown;
-        prepare(sql: string): {
-          run(...args: unknown[]): unknown;
-        };
-      };
-    }
-  ).getDatabase();
-  db.exec("ALTER TABLE tasks ADD COLUMN acp_session_id TEXT");
-  db.prepare(`UPDATE tasks SET acp_session_id = ? WHERE workspace_key = ? AND task_id = ?`).run(
-    params.acpSessionId,
-    resolveWorkspaceKey(params),
-    params.taskId,
-  );
-  // Bugfix: 老库的 acp_session_id 只在初始化迁移阶段读取。
-  // 测试里手工补列后重开 repo，验证迁移不是运行时 facade 兜底。
-  repo.close();
-  await repo.ensureReady();
-}
-
 describe("ZCode legacy task compat task index", () => {
   it.each([undefined, "ssh://host/repo"])(
     "waits for an in-flight topic admission before confirming cancellation (%s)",
@@ -4675,100 +4643,6 @@ describe("ZCode legacy task compat task index", () => {
     expect(snapshot?.meta).toMatchObject({
       taskId,
       migrationSource: "claudeCode",
-    });
-  });
-
-  it("migrates legacy wrapper task ids to acp_session_id backed protocol sessions", async () => {
-    const { agent, service, taskIndexRepo } = createService();
-    const workspacePath = "/repo";
-    const taskId = "legacy_wrapper_task";
-    const acpSessionId = "sess_legacy_real";
-    await seedIndexedTask(taskIndexRepo, {
-      taskId,
-      provider: "glm",
-      workspacePath,
-    });
-    await seedLegacyAcpSessionId(taskIndexRepo, {
-      workspacePath,
-      taskId,
-      acpSessionId,
-    });
-
-    await expect(taskIndexRepo.getTaskMeta({ workspacePath, taskId })).resolves.toBeNull();
-    await expect(
-      taskIndexRepo.getTaskMeta({ workspacePath, taskId: acpSessionId }),
-    ).resolves.toMatchObject({
-      taskId: acpSessionId,
-      workspacePath,
-      provider: "glm",
-    });
-
-    const dbSnapshot = makeSnapshot({
-      sessionId: acpSessionId,
-      workspacePath,
-      title: "DB session",
-      messages: [
-        makeUserMessage({
-          sessionId: acpSessionId,
-          messageId: "msg_db_user",
-          text: "db prompt",
-        }),
-      ],
-    });
-    vi.mocked(agent.resumeSession).mockImplementation(async (params) => {
-      if (params.sessionId === acpSessionId) {
-        return dbSnapshot;
-      }
-      throw new Error(`Session not found: ${params.sessionId}`);
-    });
-
-    const snapshot = await service.getTaskSnapshot({
-      workspacePath,
-      taskId: acpSessionId,
-    });
-
-    expect(snapshot?.meta).toMatchObject({
-      taskId: acpSessionId,
-      title: "DB session",
-      workspacePath,
-      model: "glm/glm-4.6",
-      thoughtLevel: "think",
-    });
-    expect(snapshot?.messages.map((message) => message.content)).toEqual(["db prompt"]);
-    expect(agent.resumeSession).toHaveBeenCalledWith({
-      workspacePath,
-      workspaceIdentity: undefined,
-      sessionId: acpSessionId,
-    });
-
-    const disposable = service.onDynamicTaskEvent({
-      workspacePath,
-      taskId: acpSessionId,
-      deliveryKind: "continuous",
-    })(() => undefined);
-    disposable.dispose();
-    expect(agent.onDynamicSessionEvent).toHaveBeenCalledWith({
-      workspacePath,
-      workspaceIdentity: undefined,
-      sessionId: acpSessionId,
-      deliveryKind: "desktop-continuous",
-      includeSnapshot: false,
-    });
-
-    await service.sendPrompt({
-      taskId: acpSessionId,
-      traceId: "input_1",
-      content: "continue",
-    });
-    expect(agent.sendConversationCommandV4).toHaveBeenCalledWith({
-      workspacePath,
-      workspaceIdentity: undefined,
-      envelope: expect.objectContaining({
-        type: "sendText",
-        sessionId: acpSessionId,
-        commandId: "input_1",
-        payload: { text: "continue", heldQueueDisposition: "keepQueueAndSend" },
-      }),
     });
   });
 

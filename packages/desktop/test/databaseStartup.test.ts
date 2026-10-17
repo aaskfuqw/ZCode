@@ -70,7 +70,7 @@ it("preserves structured failure details through the startup snapshot", async ()
     prepare: async () => {
       throw Object.assign(
         new Error("wrapper", { cause: { errcode: 778, code: "ERR_SQLITE_ERROR" } }),
-        { migrationId: "0003_official_glm_selection" },
+        { migrationId: "0001_next_schema", dbPath: "/configured/next/tasks-index.sqlite" },
       );
     },
     publish: () => {},
@@ -79,7 +79,8 @@ it("preserves structured failure details through the startup snapshot", async ()
   expect(coordinator.snapshot).toMatchObject({
     errorCode: "io_error",
     sqliteCode: 778,
-    migrationId: "0003_official_glm_selection",
+    migrationId: "0001_next_schema",
+    dbPath: "/configured/next/tasks-index.sqlite",
   });
 });
 

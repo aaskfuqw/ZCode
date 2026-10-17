@@ -6,16 +6,11 @@ import { createRequire } from "node:module";
 const { DatabaseSync } = createRequire(import.meta.url)(
   "node:sqlite",
 ) as typeof import("node:sqlite");
-import { TaskIndexRepo } from "#src/session/taskIndexRepo.js";
-import { AutomationRepo } from "#src/session/automationRepo.js";
 import {
   runTasksDatabaseMigrations,
   inspectTasksMigrationKind,
 } from "#src/session/tasksDatabase/migrations.js";
-import {
-  markTasksStorageMigrated,
-  markTasksStoragePrepared,
-} from "#src/session/tasksDatabase/prepared.js";
+import { markTasksStoragePrepared } from "#src/session/tasksDatabase/prepared.js";
 
 export type TasksStoragePhase =
   | "checking"
@@ -26,7 +21,7 @@ export type TasksStoragePhase =
   | "ready";
 const LOCK_WAIT_MS = 60 * 60_000;
 
-/** 由 Host Worker 调用，SQL 和迁移后修复与旧 Repo 共用，只有获取写锁异步等待。 */
+/** The Host Worker and direct Repo opens share one current-schema implementation. */
 export async function prepareTasksIndexStorage(
   path: string,
   onProgress: (phase: TasksStoragePhase, migration?: DatabaseMigrationFacts) => void,
@@ -66,16 +61,16 @@ export async function prepareTasksIndexStorage(
         }
       }
     };
-    await acquire("PRAGMA journal_mode = WAL");
-    db.exec("PRAGMA synchronous = NORMAL");
     await acquire(() => {
       migration = { kind: inspectTasksMigrationKind(db), executedCount: 0, committedCount: 0 };
     });
     report("checking", migration);
+    await acquire("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA synchronous = NORMAL");
     await acquire("BEGIN IMMEDIATE");
     runTasksDatabaseMigrations(db, { transactionOpen: true, migration, onProgress: report });
-    // COMMIT 已成功，先发布事实；后续 close 失败不能把已提交误报为未提交。
-    report("maintaining", migration);
+    // Publish the committed facts before closing; close failures must not imply a rollback.
+    report("committing", migration);
   } catch (error) {
     failure = error;
     // 失败事实随原异常交给 Worker，不倒退发布 checking/migrating，也不覆盖首因。
@@ -93,26 +88,6 @@ export async function prepareTasksIndexStorage(
     } catch (error) {
       if (!failure) throw error;
     }
-  }
-  markTasksStorageMigrated(path);
-  const repos = [new TaskIndexRepo(path, LOCK_WAIT_MS), new AutomationRepo(path, LOCK_WAIT_MS)];
-  let preparationFailure: unknown;
-  try {
-    // 这些是原本就在初始化时执行的修复，不创建新的迁移或改变已有事务边界。
-    for (const repo of repos) await repo.ensureReady();
-  } catch (error) {
-    preparationFailure = error;
-    throw error;
-  } finally {
-    let closeFailure: unknown;
-    for (const repo of repos) {
-      try {
-        repo.close({ throwOnError: true });
-      } catch (error) {
-        closeFailure ??= error;
-      }
-    }
-    if (!preparationFailure && closeFailure) throw closeFailure;
   }
   markTasksStoragePrepared(path);
   report("ready", migration);

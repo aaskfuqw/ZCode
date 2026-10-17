@@ -16,7 +16,8 @@ The platform abstraction owns these operations:
 
 - `loadMcpFromUserDirectory`
 - `saveMcpToUserDirectory`
-- `migrateLegacyCommonMcp`
+
+Historical ZCode common-MCP storage and the retired browser-local MCP configuration are no longer import sources. Current user-directory load/save and explicit third-party configuration imports retain their existing owners.
 
 This keeps Electron-specific `window.zcode` access inside desktop renderer bootstrap code and preserves UI reuse across desktop, web, and mobile remote control.
 

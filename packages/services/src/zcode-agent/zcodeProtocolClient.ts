@@ -9,6 +9,13 @@ import type {
   ZCodeProtocolTrace,
 } from "@zcode/shared";
 import type { V4Method } from "@zcode/shared/zcode-protocol-v4";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  V4_METHODS,
+  ZCodeProtocolContractError,
+  parseCurrentProtocolHandshake,
+  protocolContractSchema,
+} from "@zcode/shared/zcode-protocol-v4";
 import type { z } from "zod";
 import type { ZCodeProtocolTransport } from "./zcodeProtocolTransport.js";
 
@@ -48,6 +55,7 @@ interface ZCodeProtocolClientRequestOptions {
 }
 
 export const DEFAULT_ZCODE_PROTOCOL_REQUEST_TIMEOUT_MS = 3 * 60_000;
+const PROTOCOL_CONTRACT_TIMEOUT_MS = 10_000;
 
 class ZCodeProtocolClientError extends Error {
   constructor(
@@ -81,7 +89,9 @@ export class ZCodeProtocolClient implements IDisposable {
   private readonly pendingDrainedEmitter = new Emitter<void>();
   private readonly closeEmitter = new Emitter<void>();
   private readonly disposables: IDisposable[] = [];
-  private nextRequestId = 1;
+  private nextRequestId = 0;
+  private protocolHandshake?: Promise<void>;
+  private protocolAdmitted = false;
   private disposed = false;
   private readonly requestTimeoutMs: number;
 
@@ -133,6 +143,27 @@ export class ZCodeProtocolClient implements IDisposable {
     return this.transport.kind;
   }
 
+  ensureCurrentProtocol(): Promise<void> {
+    if (!this.protocolHandshake) {
+      this.protocolHandshake = this.requestImpl(
+        V4_METHODS.connectionInitialize,
+        CURRENT_PROTOCOL_CONTRACT,
+        undefined,
+        { lifecycle: "observation", timeoutMs: PROTOCOL_CONTRACT_TIMEOUT_MS },
+      ).then(
+        (result) => {
+          parseCurrentProtocolHandshake(protocolContractSchema, result);
+          this.protocolAdmitted = true;
+        },
+        (error: unknown) => {
+          throw new ZCodeProtocolContractError(error);
+        },
+      );
+      void this.protocolHandshake.catch(() => undefined);
+    }
+    return this.protocolHandshake;
+  }
+
   /**
    * 非 async 包装（CR 意见）：调用方持有的是本方法返回的 Promise，而 async 实现内部的
    * resultPromise 经 return 传播拒绝时，外层 Promise 独立参与 unhandledRejection 判定。
@@ -159,8 +190,13 @@ export class ZCodeProtocolClient implements IDisposable {
     options?: ZCodeProtocolClientRequestOptions,
   ): Promise<T> {
     this.assertNotDisposed();
+    if (method !== V4_METHODS.connectionInitialize && !this.protocolAdmitted) {
+      await this.ensureCurrentProtocol();
+    }
     // 不先创建请求/启动 watchdog；只在真实 COMMIT 后进入原有协议请求生命周期。
-    if (this.storageStartup.isWaiting) await this.storageStartup.wait(options?.signal);
+    if (method !== V4_METHODS.connectionInitialize && this.storageStartup.isWaiting) {
+      await this.storageStartup.wait(options?.signal);
+    }
     this.assertNotDisposed();
     options?.signal?.throwIfAborted();
     const id = this.nextRequestId++;
@@ -255,6 +291,7 @@ export class ZCodeProtocolClient implements IDisposable {
 
   async notify(method: ZCodeProtocolClientMethod, params?: unknown): Promise<void> {
     this.assertNotDisposed();
+    await this.ensureCurrentProtocol();
     await this.transport.send({ method, params });
   }
 

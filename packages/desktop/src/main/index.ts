@@ -109,8 +109,7 @@ import { maybeWarnArchitectureMismatch } from "./desktopArchitectureGuard.js";
 import { createDesktopTray, updateWindowsDesktopTrayMenu } from "./desktopTray.js";
 import {
   createCloseToTrayCapabilityMonitor,
-  resolveCloseToTrayBootstrapValue,
-  resolveCloseToTrayRuntimeValue,
+  resolveCloseToTrayValue,
   resolveCloseToTraySupported,
 } from "./desktopTraySupport.js";
 import { createWindowsCuaOperationIndicator } from "./windowsCuaOperationIndicator.js";
@@ -171,7 +170,6 @@ import { createDesktopHelpConfigReader } from "./desktopHelpConfig.js";
 import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
 import {
   loadCliMcpFromUserDirectory,
-  migrateLegacyCommonMcp,
   saveCliMcpToUserDirectory,
 } from "./mcpUserDirectory/index.js";
 import { registerRemoteIpcHandlers } from "./desktopMainIpcRemote.js";
@@ -810,7 +808,6 @@ const webRemoteControlManager = createWebRemoteControlManager({
         return { success: false, error: message };
       }
     },
-    migrateLegacyCommonMcp: (payload) => migrateLegacyCommonMcp(payload),
   },
   reconnectWorkspace: reconnectWebRemoteControlWorkspaceInRenderer,
   onStatusChanged: (windowId, status) => {
@@ -1482,43 +1479,27 @@ app.whenReady().then(async () => {
       loadedBootstrapLocale = true;
       currentApplicationLocale = bootstrapSettings.locale;
     }
-    // Linux 默认值归位迁移：shared 迁移无平台
-    // 概念、曾把存量 Linux 用户归为 true，但 Linux 此前无设置入口，存量 true 非用户显式
-    // 选择；首次启动强制归位为默认关并落标记，之后尊重用户选择。
-    const closeToTrayBootstrap = resolveCloseToTrayBootstrapValue({
+    closeToTrayOnWindows = resolveCloseToTrayValue({
       platform: process.platform,
       stored: bootstrapSettings.closeToTrayOnWindows,
-      linuxMigrationInitialized: bootstrapSettings.closeToTrayLinuxMigrationInitialized,
     });
-    // CR-02：必须 await 持久化完成再继续启动，renderer 设置页才不会读到文件旧值。
-    // 写失败时不阻断启动，但内存值回退为文件当前值（resolveCloseToTrayRuntimeValue）：
-    // 持久层不可写时维持"文件是唯一可信来源"，避免 main 按 false、设置页显示 true 的
-    // 双数据源；迁移在下次启动重试，失败期间保持迁移未完成的旧行为。
-    let closeToTrayMigrationPersisted = true;
-    if (closeToTrayBootstrap.needsLinuxMigration) {
-      try {
-        await mainSettingService.update({
-          closeToTrayOnWindows: false,
-          closeToTrayLinuxMigrationInitialized: true,
-        });
-      } catch (error) {
-        closeToTrayMigrationPersisted = false;
-        logger.warn("[settings] failed to persist linux close-to-tray default migration", error);
-      }
+    if (bootstrapSettings.closeToTrayOnWindows === undefined) {
+      bootstrapSettings = await mainSettingService.update({ closeToTrayOnWindows });
     }
-    closeToTrayOnWindows = resolveCloseToTrayRuntimeValue({
-      platform: process.platform,
-      stored: bootstrapSettings.closeToTrayOnWindows,
-      linuxMigrationInitialized: bootstrapSettings.closeToTrayLinuxMigrationInitialized,
-      migrationPersisted: closeToTrayMigrationPersisted,
-    });
     keepAwakeWhileRunning = bootstrapSettings.keepAwakeWhileRunning ?? false;
     currentDesktopZoomLevel = clampDesktopZoomLevel(bootstrapSettings.desktopZoomLevel ?? 0);
     currentDesktopWindowSize = bootstrapSettings.desktopWindowSize;
     // 全局 keep-awake：启动时若设置已开，立刻持有 powerSaveBlocker，不必等设置变更事件。
     reconcileKeepAwakeBlocker();
-  } catch {
-    // 读取失败不影响启动，使用默认 homedir
+  } catch (error) {
+    // Data roots must be resolved from valid settings before any Host opens its stores.
+    logger.error("[settings] desktop startup settings unavailable", error);
+    dialog.showErrorBox(
+      "ZCode Next",
+      error instanceof Error ? error.message : "Application settings could not be loaded.",
+    );
+    app.quit();
+    return;
   }
 
   // scheduler 也会打开 tasks-index；等 Host 完成统一准备，避免在启动页出现前抢先迁移。

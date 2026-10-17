@@ -1,3 +1,4 @@
+import { withCurrentProtocolAgent } from "./helpers/currentProtocolAgent.js";
 import {
   existsSync,
   mkdtempSync,
@@ -63,7 +64,7 @@ function createReadyZCodeAgentService(options?: Parameters<typeof createZCodeAge
 // 一个最小的 ZCode Protocol stdio fake agent：
 // 第一次收到 session/subscribe 返回错误（模拟 "Session is not active" 之类的瞬时失败），
 // 第二次返回成功并带一条 session.titleUpdated 事件。用来验证订阅建立失败后会重试。
-const FLAKY_SUBSCRIBE_FAKE_AGENT = `
+const FLAKY_SUBSCRIBE_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 let subscribeCount = 0;
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
@@ -100,9 +101,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const SUBSCRIBE_REPLAY_FAKE_AGENT = `
+const SUBSCRIBE_REPLAY_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -133,9 +134,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const CUA_OPERATION_LIVE_EVENT_FAKE_AGENT = `
+const CUA_OPERATION_LIVE_EVENT_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 function operationEvent(kind, eventId, sequenceNumber, sessionId, turnId, extra = {}) {
@@ -187,9 +188,9 @@ process.stdin.on("data", (chunk) => {
     }, 0);
   }
 });
-`;
+`);
 
-const CUA_OPERATION_RUNTIME_EXIT_FAKE_AGENT = `
+const CUA_OPERATION_RUNTIME_EXIT_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 function operationEvent(kind, eventId, sequenceNumber, sessionId, turnId, extra = {}) {
@@ -234,9 +235,9 @@ process.stdin.on("data", (chunk) => {
     }, 0);
   }
 });
-`;
+`);
 
-const BROWSER_DISCOVERY_FAKE_AGENT = `
+const BROWSER_DISCOVERY_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 function context(sessionId) {
@@ -288,8 +289,8 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
-const SHELL_SETTINGS_SNAPSHOT_FAKE_AGENT = `
+`);
+const SHELL_SETTINGS_SNAPSHOT_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const logPath = process.argv[2];
 const rejectBrowserAmbient = process.argv[3] === "reject-browser-ambient";
@@ -436,9 +437,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const RUNTIME_PREFERENCES_FAKE_AGENT = `
+const RUNTIME_PREFERENCES_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const logPath = process.argv[2];
 const requestMode = process.argv[3] ?? "valid";
@@ -531,9 +532,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const DELAYED_COMPACT_FAKE_AGENT = `
+const DELAYED_COMPACT_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 function createSnapshot(sessionId) {
@@ -602,9 +603,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const LEGACY_CREATE_PARAMS_FAKE_AGENT = `
+const LEGACY_CREATE_PARAMS_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 let currentWorkspace = null;
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
@@ -702,9 +703,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const AUTOMATION_BINDING_CHECK_FAKE_AGENT = `
+const AUTOMATION_BINDING_CHECK_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const logPath = process.argv[2];
 let buf = "";
@@ -733,9 +734,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const STALE_THEN_PLUGIN_LIST_FAKE_AGENT = `
+const STALE_THEN_PLUGIN_LIST_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const markerPath = process.argv[2];
 const shouldHang = !fs.existsSync(markerPath);
@@ -774,9 +775,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const STALE_THEN_MCP_LIST_FAKE_AGENT = `
+const STALE_THEN_MCP_LIST_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const markerPath = process.argv[2];
 const shouldHang = !fs.existsSync(markerPath);
@@ -810,9 +811,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const MCP_LIST_ECHO_CWD_FAKE_AGENT = `
+const MCP_LIST_ECHO_CWD_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -842,9 +843,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const MCP_LIST_ECHO_MCP_SERVERS_FAKE_AGENT = `
+const MCP_LIST_ECHO_MCP_SERVERS_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -874,9 +875,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const MCP_LIST_ECHO_MODE_FAKE_AGENT = `
+const MCP_LIST_ECHO_MODE_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -906,9 +907,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const MCP_LIST_REJECTS_MCP_SERVERS_ONCE_FAKE_AGENT = `
+const MCP_LIST_REJECTS_MCP_SERVERS_ONCE_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -951,9 +952,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const MCP_LIST_REJECTS_MODE_ONCE_FAKE_AGENT = `
+const MCP_LIST_REJECTS_MODE_ONCE_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -995,11 +996,11 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
 // 模拟真实 CLI transport 的串行队列：同一进程内 mcp/list 一直不返回，
 // 排在它后面的所有请求都拿不到响应（Bug：卸载插件被 30s 的 MCP 探测卡死）。
-const SERIAL_QUEUE_HANG_ON_MCP_LIST_FAKE_AGENT = `
+const SERIAL_QUEUE_HANG_ON_MCP_LIST_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const markerPath = process.argv[2];
 let buf = "";
@@ -1026,9 +1027,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const PLUGIN_LIST_ECHO_CWD_FAKE_AGENT = `
+const PLUGIN_LIST_ECHO_CWD_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -1065,9 +1066,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const PLUGIN_UPDATE_ECHO_FAKE_AGENT = `
+const PLUGIN_UPDATE_ECHO_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -1094,9 +1095,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const PLUGIN_RESTORE_BUILTIN_ECHO_FAKE_AGENT = `
+const PLUGIN_RESTORE_BUILTIN_ECHO_FAKE_AGENT = withCurrentProtocolAgent(`
 let buf = "";
 function send(obj) { process.stdout.write(JSON.stringify(obj) + "\\n"); }
 process.stdin.on("data", (chunk) => {
@@ -1119,9 +1120,9 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
-const INTERACTION_PREFERENCES_FAKE_AGENT = `
+const INTERACTION_PREFERENCES_FAKE_AGENT = withCurrentProtocolAgent(`
 const fs = require("node:fs");
 const logPath = process.argv[2];
 const failFirst = process.argv[3] === "fail-first";
@@ -1182,7 +1183,7 @@ process.stdin.on("data", (chunk) => {
     }
   }
 });
-`;
+`);
 
 describe("createZCodeAgentService", () => {
   it("资源查询仅观察就绪的现存 runtime，透传取消且不启动或等待迁移", async () => {
@@ -1553,7 +1554,7 @@ describe("createZCodeAgentService", () => {
     createdDirs.push(workspacePath);
     const commandResolver = vi.fn(() => ({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
     }));
     const processLifecycleReporter = {
       onSpawn: vi.fn(),

@@ -1194,12 +1194,12 @@ nodes:
         file: "apps/zcode-cli/packages/core/src/tool/handlers/agent.ts"
       - symbol: "createExploreSubagentPort"
         file: "apps/zcode-cli/packages/core/src/subagent/runner.ts"
-      - symbol: "migrateUserSubagentMarkdown"
-        file: "packages/shared/src/node/subagentMarkdownMigration.ts"
+      - symbol: "readSubagentState"
+        file: "packages/services/src/subagents/subagentState.ts"
       - symbol: "parseSubagentMarkdownSelection"
         file: "packages/shared/src/subagent-markdown-selection.ts"
     invariants:
-      - "Host and standalone Agent await offline migration of user-directory Markdown and builtin state before formal reads. Markdown keeps model/thoughtLevel; intermediate modelSelection is not consumed. Only user Markdown provider values are rewritten, preserving unrelated bytes; project/plugin files and symlinks are excluded. JSON uses builtInModelSelectionOverrides after one-way import. Ordinary readers do not remap legacy identities or fall back to old fields. Explicit execution still validates its concrete selection; Host effective-selection protocol remains a separate Todo96 decision."
+      - "Host and standalone Agent read current subagent state without pre-read migration or Markdown rewrites. Markdown uses model/thoughtLevel and JSON uses builtInModelSelectionOverrides. Obsolete or invalid Next-owned state fails with its configured file path and manual reset guidance; project/plugin Markdown remains intact. Readers do not remap legacy provider identities or restore retired fields. Explicit execution validates its concrete model selection."
 
   - id: "capability.provider-registry"
     kind: "capability"

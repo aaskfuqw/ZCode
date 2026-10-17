@@ -87,6 +87,27 @@ export async function checkArchitecture({ cwd = process.cwd(), changedFiles = nu
   const violations = [];
   const manifestRequiresByModule = new Map();
 
+  // Declared entrypoints must exist even for modules not yet under full source governance.
+  for (const module of policy.modules) {
+    for (const entrypoint of module.publicEntrypoints) {
+      const candidates = [
+        path.resolve(cwd, entrypoint),
+        ...module.roots.map((root) => path.resolve(root, entrypoint)),
+      ];
+      if (candidates.some((candidate) => knownFiles.has(candidate))) continue;
+      violations.push(
+        violation({
+          rule: "missing-public-entrypoint",
+          file: path.join(cwd, "architecture-policy.yaml"),
+          detail: `${module.id}:${entrypoint}`,
+          module,
+          global: true,
+          message: `模块 ${module.id} 声明的公开入口不存在：${entrypoint}`,
+        }),
+      );
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   for (const exception of policy.exceptions) {
     if (exception.expires && exception.expires < today) {

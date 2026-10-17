@@ -88,6 +88,28 @@ export async function startAgent(
     else
       void client.respondError(request.id, -32601, `Unexpected fixture request: ${request.method}`);
   });
+  async function close() {
+    try {
+      await transport.disposeAndWait();
+    } finally {
+      client.dispose();
+      for (const socket of sockets.values()) socket.destroy();
+      await new Promise<void>((resolve) => control.close(() => resolve()));
+    }
+  }
+  try {
+    await client.ensureCurrentProtocol();
+  } catch (error) {
+    try {
+      await close();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        error instanceof Error ? error.message : "Fixture Agent admission and cleanup failed",
+      );
+    }
+    throw error;
+  }
   const call = (method: string, params: unknown) => client.request<any>(method as never, params);
   return {
     call,
@@ -141,11 +163,6 @@ export async function startAgent(
         ...(demo ? { resourceUri: demo.resourceUri } : {}),
       };
     },
-    async close() {
-      await transport.disposeAndWait();
-      client.dispose();
-      for (const socket of sockets.values()) socket.destroy();
-      await new Promise<void>((resolve) => control.close(() => resolve()));
-    },
+    close,
   };
 }

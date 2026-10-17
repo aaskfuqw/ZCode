@@ -427,12 +427,7 @@ export interface AgentRuntimeTurnMethods {
   persistMessage(
     input: Parameters<SessionStorePort["saveMessage"]>[0],
     traceContext: TraceContext,
-    copyFrom?: Parameters<SessionStorePort["saveMessage"]>[1],
   ): Promise<void>;
-  persistPart(
-    input: MessagePart,
-    traceContext: TraceContext,
-    copyFrom?: Parameters<SessionStorePort["savePart"]>[1],
-  ): Promise<void>;
+  persistPart(input: MessagePart, traceContext: TraceContext): Promise<void>;
   rebuildProjection(): Promise<SessionProjection>;
 }

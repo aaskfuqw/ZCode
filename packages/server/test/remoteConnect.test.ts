@@ -2,6 +2,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { Emitter, ChannelClient, SocketProtocol, type IDisposable, type Event } from "@zcode/rpc";
 import { ZCODE_VERSION, TOPIC_RESOURCE_RELAY_CHANNEL } from "@zcode/shared";
+import { CURRENT_PROTOCOL_CONTRACT } from "@zcode/shared/zcode-protocol-v4";
 import { wrapStdioStream } from "../src/remote/stdio-socket.js";
 import { connectRemote, pickRemoteRuntimeEnv } from "../src/remote/connect.js";
 import type { IRemoteBackend, RemoteDisconnectEvent, StdioStream } from "../src/remote/backend.js";
@@ -61,6 +62,7 @@ class FakeConnectBackend implements IRemoteBackend {
           `${JSON.stringify({
             type: "zcode-hello",
             version: ZCODE_VERSION,
+            protocolContract: CURRENT_PROTOCOL_CONTRACT,
             platform: "linux",
             arch: "arm64",
             pid: 123,
@@ -115,6 +117,10 @@ describe("connectRemote", () => {
     const stdin = stream.stdin as PassThrough;
     const buffered = stdin.read() as Buffer;
     const boundary = buffered.indexOf(10) + 1;
+    expect(JSON.parse(buffered.subarray(0, boundary).toString())).toMatchObject({
+      type: "zcode-hello-ack",
+      protocolContract: CURRENT_PROTOCOL_CONTRACT,
+    });
     const remaining = buffered.subarray(boundary);
     const inverse = wrapStdioStream({
       ...stream,

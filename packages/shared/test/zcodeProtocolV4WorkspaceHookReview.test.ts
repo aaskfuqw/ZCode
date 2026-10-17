@@ -8,9 +8,7 @@ import {
   helloMessageSchema,
   hookExecutionDescriptorSchema,
   hostSupportsWorkspaceHookReview,
-  hostSupportsWorkflowRunDeltas,
   clientSupportsWorkspaceHookReview,
-  clientSupportsWorkflowRunDeltas,
   v4ConversationSubscribeParamsSchema,
   pendingInteractionSchema,
   workspaceHookReviewDecisionSchema,
@@ -127,89 +125,30 @@ function snapshotWithReview() {
   };
 }
 
-// workflowRunDeltas 能力位（docs/v4-refactor/10-protocol-spec §4.5）：与 workspaceHookReview 同族的
-// fail-closed 握手，钉在同一处是因为踩坑点也是同一个——clientHello.capabilities 是 .strict() 的。
-describe("workflowRunDeltas capability handshake", () => {
-  const hello = (capabilities: Record<string, unknown>) =>
-    helloMessageSchema.parse({
-      kind: "hello",
-      protocolVersion: V4_WIRE_PROTOCOL_VERSION,
-      connectionId: "connection-1",
-      clientMode: "desktop-continuous",
-      deliveryProfile: "continuous",
-      serverTime: 1,
-      capabilities: {
-        nativeDialogs: true,
-        localTerminal: true,
-        binaryFrames: false,
-        compression: "none",
-        ...capabilities,
-      },
-      auth: {},
-    });
-
-  it("Host 侧缺失即 false，显式 true 才算有", () => {
-    expect(hostSupportsWorkflowRunDeltas(hello({}).capabilities)).toBe(false);
-    expect(hostSupportsWorkflowRunDeltas(hello({ workflowRunDeltas: false }).capabilities)).toBe(
-      false,
-    );
-    expect(hostSupportsWorkflowRunDeltas(hello({ workflowRunDeltas: true }).capabilities)).toBe(
-      true,
-    );
-  });
-
-  it("Client 侧同样 fail closed；capabilities 整个缺席也只是 false", () => {
-    const clientHello = (capabilities?: Record<string, unknown>) =>
-      clientHelloSchema.parse({
-        kind: "clientHello",
-        protocolVersion: V4_WIRE_PROTOCOL_VERSION,
-        clientId: "client-1",
-        appVersion: "test",
-        ...(capabilities === undefined ? {} : { capabilities }),
-      });
-    expect(clientSupportsWorkflowRunDeltas(clientHello())).toBe(false);
-    expect(clientSupportsWorkflowRunDeltas(clientHello({ workspaceHookReviewUi: true }))).toBe(
-      false,
-    );
-    expect(clientSupportsWorkflowRunDeltas(clientHello({ workflowRunDeltas: true }))).toBe(true);
-    // 两个能力位互不干扰（同一个 strict 对象里的两个可选键）。
+describe("required workflow contract", () => {
+  it.each([undefined, false])(
+    "rejects a client whose workflow contract is %s",
+    (workflowRunDeltas) => {
+      expect(
+        clientHelloSchema.safeParse({
+          kind: "clientHello",
+          protocolVersion: V4_WIRE_PROTOCOL_VERSION,
+          clientId: "client",
+          appVersion: "any",
+          capabilities: { workflowRunDeltas },
+        }).success,
+      ).toBe(false);
+    },
+  );
+  it("does not expose per-subscription workflow encoding", () => {
     expect(
-      clientSupportsWorkspaceHookReview(
-        clientHello({ workspaceHookReviewUi: true, workflowRunDeltas: true }),
-      ),
-    ).toBe(true);
-  });
-
-  it("clientHello.capabilities 是 .strict()：这正是「Host 没广播就不许声明」的由来", () => {
-    // 老 Host 的 schema 里没有 workflowRunDeltas 这个键，客户端贸然带上会让**整条 clientHello**
-    // 解析失败、连接握不上手——不是少一个键那么轻。这条断言用一个假想的未来键复现那个形状。
-    expect(
-      clientHelloSchema.safeParse({
-        kind: "clientHello",
-        protocolVersion: V4_WIRE_PROTOCOL_VERSION,
-        clientId: "client-1",
-        appVersion: "test",
-        capabilities: { workflowRunDeltas: true, someFutureCapability: true },
-      }).success,
-    ).toBe(false);
-  });
-
-  it("subscribe 参数带该位（由可信 host 从连接的 clientHello 注入，UI 侧选不了）", () => {
-    const params = v4ConversationSubscribeParamsSchema.parse({
-      topic: "conversation/session-1",
-      connectionId: "connection-1",
-      clientMode: "desktop-continuous",
-      workflowRunDeltas: true,
-    });
-    expect(params.workflowRunDeltas).toBe(true);
-    // 缺席 = 按旧消费者处理（整键 patch + 旧界裁剪），不是解析失败。
-    expect(
-      v4ConversationSubscribeParamsSchema.parse({
+      v4ConversationSubscribeParamsSchema.safeParse({
         topic: "conversation/session-1",
         connectionId: "connection-1",
         clientMode: "desktop-continuous",
-      }).workflowRunDeltas,
-    ).toBeUndefined();
+        workflowRunDeltas: false,
+      }).success,
+    ).toBe(false);
   });
 });
 
@@ -227,6 +166,7 @@ describe("workspaceHookReview protocol contracts", () => {
         localTerminal: true,
         binaryFrames: false,
         compression: "none",
+        workflowRunDeltas: true,
       },
       auth: {},
     });
@@ -242,6 +182,7 @@ describe("workspaceHookReview protocol contracts", () => {
           protocolVersion: V4_WIRE_PROTOCOL_VERSION,
           clientId: "client-1",
           appVersion: "test",
+          capabilities: { workflowRunDeltas: true },
         }),
       ),
     ).toBe(false);
@@ -252,7 +193,7 @@ describe("workspaceHookReview protocol contracts", () => {
           protocolVersion: V4_WIRE_PROTOCOL_VERSION,
           clientId: "client-2",
           appVersion: "test",
-          capabilities: { workspaceHookReviewUi: true },
+          capabilities: { workspaceHookReviewUi: true, workflowRunDeltas: true },
         }),
       ),
     ).toBe(true);

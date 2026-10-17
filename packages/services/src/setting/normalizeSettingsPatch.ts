@@ -4,16 +4,6 @@ export function normalizeSettingsPatch(patch: Partial<AppSettings>): Partial<App
   const normalizedPatch = { ...patch };
 
   if (
-    "locale" in normalizedPatch &&
-    !("localePreference" in normalizedPatch) &&
-    typeof normalizedPatch.locale === "string"
-  ) {
-    // locale 现在只表示已解析后的实际语言，localePreference 才表示用户偏好。
-    // 兼容旧调用只写 locale 的路径，把它视为用户显式选择固定语言，避免下一次启动又回到 system。
-    normalizedPatch.localePreference = normalizedPatch.locale;
-  }
-
-  if (
     "terminalFontFamily" in normalizedPatch &&
     typeof normalizedPatch.terminalFontFamily === "string"
   ) {

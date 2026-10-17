@@ -3,8 +3,7 @@
 // `removedActors` / `removedNodes`。这一套钉的是三件此前不可能发生、也因此从未被测过的事：
 //   1. ingest 快路径的字节上界在「一条 op 既删又加、还第一次带上 unlistedByPhase / truncated」
 //      之后仍然是上界——它算松了就等于把 16MiB 闸门算松了；
-//   2. 旧消费者收的是整键 patch（它连 `workflowRun.*` 的判别式都不认），一批淘汰之后它必须仍与
-//      权威态收敛到同一份旧界裁剪；
+//   2. Current subscribers preserve the authoritative state.
 //   3. 溢出过的 run 重臂时**一条 op 清空两张表**（各 1024 条删除）——这是全协议最大的一条 op，
 //      它撞破 wire schema 的 .max、订阅者 500 op / 1 MiB 任何一道，那条订阅就此静默。
 // 界不从 CLI 这一侧注入（投影调归约时不传 limits），所以这里跑的是**真界 1024**。
@@ -20,10 +19,8 @@ import type {
 } from "@zcode/shared/zcode-protocol-v4";
 import {
   PROTOCOL_V4_LIMITS,
-  WORKFLOW_RUNS_LEGACY_LIMITS,
   WORKFLOW_RUNS_LIMITS,
   applyConversationDeltas,
-  clampWorkflowRunsForLegacy,
   conversationTopicFrameSchema,
   utf8JsonByteLength,
   workflowRunUpdateWithinWireBounds,
@@ -34,7 +31,7 @@ const RUN_ID = "dwfrun-1";
 /** 填满之后再来这么多个活的新人：每一个都要归约摘掉一个已完成组才坐得下。 */
 const EVICTION_ROUNDS = 16;
 const MODERN = "sub-epoch-1-1";
-const LEGACY = "sub-epoch-1-2";
+const REPLAYABLE = "sub-epoch-1-2";
 
 /** 保守上界是私有字段；断言它的**方向**没有别的观察面（与既有那一组同一个口子）。 */
 function upperBoundOf(publisher: ConversationTopicPublisher): number {
@@ -90,12 +87,12 @@ interface EvictionScenario {
   /** 重臂那一条事件的同一组读数，外加它之前的精确字节数（这一步快照是**变小**的）。 */
   resumeSample: { upper: number; exact: number; before: number };
   modernBase: ConversationSnapshot;
-  legacyBase: ConversationSnapshot;
+  replayableBase: ConversationSnapshot;
   evictionModern: ConversationDelta[];
-  evictionLegacy: ConversationDelta[];
+  evictionReplayable: ConversationDelta[];
   evictedRuns: WorkflowRunsState;
   resumeModern: ConversationDelta[];
-  resumeLegacy: ConversationDelta[];
+  resumeReplayable: ConversationDelta[];
   resumedRuns: WorkflowRunsState;
 }
 
@@ -148,9 +145,11 @@ function scenario(): EvictionScenario {
 
   // 订阅在填满之后、腾位之前：两个订阅者手上的基线是"一条都还没被摘掉"的那张表。
   const modernBase = snapshotOf(
-    publisher.subscribe({ connectionId: "modern", workflowRunDeltas: true }).frame,
+    publisher.subscribe({ connectionId: "modern", deliveryProfile: "continuous" }).frame,
   );
-  const legacyBase = snapshotOf(publisher.subscribe({ connectionId: "legacy" }).frame);
+  const replayableBase = snapshotOf(
+    publisher.subscribe({ connectionId: "replayable", deliveryProfile: "replayable" }).frame,
+  );
 
   const boundSamples: { upper: number; exact: number }[] = [];
   /** 一条事件一次取样，取样前把上界按回真值（见 {@link pinUpperBoundToTruth}）。 */
@@ -176,7 +175,7 @@ function scenario(): EvictionScenario {
     });
   }
   const evictionModern = deltasOf(publisher.flush(MODERN));
-  const evictionLegacy = deltasOf(publisher.flush(LEGACY));
+  const evictionReplayable = deltasOf(publisher.flush(REPLAYABLE));
   const evictedRuns = publisher.getSnapshot().workflowRuns!;
 
   // 重臂：溢出过的 run 在新的一世里从空表重开（workflowRunTablesForNewLife）。
@@ -189,7 +188,7 @@ function scenario(): EvictionScenario {
     before: resumeExactBefore,
   };
   const resumeModern = deltasOf(publisher.flush(MODERN));
-  const resumeLegacy = deltasOf(publisher.flush(LEGACY));
+  const resumeReplayable = deltasOf(publisher.flush(REPLAYABLE));
   const resumedRuns = publisher.getSnapshot().workflowRuns!;
 
   cached = {
@@ -197,12 +196,12 @@ function scenario(): EvictionScenario {
     boundSamples,
     resumeSample,
     modernBase,
-    legacyBase,
+    replayableBase,
     evictionModern,
-    evictionLegacy,
+    evictionReplayable,
     evictedRuns,
     resumeModern,
-    resumeLegacy,
+    resumeReplayable,
     resumedRuns,
   };
   return cached;
@@ -256,26 +255,7 @@ describe("ingest 快路径 × 腾位", () => {
   });
 });
 
-describe("旧消费者 × 腾位", () => {
-  /**
-   * 旧消费者连 `workflowRun.*` 的判别式都不认（discriminatedUnion 解析失败 → 整帧被丢），所以
-   * 它收到的是整键 patch。删除因此对它是**免费**的——它拿的本来就是当前投影的整份裁剪。这一条
-   * 钉的就是"免费"不是想当然：一批淘汰之后它的终态必须逐字节等于 clampWorkflowRunsForLegacy(权威态)。
-   */
-  it("一批淘汰之后，旧订阅者的终态 = clampWorkflowRunsForLegacy(权威态)", () => {
-    const { legacyBase, evictionLegacy, evictedRuns } = scenario();
-    expect(evictionLegacy.map((delta) => delta.op)).toEqual(["state.updated"]);
-    const settled = applyConversationDeltas(legacyBase, evictionLegacy);
-    expect(JSON.stringify(settled.workflowRuns)).toBe(
-      JSON.stringify(clampWorkflowRunsForLegacy(evictedRuns)),
-    );
-    const run = settled.workflowRuns!.runs[0]!;
-    expect(run.actors).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxActors);
-    expect(run.nodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-    // 裁剪先留还在动的：腾位腾出来的位子上坐的正是这些，它们不能被"前 256 条"挡在外面。
-    expect(run.nodes.filter((node) => node.phase !== "settled").length).toBe(EVICTION_ROUNDS);
-  });
-
+describe("native deltas and eviction", () => {
   it("增量订阅者施加同一批 op 之后与权威态逐字节一致", () => {
     const { modernBase, evictionModern, evictedRuns } = scenario();
     const op = onlyUpdate(evictionModern);
@@ -330,9 +310,9 @@ describe("重臂：一条 op 清空两张表", () => {
       modernBase,
       evictionModern,
       resumeModern,
-      legacyBase,
-      evictionLegacy,
-      resumeLegacy,
+      replayableBase,
+      evictionReplayable,
+      resumeReplayable,
       resumedRuns,
     } = scenario();
     const modern = applyConversationDeltas(
@@ -349,13 +329,11 @@ describe("重臂：一条 op 清空两张表", () => {
     );
     expect(dropped.workflowRuns!.runs[0]!.nodes).toHaveLength(WORKFLOW_RUNS_LIMITS.maxNodes);
 
-    const legacy = applyConversationDeltas(
-      applyConversationDeltas(legacyBase, evictionLegacy),
-      resumeLegacy,
+    const replayable = applyConversationDeltas(
+      applyConversationDeltas(replayableBase, evictionReplayable),
+      resumeReplayable,
     );
-    expect(JSON.stringify(legacy.workflowRuns)).toBe(
-      JSON.stringify(clampWorkflowRunsForLegacy(resumedRuns)),
-    );
+    expect(JSON.stringify(replayable.workflowRuns)).toBe(JSON.stringify(resumedRuns));
   });
 
   /**

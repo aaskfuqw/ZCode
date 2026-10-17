@@ -1,14 +1,12 @@
 import {
   classifyDatabaseStartupError,
-  databaseMigrationIdSchema,
   databaseStartupErrorDetails,
   type DatabaseMigrationFacts,
 } from "@zcode/shared";
-import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { SqliteSessionMigrationError } from "./errors.js";
-import { SQLITE_MIGRATIONS } from "./migrations.js";
-import type { SchemaMigrationRow } from "./rows.js";
+import { inspectSessionSchema, SQLITE_SESSION_SCHEMA_CHECKSUM } from "./schema-state.js";
+import { SQLITE_SESSION_SCHEMA_ID, SQLITE_SESSION_SCHEMA_SQL } from "./schema.js";
 
 export const DEFAULT_SQLITE_STARTUP_LOCK_TIMEOUT_MS = 5_000;
 
@@ -134,6 +132,14 @@ function* migrationSteps(
   }
   try {
     yield progress("checking");
+    // Reject obsolete data before WAL changes or any schema/data writes.
+    yield* acquire(() => {
+      migrationFacts = {
+        kind: inspectSessionSchema(db, dbPath),
+        executedCount: 0,
+        committedCount: 0,
+      };
+    });
     db.exec("pragma foreign_keys = on");
     yield* acquire(() => {
       const current = readJournalMode(db);
@@ -146,54 +152,32 @@ function* migrationSteps(
         );
       }
     });
-    // 预检只决定展示；真正执行仍在拿锁后逐项核对，其他窗口完成后不会重复迁移。
-    yield* acquire(() => {
-      migrationFacts = {
-        kind: inspectMigrationKind(db, dbPath),
-        executedCount: 0,
-        committedCount: 0,
-      };
-    });
     yield progress("checking");
-    // SQLite 是唯一协调者；拿锁后读取真实账本，等待者不会重复迁移已提交项。
+    // A competing initializer may have committed while this connection waited.
     yield* acquire(() => db.exec("begin immediate"));
     transactionStarted = true;
-    db.exec(`create table if not exists schema_migration (
-      id text primary key, checksum text not null, app_version text, time_applied integer not null
-    )`);
-    // 拿锁后记录起点，避免预检时其他写者尚未提交；后续迁移不得覆盖它。
-    const baseline = db.prepare("SELECT id FROM schema_migration ORDER BY id DESC LIMIT 1").get();
+    const state = inspectSessionSchema(db, dbPath);
     if (migrationFacts)
-      migrationFacts.lastAppliedMigrationId = baseline
-        ? databaseMigrationIdSchema.safeParse(baseline.id).data
-        : null;
-    let completed = 0;
-    for (const migration of SQLITE_MIGRATIONS) {
+      migrationFacts.lastAppliedMigrationId = state === "none" ? SQLITE_SESSION_SCHEMA_ID : null;
+    if (state === "initialize") {
       try {
-        const checksum = migrationChecksum(migration.sql);
-        const applied = readAppliedMigration(db, migration.id);
-        if (applied) {
-          ensureMigrationChecksum(migration.id, applied.checksum, checksum, dbPath);
-          completed++;
-          continue;
-        }
-        // 预检后出现新待执行项时，以锁内账本为准提升种类，不能带 none 执行 SQL。
-        if (migrationFacts?.kind === "none") migrationFacts.kind = "upgrade";
+        if (migrationFacts) migrationFacts.kind = "initialize";
         yield {
           ...progress("migrating"),
-          migrationId: migration.id,
-          completed,
-          total: SQLITE_MIGRATIONS.length,
+          migrationId: SQLITE_SESSION_SCHEMA_ID,
+          completed: 0,
+          total: 1,
         };
-        // 本 hotfix 只调整启动等待；执行与账本校验共用冻结原 SQL，避免维护两套转换语义。
-        db.exec(migration.sql);
+        db.exec(`create table schema_migration (
+          id text primary key, checksum text not null, app_version text, time_applied integer not null
+        )`);
+        db.exec(SQLITE_SESSION_SCHEMA_SQL);
         if (migrationFacts) migrationFacts.executedCount++;
         db.prepare(
           "insert into schema_migration (id, checksum, app_version, time_applied) values (?, ?, ?, ?)",
-        ).run(migration.id, checksum, migration.appVersion, Date.now());
-        completed++;
+        ).run(SQLITE_SESSION_SCHEMA_ID, SQLITE_SESSION_SCHEMA_CHECKSUM, null, Date.now());
       } catch (error) {
-        throw normalizeMigrationError(error, dbPath, migration.id);
+        throw normalizeMigrationError(error, dbPath, SQLITE_SESSION_SCHEMA_ID);
       }
     }
     yield progress("committing");
@@ -285,52 +269,4 @@ function lockTimeoutError(
     `Timed out waiting for SQLite migration lock at ${dbPath}`,
     { cause, dbPath, kind: "lock_timeout", migrationId },
   );
-}
-
-function readAppliedMigration(db: DatabaseSync, id: string): SchemaMigrationRow | undefined {
-  return db.prepare("select id, checksum from schema_migration where id = ?").get(id) as
-    | SchemaMigrationRow
-    | undefined;
-}
-
-function migrationChecksum(sql: string): string {
-  return createHash("sha256").update(sql.trim()).digest("hex");
-}
-
-function ensureMigrationChecksum(
-  id: string,
-  applied: string,
-  current: string,
-  dbPath: string,
-): void {
-  if (applied === current) return;
-  throw new SqliteSessionMigrationError(
-    `SQLite migration checksum mismatch for ${id}. Historical migrations are immutable; add a new migration instead.`,
-    {
-      dbPath,
-      kind: "checksum_mismatch",
-      migrationId: id,
-    },
-  );
-}
-
-/** 只读小型迁移账本，不扫描消息表；存在表但无账本的历史库属于升级。 */
-function inspectMigrationKind(db: DatabaseSync, dbPath: string): DatabaseMigrationFacts["kind"] {
-  const hasLedger = db
-    .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migration'")
-    .get();
-  let pending = false;
-  for (const migration of SQLITE_MIGRATIONS) {
-    const row = hasLedger ? readAppliedMigration(db, migration.id) : undefined;
-    if (row)
-      ensureMigrationChecksum(migration.id, row.checksum, migrationChecksum(migration.sql), dbPath);
-    else pending = true;
-  }
-  if (!pending) return "none";
-  const hasDataTables = db
-    .prepare(
-      "SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT IN ('schema_migration', 'sqlite_sequence') LIMIT 1",
-    )
-    .get();
-  return hasDataTables ? "upgrade" : "initialize";
 }

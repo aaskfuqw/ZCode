@@ -62,6 +62,7 @@ function createSingleConnectionRemoteService(): {
         localTerminal: true,
         binaryFrames: false,
         compression: "none" as const,
+        workflowRunDeltas: true as const,
       },
       auth: {},
     })),

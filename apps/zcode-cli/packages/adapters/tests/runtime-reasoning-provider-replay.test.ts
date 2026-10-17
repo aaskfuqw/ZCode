@@ -40,12 +40,9 @@ const HISTORICAL_CONTENT = [
   { type: "tool_use", id: "old-read", name: "Read", input: { file_path: "report.txt" } },
 ];
 const cases = ["zai", "bigmodel"].flatMap((family) => {
-  const legacy = `builtin:${family}-coding-plan`;
   const individual = `account:${family}-individual-coding-plan`;
   const team = `account:${family}-team-coding-plan`;
   return [
-    [legacy, individual],
-    [legacy, team],
     [individual, team],
     [team, individual],
   ] as const;
@@ -63,10 +60,6 @@ describe.each(["off", "on"] as const)(
         const db = new DatabaseSync(join(root, "session.sqlite"));
         let runtime: AgentRuntime | undefined;
         try {
-          // 合并修复：空库建表后移除尚未播种的迁移记录，模拟升级前数据；只操作临时夹具。
-          db.prepare("DELETE FROM schema_migration WHERE id = ?").run(
-            "0020_provider_model_selection",
-          );
           await seedHistory({ db, store, root, sessionID, providerId: source });
           const snapshot = () => ({
             messages: db
@@ -77,7 +70,6 @@ describe.each(["off", "on"] as const)(
               .all(USER_ID, ASSISTANT_ID),
           });
           const before = snapshot();
-          // Todo109 已将迁移收进数据库启动；不能恢复已删除的逐 Session 迁移接口。
           store.close();
           store = createSqliteSessionStore({ dbPath: join(root, "session.sqlite") });
           const migrated = snapshot();
@@ -94,13 +86,7 @@ describe.each(["off", "on"] as const)(
           });
           const selection = parseModelSelectionValue(entries.at(-1)?.data);
           if (!selection) throw new Error("Missing restored model selection");
-          expect(selection.providerId).toBe(
-            source.startsWith("builtin:")
-              ? source
-                  .replace("builtin:", "account:")
-                  .replace("-coding-plan", "-individual-coding-plan")
-              : source,
-          );
+          expect(selection.providerId).toBe(source);
           const decoded = (await store.messages({ sessionID })).find(
             (message) => message.info.id === ASSISTANT_ID,
           );
@@ -241,7 +227,6 @@ async function seedHistory(input: {
   providerId: string;
 }) {
   const { db, store, root, sessionID, providerId } = input;
-  const legacy = providerId.startsWith("builtin:");
   await store.createSession({
     id: sessionID,
     projectID: createProjectId("reasoning-replay"),
@@ -251,7 +236,7 @@ async function seedHistory(input: {
     version: "old",
   });
   const modelSelection = { providerId, modelId: MODEL_ID, options: { reasoningLevel: "disabled" } };
-  // 已发布旧格式直接写入 SQLite，避免用新版 writer 生成伪旧数据。
+  // Seed current persisted data to exercise reopen and provider replay together.
   const insert = db.prepare(
     "insert into message(id,session_id,sequence,time_created,time_updated,data) values(?,?,?,?,?,?)",
   );
@@ -265,9 +250,7 @@ async function seedHistory(input: {
       role: "user",
       agent: "zcode-agent",
       time: { created: 1 },
-      ...(legacy
-        ? { model: { providerID: providerId, modelID: MODEL_ID, variant: "disabled" } }
-        : { modelSelection }),
+      modelSelection,
     }),
   );
   insert.run(
@@ -280,9 +263,9 @@ async function seedHistory(input: {
       role: "assistant",
       time: { created: 2, completed: 3 },
       parentID: USER_ID,
-      ...(legacy
-        ? { providerID: providerId, modelID: MODEL_ID, variant: "disabled" }
-        : { providerId, modelId: MODEL_ID, reasoningLevel: "disabled" }),
+      providerId,
+      modelId: MODEL_ID,
+      reasoningLevel: "disabled",
       mode: "build",
       agent: "zcode-agent",
       path: { cwd: root, root },
@@ -299,9 +282,7 @@ async function seedHistory(input: {
     SESSION_ENTRY_MODEL_SELECTION,
     1,
     1,
-    JSON.stringify(
-      legacy ? { providerId, modelId: MODEL_ID, thoughtLevel: "disabled" } : { modelSelection },
-    ),
+    JSON.stringify({ modelSelection }),
   );
   for (const [id, text, metadata] of [
     ["signed", "Historical thinking", { anthropic: { signature: SIGNATURE } }],

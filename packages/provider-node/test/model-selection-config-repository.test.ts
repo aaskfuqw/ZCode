@@ -1,12 +1,7 @@
-import {
-  ModelConfigRules,
-  ProviderConfigMap,
-  type ProviderConfigLayerUpdate,
-} from "@zcode/provider";
 import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   NodeModelSelectionConfigRepository,
   NodePersonalProviderConfigRepository,
@@ -26,14 +21,10 @@ const canCreateSymlink = await (async () => {
     await rm(probeRoot, { force: true, recursive: true });
   }
 })();
-function selectionRepository(
-  filePath: string,
-  importLegacy?: () => Promise<ProviderConfigLayerUpdate | null>,
-) {
+function selectionRepository(filePath: string) {
   const personalRepository = new NodePersonalProviderConfigRepository({
     filePath,
     pollingIntervalMs: false,
-    importLegacy,
   });
   owners.push(personalRepository);
   return new NodeModelSelectionConfigRepository({ personalRepository });
@@ -45,32 +36,14 @@ afterEach(async () => {
 });
 
 describe("NodeModelSelectionConfigRepository", () => {
-  it("imports a legacy configured default once when the new file is absent", async () => {
+  it("keeps an absent configured default empty without importing or creating files", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-model-selection-config-"));
     roots.push(root);
     const filePath = join(root, "provider_config.json");
-    const importLegacy = vi.fn(async () => ({
-      providers: ProviderConfigMap.empty(),
-      models: ModelConfigRules.empty(),
-      defaultModelSelection: { providerId: "provider-a", modelId: "model-a" },
-    }));
-    const repository = selectionRepository(filePath, importLegacy);
-
-    expect(await repository.read()).toEqual({
-      providerId: "provider-a",
-      modelId: "model-a",
-    });
-    expect(JSON.parse(await readFile(filePath, "utf8"))).toEqual({
-      schemaVersion: 1,
-      config: {
-        providerConfigRules: { providerRules: [] },
-        modelConfigRules: { providerModelRules: [], manualProviderModelRules: [] },
-        defaultModelSelection: { providerId: "provider-a", modelId: "model-a" },
-      },
-    });
-
-    await repository.read();
-    expect(importLegacy).toHaveBeenCalledOnce();
+    const repository = selectionRepository(filePath);
+    await expect(repository.read()).resolves.toBeUndefined();
+    await expect(repository.read()).resolves.toBeUndefined();
+    await expect(readFile(filePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     repository.dispose();
   });
 
@@ -93,17 +66,17 @@ describe("NodeModelSelectionConfigRepository", () => {
     repository.dispose();
   });
 
-  it("损坏 Personal 读取降级但保留原文件，禁止默认保存覆盖它", async () => {
+  it("损坏 Personal 读取明确报错并保留原文件，禁止默认保存覆盖它", async () => {
     const root = await mkdtemp(join(tmpdir(), "zcode-model-selection-config-"));
     roots.push(root);
     const filePath = join(root, "provider_config.json");
     await writeFile(filePath, "{not-json", "utf8");
     const repository = selectionRepository(filePath);
 
-    await expect(repository.read()).resolves.toBeUndefined();
+    await expect(repository.read()).rejects.toThrow(filePath);
     await expect(
       repository.saveConfiguredDefault({ providerId: "p", modelId: "m" }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("手动移除该文件");
     await expect(readFile(filePath, "utf8")).resolves.toBe("{not-json");
     repository.dispose();
   });
@@ -119,7 +92,7 @@ describe("NodeModelSelectionConfigRepository", () => {
       await symlink(directory, filePath, "dir");
       const repository = selectionRepository(filePath);
 
-      await expect(repository.read()).resolves.toBeUndefined();
+      await expect(repository.read()).rejects.toThrow(filePath);
       expect((await lstat(filePath)).isSymbolicLink()).toBe(true);
       repository.dispose();
     },

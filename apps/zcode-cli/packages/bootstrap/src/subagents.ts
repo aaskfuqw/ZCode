@@ -1,7 +1,7 @@
 import { parseRuntimeSubagentConfig } from "./subagent-runtime-config.js";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { migrateUserSubagentMarkdown, migrateSubagentStateFile } from "@zcode/shared/node";
 import {
   parseAgentProfileFromMarkdown,
   type AgentProfile,
@@ -10,8 +10,8 @@ import {
 import type { Logger, PluginMetadata } from "@zcode/contracts";
 import {
   createPluginAgentStateId,
-  parsePluginSubagentModelSelectionOverrides,
-  modelSelectionSchema,
+  subagentStateFileSchema,
+  InvalidSubagentStateError,
   type BuiltInSubagentModelSelectionOverrides,
   type PluginSubagentModelSelectionOverrides,
 } from "@zcode/shared";
@@ -33,7 +33,7 @@ interface LoadPluginAgentProfilesInput {
   logger?: Logger;
   plugins: readonly PluginMetadata[];
   reservedProfileNames?: Iterable<string>;
-  /** 来自已完成存储迁移的启动快照；不在插件 loader 另读磁盘或查询账号。 */
+  /** Current startup snapshot; the plugin loader does not reload files or account state. */
   modelSelectionOverrides?: PluginSubagentModelSelectionOverrides;
 }
 
@@ -48,26 +48,11 @@ const RESERVED_AGENT_NAMES = new Set(["general-purpose", "Explore"]);
 export async function loadZCodeAgentProfiles(
   input: LoadZCodeAgentProfilesInput,
 ): Promise<LoadZCodeAgentProfilesResult> {
-  const migration = await migrateUserSubagentMarkdown(join(input.storageRoot, "agents"));
-  await migrateSubagentStateFile(join(input.storageRoot, "v2", "agents-state.json"));
   const roots = [
     { path: join(input.storageRoot, "agents"), source: "user" as const },
     { path: join(input.workingDirectory, ".zcode-next", "agents"), source: "project" as const },
   ];
-  const diagnostics: AgentProfileParseDiagnostic[] = [];
-  for (const failure of migration.failures) {
-    diagnostics.push({
-      code: "agent_read_failed",
-      message: "Subagent Markdown migration failed; original file preserved",
-      path: failure.path,
-    });
-    input.logger?.warn("Subagent Markdown migration failed", {
-      module: "bootstrap.subagents",
-      path: failure.path,
-      error: String(failure.error),
-    });
-  }
-  const agentState = readAgentState(input.storageRoot);
+  const agentState = await readAgentState(input.storageRoot);
   const documents = roots.flatMap((root) =>
     listMarkdownFiles(root.path).map((path) => ({
       path,
@@ -77,17 +62,14 @@ export async function loadZCodeAgentProfiles(
   );
   const parsed = parseRuntimeSubagentConfig({
     documents,
-    state: {
-      ...agentState,
-      disabledAgentIds: [...agentState.disabledAgentIds],
-    },
+    state: agentState,
   });
   for (const diagnostic of parsed.diagnostics)
     input.logger?.warn("Agent profile diagnostic", {
       ...diagnostic,
       module: "bootstrap.subagents",
     });
-  return { ...parsed, diagnostics: [...diagnostics, ...parsed.diagnostics] };
+  return parsed;
 }
 
 export function loadPluginAgentTemplates(
@@ -213,10 +195,6 @@ function namespacePluginAgentProfile(parsed: ParsedPluginAgentProfile): AgentPro
   };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function countBareProfileNames(
   parsedProfiles: readonly ParsedPluginAgentProfile[],
 ): Map<string, number> {
@@ -228,52 +206,21 @@ function countBareProfileNames(
   return counts;
 }
 
-function readAgentState(storageRoot: string): {
-  builtInModelSelectionOverrides: BuiltInSubagentModelSelectionOverrides;
-  pluginAgentModelSelectionOverrides: PluginSubagentModelSelectionOverrides;
-  disabledAgentIds: Set<string>;
-} {
+async function readAgentState(storageRoot: string) {
+  const path = join(storageRoot, "v2", "agents-state.json");
+  let raw: string;
   try {
-    const raw = readFileSync(join(storageRoot, "v2", "agents-state.json"), "utf8");
-    const parsed = JSON.parse(raw) as {
-      builtInModelSelectionOverrides?: unknown;
-      pluginAgentModelSelectionOverrides?: unknown;
-      disabledAgentIds?: unknown;
-    };
-    return {
-      pluginAgentModelSelectionOverrides: parsePluginSubagentModelSelectionOverrides(
-        parsed.pluginAgentModelSelectionOverrides,
-      ),
-      builtInModelSelectionOverrides: normalizeBuiltInSelectionOverrides(
-        parsed.builtInModelSelectionOverrides,
-      ),
-      disabledAgentIds: new Set(
-        Array.isArray(parsed.disabledAgentIds)
-          ? parsed.disabledAgentIds.filter(
-              (id): id is string => typeof id === "string" && id.trim().length > 0,
-            )
-          : [],
-      ),
-    };
-  } catch {
-    return {
-      builtInModelSelectionOverrides: {},
-      pluginAgentModelSelectionOverrides: {},
-      disabledAgentIds: new Set(),
-    };
+    raw = await readFile(path, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      return subagentStateFileSchema.parse({});
+    throw error;
   }
-}
-
-function normalizeBuiltInSelectionOverrides(
-  structured: unknown,
-): BuiltInSubagentModelSelectionOverrides {
-  const result: BuiltInSubagentModelSelectionOverrides = {};
-  const structuredRecord = isRecord(structured) ? structured : {};
-  const generalPurpose = modelSelectionSchema.safeParse(structuredRecord["general-purpose"]);
-  const explore = modelSelectionSchema.safeParse(structuredRecord.Explore);
-  if (generalPurpose.success) result["general-purpose"] = generalPurpose.data;
-  if (explore.success) result.Explore = explore.data;
-  return result;
+  try {
+    return subagentStateFileSchema.parse(JSON.parse(raw));
+  } catch (cause) {
+    throw new InvalidSubagentStateError(path, cause);
+  }
 }
 
 function listMarkdownFiles(root: string): string[] {

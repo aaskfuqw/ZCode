@@ -45,6 +45,7 @@ const statusError = (
     sqliteCode?: number;
     systemCode?: string;
     migrationId?: string;
+    dbPath?: string;
     migration?: DatabaseMigrationFacts;
   },
   databaseId?: string,
@@ -54,6 +55,7 @@ const statusError = (
     errcode: details?.sqliteCode,
     code: details?.systemCode,
     migrationId: details?.migrationId,
+    dbPath: details?.dbPath,
     migrationUpdate:
       databaseId && details?.migration ? { databaseId, migration: details.migration } : undefined,
   });

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { AutomationCreateLimitError, isAutomationCreateLimitError } from "@zcode/contracts";
-import { AUTOMATION_CREATE_LIMIT_ERROR_CODE, isHighspeedProviderId, zcodeProtocolMethods } from "@zcode/shared";
+import {
+  AUTOMATION_CREATE_LIMIT_ERROR_CODE,
+  isHighspeedProviderId,
+  zcodeProtocolMethods,
+} from "@zcode/shared";
 import {
   AUTOMATION_CREATE_BOUND_SESSION_CHECK_ERROR,
   AUTOMATION_CREATE_FROM_AUTOMATION_RUN_ERROR,
@@ -359,116 +363,24 @@ describe("createProtocolAutomationPort", () => {
     );
   });
 
-  it("旧 Host 缺少归属查询方法时回退 automation/list，并允许未绑定会话 CronCreate", async () => {
-    const requestClient = vi.fn(async (method: string) => {
-      if (method === zcodeProtocolMethods.automationCheckTaskBinding) {
-        throw new ProtocolRequestError(-32601, "Method not found");
-      }
-      if (method === zcodeProtocolMethods.automationList) {
-        return {
-          automations: [
-            {
-              automationId: "automation-other",
-              title: "其他会话任务",
-              cronExpr: "0 8 * * *",
-              prompt: "提醒其他会话",
-              targetTaskId: "session-other",
-              enabled: true,
-              lifecycleStatus: "active" as const,
-              runCount: 0,
-              recurring: true,
-            },
-          ],
-        };
-      }
-      if (method === zcodeProtocolMethods.automationCreate) {
-        return {
-          automation: {
-            automationId: "automation-new",
-            title: "每5分钟提醒",
-            cronExpr: "*/5 * * * *",
-            prompt: "提醒我",
-            targetTaskId: "session-1",
-            enabled: true,
-            lifecycleStatus: "active" as const,
-            runCount: 0,
-            recurring: true,
-          },
-        };
-      }
-      throw new Error(`unexpected method ${method}`);
+  it("rejects a Host without task binding admission instead of listing automations", async () => {
+    const requestClient = vi.fn(async () => {
+      throw new ProtocolRequestError(-32601, "Method not found");
     });
     const port = createProtocolAutomationPort({
       requestClient,
       sessions: new Map(),
     } as unknown as ZCodeProtocolAgentServerContext);
-
     await expect(
       port.create(
-        {
-          cron: "*/5 * * * *",
-          delayMinutes: null,
-          prompt: "提醒我",
-          title: "每5分钟提醒",
-        },
+        { cron: "*/5 * * * *", delayMinutes: null, prompt: "remind me", title: "reminder" },
         { sessionId: "session-1" },
       ),
-    ).resolves.toEqual(expect.objectContaining({ automationId: "automation-new" }));
+    ).rejects.toThrow(AUTOMATION_CREATE_BOUND_SESSION_CHECK_ERROR);
+    expect(requestClient).toHaveBeenCalledTimes(1);
     expect(requestClient).toHaveBeenCalledWith(
-      zcodeProtocolMethods.automationList,
-      {},
-      expect.anything(),
-    );
-    expect(requestClient).toHaveBeenCalledWith(
-      zcodeProtocolMethods.automationCreate,
-      expect.objectContaining({ targetTaskId: "session-1" }),
-      expect.anything(),
-    );
-  });
-
-  it("旧 Host 回退列表命中当前会话绑定时仍拒绝 CronCreate", async () => {
-    const requestClient = vi.fn(async (method: string) => {
-      if (method === zcodeProtocolMethods.automationCheckTaskBinding) {
-        throw new ProtocolRequestError(-32601, "Method not found");
-      }
-      if (method === zcodeProtocolMethods.automationList) {
-        return {
-          automations: [
-            {
-              automationId: "automation-owner",
-              title: "当前会话任务",
-              cronExpr: "*/10 * * * *",
-              prompt: "提醒当前会话",
-              targetTaskId: "session-1",
-              enabled: true,
-              lifecycleStatus: "active" as const,
-              runCount: 0,
-              recurring: true,
-            },
-          ],
-        };
-      }
-      throw new Error(`unexpected method ${method}`);
-    });
-    const port = createProtocolAutomationPort({
-      requestClient,
-      sessions: new Map(),
-    } as unknown as ZCodeProtocolAgentServerContext);
-
-    await expect(
-      port.create(
-        {
-          cron: "*/5 * * * *",
-          delayMinutes: null,
-          prompt: "再建一个任务",
-          title: "再建一个任务",
-        },
-        { sessionId: "session-1" },
-      ),
-    ).rejects.toThrow(AUTOMATION_CREATE_IN_BOUND_SESSION_ERROR);
-    expect(requestClient).not.toHaveBeenCalledWith(
-      zcodeProtocolMethods.automationCreate,
-      expect.anything(),
+      zcodeProtocolMethods.automationCheckTaskBinding,
+      { targetTaskId: "session-1" },
       expect.anything(),
     );
   });

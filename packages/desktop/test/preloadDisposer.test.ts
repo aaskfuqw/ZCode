@@ -83,6 +83,32 @@ describe("preload IPC disposer", () => {
     return exposedApi;
   }
 
+  it("exposes current MCP directory IO without the retired import method", async () => {
+    const api = await loadPreload();
+    const payload = {
+      action: "upsert",
+      source: "zcodeagentmcp",
+      name: "current-http",
+      config: { type: "http", url: "https://current.example.test/mcp" },
+    };
+    const loaded = { servers: [{ name: payload.name, config: payload.config }] };
+    mockIpcRenderer.invoke.mockResolvedValueOnce(loaded).mockResolvedValueOnce({ success: true });
+
+    expect(api).not.toHaveProperty("migrateLegacyCommonMcp");
+    await expect(api.loadMcpFromUserDirectory()).resolves.toEqual(loaded);
+    expect(mockIpcRenderer.invoke).toHaveBeenNthCalledWith(
+      1,
+      PlatformChannels.LoadMcpFromUserDirectory,
+      {},
+    );
+    await expect(api.saveMcpToUserDirectory(payload)).resolves.toEqual({ success: true });
+    expect(mockIpcRenderer.invoke).toHaveBeenNthCalledWith(
+      2,
+      PlatformChannels.SaveMcpToUserDirectory,
+      payload,
+    );
+  });
+
   it("onFocusTab 返回 disposer，调用后移除 ipcRenderer 监听", async () => {
     const api = await loadPreload();
     const callback = vi.fn();

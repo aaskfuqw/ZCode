@@ -3140,7 +3140,6 @@ function seedE2EStartupState(specs: string[] = []) {
     JSON.stringify(
       {
         providerFamilyDomain: shouldUseBigmodelAuth ? "bigmodel" : "zai",
-        providerFamilyDomainMigrated: true,
         providerFamilyDomainUpdatedAt: now,
         ...(modelProviderRegressionFixture
           ? {

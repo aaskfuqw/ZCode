@@ -21,6 +21,8 @@ import {
   type WorkspaceId,
 } from "@zcode/contracts";
 import { OFFICIAL_CUA_PERMISSION_RULE_TOOL_NAME } from "@zcode/shared";
+import { SQLITE_SESSION_SCHEMA_ID } from "../src/storage/session-store/schema.js";
+import { runSqliteSessionMigrations } from "../src/storage/session-store/migration-runner.js";
 import {
   SqliteSessionMigrationError,
   createSqliteSessionStore,
@@ -379,13 +381,15 @@ describe("SQLite session store", () => {
   });
 
   it("defaults the session database under the db directory", () => {
-    expect(getDefaultSessionDbPath()).toBe(join(homedir(), ".zcode-next", "cli", "db", "db.sqlite"));
+    expect(getDefaultSessionDbPath()).toBe(
+      join(homedir(), ".zcode-next", "cli", "db", "db.sqlite"),
+    );
   });
 
   it("keeps the existing in-memory session store path working", () => {
     const store = createSqliteSessionStore({ dbPath: ":memory:" });
     try {
-      expect(store.debugMigrationIds()).toHaveLength(22);
+      expect(store.debugMigrationIds()).toEqual([SQLITE_SESSION_SCHEMA_ID]);
     } finally {
       store.close();
     }
@@ -485,81 +489,31 @@ describe("SQLite session store", () => {
     }
   });
 
-  it("records ordered schema migrations and keeps reopening idempotent", async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), "zcode-session-migrations-"));
+  it("initializes one schema baseline and keeps reopening idempotent", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "zcode-session-schema-"));
     const dbPath = join(tempRoot, "session.sqlite");
-    const expectedMigrations = [
-      "0001_base_session_store",
-      "0002_local_setting",
-      "0003_backfill_permission_local_setting",
-      "0004_session_target",
-      "0005_session_target_accounting",
-      "0006_input_history_attachments",
-      "0007_workflow_script_runtime",
-      "0008_workflow_definition_scope",
-      "0009_session_title_metadata",
-      "0010_usage_observability",
-      "0011_session_target_summary_title",
-      "0012_session_trace_id",
-      "0013_session_target_active_run_accounting",
-      "0014_message_part_sequence",
-      "0015_message_part_sequence_backfill_and_guard",
-      "0016_session_input_ledger",
-      "0017_session_input_start_now_delivery",
-      "0018_session_input_failed_status",
-      "0019_dwf_journal",
-      "0020_provider_model_selection",
-        "0021_official_glm_selection",
-        "0022_backfilled_session_reasoning",
-    ];
-
     try {
-      const firstStore = createSqliteSessionStore({ dbPath });
-      expect(firstStore.debugMigrationIds()).toEqual(expectedMigrations);
-      expect(firstStore.debugCounts().schemaMigrations).toBe(expectedMigrations.length);
-      expect(firstStore.debugCounts().localSettings).toBe(0);
-      firstStore.close();
-
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const store = createSqliteSessionStore({ dbPath });
+        try {
+          expect(store.debugMigrationIds()).toEqual([SQLITE_SESSION_SCHEMA_ID]);
+          expect(store.debugCounts().schemaMigrations).toBe(1);
+          expect(store.debugCounts().localSettings).toBe(0);
+        } finally {
+          store.close();
+        }
+      }
       const db = new DatabaseSync(dbPath, { readOnly: true });
-      const rows = db
-        .prepare("select app_version from schema_migration order by id")
-        .all() as Array<{ app_version: string }>;
-      expect(rows.map((row) => row.app_version)).toEqual([
-        "0.2.0",
-        "0.2.0",
-        "0.2.0",
-        "0.7.0",
-        "0.7.0",
-        "0.11.0",
-        "0.13.0",
-        "0.13.0",
-        "0.14.0",
-        "0.15.0",
-        "0.15.0",
-        "0.15.0",
-        "0.15.0",
-        "0.15.0",
-        "0.15.2",
-        "0.15.2",
-        "0.15.2",
-        "0.15.2",
-        "0.16.5",
-        "0.16.5",
-        "0.16.5",
-        "0.16.5",
-      ]);
-      const modelUsageColumns = db.prepare("pragma table_info(model_usage)").all() as Array<{
-        name: string;
-      }>;
-      expect(modelUsageColumns.map((column) => column.name)).toContain("variant");
-      expect(modelUsageColumns.map((column) => column.name)).not.toContain("reasoning_level");
-      db.close();
-
-      const secondStore = createSqliteSessionStore({ dbPath });
-      expect(secondStore.debugMigrationIds()).toEqual(expectedMigrations);
-      expect(secondStore.debugCounts().schemaMigrations).toBe(expectedMigrations.length);
-      expect(secondStore.debugCounts().localSettings).toBe(0);
-      secondStore.close();
+      try {
+        const columns = db
+          .prepare("PRAGMA table_info(model_usage)")
+          .all()
+          .map((row) => row.name);
+        expect(columns).toContain("variant");
+        expect(columns).not.toContain("reasoning_level");
+      } finally {
+        db.close();
+      }
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
     }
@@ -588,7 +542,7 @@ describe("SQLite session store", () => {
         ]),
       );
       expect(attempts.flat().filter((result) => !result.ok)).toEqual([]);
-      expect(attempts.flat().every((result) => result.migrationIds?.length === 22)).toBe(true);
+      expect(attempts.flat().every((result) => result.migrationIds?.length === 1)).toBe(true);
     },
     CONCURRENT_STARTUP_TEST_TIMEOUT_MS,
   );
@@ -621,197 +575,13 @@ describe("SQLite session store", () => {
     }
   });
 
-  it("upgrades an 0017 database to durable failed inputs without losing its ledger", async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), "zcode-session-input-failed-upgrade-"));
-    const dbPath = join(tempRoot, "session.sqlite");
-    const sessionID = createSessionId("failed-upgrade-session");
-
-    try {
-      const seedStore = createSqliteSessionStore({ dbPath });
-      await seedStore.createSession({
-        id: sessionID,
-        projectID: createProjectId("failed-upgrade-project"),
-        slug: "failed-upgrade-session",
-        directory: tempRoot,
-        title: "failed upgrade session",
-        version: "0.1.0",
-      });
-      await seedStore.saveSessionInput!({
-        id: "queue_upgrade-input",
-        sessionID,
-        kind: "sendText",
-        delivery: "startNow",
-        payload: { text: "preserve me" },
-      });
-      seedStore.close();
-
-      // 模拟用户停在 0017 的真实旧库：保留全部旧数据，只撤销 0018 记录并恢复旧 CHECK。
-      const legacyDb = new DatabaseSync(dbPath);
-      legacyDb.exec(`
-        delete from schema_migration where id = '0018_session_input_failed_status';
-        alter table session_input rename to session_input_after_0018;
-        create table session_input (
-          id text primary key,
-          session_id text not null references session(id) on delete cascade,
-          kind text not null,
-          delivery text not null check(delivery in ('startNow', 'guide', 'queue')),
-          payload text not null,
-          admitted_sequence integer not null,
-          promoted_sequence integer,
-          promoted_message_id text,
-          status text not null check(status in ('admitted', 'promoted', 'cancelled', 'discarded')),
-          status_reason text,
-          time_created integer not null,
-          time_updated integer not null
-        );
-        insert into session_input select * from session_input_after_0018;
-        drop table session_input_after_0018;
-        create index session_input_session_admitted_idx
-          on session_input(session_id, admitted_sequence);
-        create index session_input_session_status_idx
-          on session_input(session_id, status);
-      `);
-      legacyDb.close();
-
-      const upgradedStore = createSqliteSessionStore({ dbPath });
-      expect(upgradedStore.debugMigrationIds()).toContain("0018_session_input_failed_status");
-      await expect(upgradedStore.listSessionInputs({ sessionID })).resolves.toMatchObject([
-        {
-          id: "queue_upgrade-input",
-          delivery: "startNow",
-          status: "admitted",
-          payload: { text: "preserve me" },
-        },
-      ]);
-      await upgradedStore.settleSessionInput!({
-        id: "queue_upgrade-input",
-        sessionID,
-        status: "failed",
-        reason: "fault.command.childStartFailed",
-      });
-      await expect(upgradedStore.listSessionInputs({ sessionID })).resolves.toMatchObject([
-        {
-          id: "queue_upgrade-input",
-          status: "failed",
-          statusReason: "fault.command.childStartFailed",
-        },
-      ]);
-      upgradedStore.close();
-    } finally {
-      await rm(tempRoot, { force: true, recursive: true });
-    }
-  });
-
-  it("backfills legacy project permissions into local settings", async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), "zcode-permission-migration-"));
-    const dbPath = join(tempRoot, "session.sqlite");
-    const projectID = createProjectId("legacy-permission");
-    const created = 1_700_000_000_000;
-    const legacyDb = new DatabaseSync(dbPath);
-    legacyDb.exec(`
-      create table permission (
-        project_id text primary key,
-        time_created integer not null,
-        time_updated integer not null,
-        data text not null
-      );
-    `);
-    legacyDb
-      .prepare(
-        "insert into permission (project_id, time_created, time_updated, data) values (?, ?, ?, ?)",
-      )
-      .run(
-        projectID,
-        created,
-        created,
-        JSON.stringify({
-          version: 1,
-          allow: [{ toolName: "Read" }],
-        }),
-      );
-    legacyDb.close();
-
-    try {
-      const store = createSqliteSessionStore({ dbPath });
-      expect(await store.getProjectPermission(projectID)).toEqual({
-        version: 1,
-        allow: [{ toolName: "Read" }],
-      });
-      expect(store.debugCounts().permissions).toBe(1);
-      expect(store.debugCounts().localSettings).toBe(1);
-      store.close();
-
-      const reopenedStore = createSqliteSessionStore({ dbPath });
-      expect(reopenedStore.debugCounts().localSettings).toBe(1);
-      reopenedStore.close();
-    } finally {
-      await rm(tempRoot, { force: true, recursive: true });
-    }
-  });
-
-  it("rejects edited migration SQL by checksum", async () => {
-    const tempRoot = await mkdtemp(join(tmpdir(), "zcode-migration-checksum-"));
-    const dbPath = join(tempRoot, "session.sqlite");
-    const db = new DatabaseSync(dbPath);
-    db.exec(`
-      create table schema_migration (
-        id text primary key,
-        checksum text not null,
-        app_version text,
-        time_applied integer not null
-      );
-      insert into schema_migration (id, checksum, app_version, time_applied)
-      values ('0001_base_session_store', 'not-the-current-checksum', '0.2.0', 1);
-    `);
-    db.close();
-
-    try {
-      expect(() => createSqliteSessionStore({ dbPath })).toThrow(SqliteSessionMigrationError);
-      try {
-        createSqliteSessionStore({ dbPath });
-        throw new Error("expected migration checksum mismatch");
-      } catch (error) {
-        expect(error).toBeInstanceOf(SqliteSessionMigrationError);
-        const migrationError = error as SqliteSessionMigrationError;
-        expect(migrationError.kind).toBe("checksum_mismatch");
-        expect(migrationError.dbPath).toBe(dbPath);
-        expect(migrationError.migrationId).toBe("0001_base_session_store");
-      }
-    } finally {
-      await rm(tempRoot, { force: true, recursive: true });
-    }
-  });
-
   it("exposes a startup gate opener for migrated session stores", async () => {
     const tempRoot = await mkdtemp(join(tmpdir(), "zcode-startup-session-store-"));
     const dbPath = join(tempRoot, "session.sqlite");
 
     try {
       const store = openStartupSqliteSessionStore({ dbPath });
-      expect(store.debugMigrationIds()).toEqual([
-        "0001_base_session_store",
-        "0002_local_setting",
-        "0003_backfill_permission_local_setting",
-        "0004_session_target",
-        "0005_session_target_accounting",
-        "0006_input_history_attachments",
-        "0007_workflow_script_runtime",
-        "0008_workflow_definition_scope",
-        "0009_session_title_metadata",
-        "0010_usage_observability",
-        "0011_session_target_summary_title",
-        "0012_session_trace_id",
-        "0013_session_target_active_run_accounting",
-        "0014_message_part_sequence",
-        "0015_message_part_sequence_backfill_and_guard",
-        "0016_session_input_ledger",
-        "0017_session_input_start_now_delivery",
-        "0018_session_input_failed_status",
-        "0019_dwf_journal",
-        "0020_provider_model_selection",
-        "0021_official_glm_selection",
-        "0022_backfilled_session_reasoning",
-      ]);
+      expect(store.debugMigrationIds()).toEqual([SQLITE_SESSION_SCHEMA_ID]);
       store.close();
     } finally {
       await rm(tempRoot, { force: true, recursive: true });
@@ -2170,21 +1940,10 @@ describe("SQLite session store", () => {
     }
   });
 
-  // 16-timeline-authority-plan P0：0015 增量 backfill 只补 NULL 行且从各 scope 现有
-  // max(sequence)+1 起编号——backfill 前后读序不变；0014 的全量 row_number 写法在混排
-  // 数据下会撞号，不能复用。触发器兜底旧二进制的 NULL 写入。
-  it("backfills NULL sequences after existing rows and guards new inserts (0015)", async () => {
-    const { SQLITE_MIGRATIONS } = await import("../src/storage/session-store/migrations.js");
-    const guardIndex = SQLITE_MIGRATIONS.findIndex(
-      (migration) => migration.id === "0015_message_part_sequence_backfill_and_guard",
-    );
-    expect(guardIndex).toBeGreaterThan(0);
-
+  it("appends unspecified sequences without changing existing ordering", async () => {
     const db = new DatabaseSync(":memory:");
     try {
-      for (const migration of SQLITE_MIGRATIONS.slice(0, guardIndex)) {
-        db.exec(migration.sql);
-      }
+      runSqliteSessionMigrations(db, ":memory:");
       const created = 1_700_000_000_000;
       db.prepare(
         `insert into session (id, project_id, slug, directory, title, version, time_created, time_updated)
@@ -2196,7 +1955,7 @@ describe("SQLite session store", () => {
       );
       insertMessage.run("m-seq-0", created, created, 0);
       insertMessage.run("m-seq-1", created + 1, created + 1, 1);
-      // 两条 legacy NULL 行，time_created 交错在非空行之前——读序上它们仍排在非空行之后。
+      // Earlier timestamps must not move newly appended rows before existing sequences.
       insertMessage.run("m-null-early", created - 10, created - 10, null);
       insertMessage.run("m-null-late", created - 5, created - 5, null);
 
@@ -2206,8 +1965,6 @@ describe("SQLite session store", () => {
       );
       insertPart.run("p-seq-0", created, created, 0);
       insertPart.run("p-null", created - 1, created - 1, null);
-
-      db.exec(SQLITE_MIGRATIONS[guardIndex]!.sql);
 
       const messageRows = db
         .prepare(
@@ -2229,7 +1986,7 @@ describe("SQLite session store", () => {
         { id: "p-null", sequence: 1 },
       ]);
 
-      // 触发器兜底：旧二进制的 INSERT 不含 sequence 列 → 自动补当前 scope 队尾。
+      // Omitting the sequence column also appends within the same scope.
       db.prepare(
         `insert into message (id, session_id, time_created, time_updated, data)
            values ('m-legacy-writer', 'sess-1', ?, ?, '{}')`,

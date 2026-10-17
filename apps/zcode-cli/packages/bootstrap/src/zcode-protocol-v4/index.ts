@@ -37,10 +37,7 @@ export {
   appendConversationSubscriberBuffer,
   conversationSubscriberBufferByteLimit,
 } from "./conversation-topic-publisher.js";
-export {
-  encodeConversationDeltasForLegacy,
-  workflowRunDeltaGrowthUpperBound,
-} from "./conversation-workflow-run-deltas.js";
+export { workflowRunDeltaGrowthUpperBound } from "./conversation-workflow-run-deltas.js";
 export type {
   ConversationSubscriberBufferLimits,
   ConversationSubscriberBufferResult,
@@ -59,10 +56,7 @@ export {
   ColdSessionResumeCoordinator,
   V4SubscribeSessionUnavailableError,
 } from "./cold-session-resume.js";
-export type {
-  ColdSessionResumeHost,
-  ColdSessionResumeOutcome,
-} from "./cold-session-resume.js";
+export type { ColdSessionResumeHost, ColdSessionResumeOutcome } from "./cold-session-resume.js";
 export {
   ConversationV4Gateway,
   V4CommandNoopError,

@@ -21,7 +21,7 @@ describe("BotsRepo", () => {
     }
   });
 
-  it("reads legacy bot-state.json but writes bot-state.v3.json", async () => {
+  it("uses current bot files without importing or modifying obsolete files", async () => {
     const dataDir = join(tempDir!, ".zcode-next", "v2");
     mkdirSync(dataDir, { recursive: true });
     writeFileSync(
@@ -46,18 +46,8 @@ describe("BotsRepo", () => {
 
     const repo = new BotsRepo();
 
-    await expect(repo.readState()).resolves.toMatchObject({
-      bots: {
-        "feishu-1": {
-          draftOptions: {
-            modelSelection: {
-              providerId: "old-provider",
-              modelId: "deepseek-v4-flash",
-            },
-          },
-        },
-      },
-    });
+    await expect(repo.readState()).resolves.toEqual({ version: 3, bots: {} });
+    await expect(repo.readConfig()).resolves.toEqual({ version: 3, bots: [] });
 
     await repo.writeState({ version: 3, bots: {} });
 
@@ -72,5 +62,37 @@ describe("BotsRepo", () => {
         },
       },
     });
+  });
+
+  it("preserves current bot configuration and state across instances", async () => {
+    const repo = new BotsRepo();
+    const state = {
+      version: 3 as const,
+      bots: {
+        bot: {
+          botId: "bot",
+          workspacePath: "/project",
+          mode: "draft" as const,
+          activeTaskId: null,
+          draftOptions: {
+            provider: "glm" as const,
+            modelSelection: { providerId: "proxy", modelId: "model" },
+          },
+          updatedAt: 1,
+        },
+      },
+    };
+    await repo.writeState(state);
+    await expect(new BotsRepo().readState()).resolves.toEqual(state);
+  });
+
+  it("rejects an incompatible current file with its path and leaves it intact", async () => {
+    const path = join(tempDir!, ".zcode-next", "v2", "bot-state.v3.json");
+    mkdirSync(join(tempDir!, ".zcode-next", "v2"), { recursive: true });
+    const raw = JSON.stringify({ version: 2, bots: {} });
+    writeFileSync(path, raw);
+    await expect(new BotsRepo().readState()).rejects.toThrow(path);
+    await expect(new BotsRepo().readState()).rejects.toThrow("back up and move only this file");
+    expect(readFileSync(path, "utf8")).toBe(raw);
   });
 });

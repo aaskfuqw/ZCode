@@ -4,8 +4,7 @@ import {
   detectDesktopCloseToTrayCapability,
   isGnomeLikeDesktop,
   parseStatusNotifierOwnerOutput,
-  resolveCloseToTrayBootstrapValue,
-  resolveCloseToTrayRuntimeValue,
+  resolveCloseToTrayValue,
   resolveCloseToTraySupported,
   type TraySupportCommandExecutor,
 } from "../src/main/desktopTraySupport.js";
@@ -184,59 +183,6 @@ describe("createCloseToTrayCapabilityMonitor", () => {
   });
 });
 
-describe("resolveCloseToTrayBootstrapValue", () => {
-  it("keeps windows fallback default true and never migrates", () => {
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "win32",
-        stored: undefined,
-        linuxMigrationInitialized: undefined,
-      }),
-    ).toEqual({ value: true, needsLinuxMigration: false });
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "win32",
-        stored: false,
-        linuxMigrationInitialized: undefined,
-      }),
-    ).toEqual({ value: false, needsLinuxMigration: false });
-  });
-
-  it("forces linux default off on first launch and requests migration", () => {
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "linux",
-        stored: true,
-        linuxMigrationInitialized: undefined,
-      }),
-    ).toEqual({ value: false, needsLinuxMigration: true });
-  });
-
-  it("respects explicit linux choice after migration initialized", () => {
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "linux",
-        stored: true,
-        linuxMigrationInitialized: true,
-      }),
-    ).toEqual({ value: true, needsLinuxMigration: false });
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "linux",
-        stored: false,
-        linuxMigrationInitialized: true,
-      }),
-    ).toEqual({ value: false, needsLinuxMigration: false });
-    expect(
-      resolveCloseToTrayBootstrapValue({
-        platform: "linux",
-        stored: undefined,
-        linuxMigrationInitialized: true,
-      }),
-    ).toEqual({ value: false, needsLinuxMigration: false });
-  });
-});
-
 describe("resolveCloseToTraySupported", () => {
   it("win32 只依赖托盘实例创建结果", () => {
     expect(
@@ -300,53 +246,15 @@ describe("resolveCloseToTraySupported", () => {
   });
 });
 
-describe("resolveCloseToTrayRuntimeValue", () => {
-  it("迁移持久化成功时采用归位值 false", () => {
-    expect(
-      resolveCloseToTrayRuntimeValue({
-        platform: "linux",
-        stored: true,
-        linuxMigrationInitialized: undefined,
-        migrationPersisted: true,
-      }),
-    ).toBe(false);
-  });
-
-  it("迁移持久化失败时回退文件值，维持文件为唯一可信来源（CR-02）", () => {
-    expect(
-      resolveCloseToTrayRuntimeValue({
-        platform: "linux",
-        stored: true,
-        linuxMigrationInitialized: undefined,
-        migrationPersisted: false,
-      }),
-    ).toBe(true);
-    expect(
-      resolveCloseToTrayRuntimeValue({
-        platform: "linux",
-        stored: undefined,
-        linuxMigrationInitialized: undefined,
-        migrationPersisted: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("无迁移需求的路径不受持久化标志影响", () => {
-    expect(
-      resolveCloseToTrayRuntimeValue({
-        platform: "linux",
-        stored: false,
-        linuxMigrationInitialized: true,
-        migrationPersisted: false,
-      }),
-    ).toBe(false);
-    expect(
-      resolveCloseToTrayRuntimeValue({
-        platform: "win32",
-        stored: undefined,
-        linuxMigrationInitialized: undefined,
-        migrationPersisted: false,
-      }),
-    ).toBe(true);
+describe("resolveCloseToTrayValue", () => {
+  it.each([
+    ["win32", undefined, true],
+    ["linux", undefined, false],
+    ["darwin", undefined, false],
+    ["win32", false, false],
+    ["linux", true, true],
+    ["linux", false, false],
+  ] as const)("resolves %s stored %s to %s", (platform, stored, expected) => {
+    expect(resolveCloseToTrayValue({ platform, stored })).toBe(expected);
   });
 });

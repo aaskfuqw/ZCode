@@ -16,7 +16,6 @@ import {
   type ZCodeAutomationProtocol,
 } from "@zcode/shared";
 import {
-  ProtocolRequestError,
   type ZCodeProtocolAgentServerContext,
   type ZCodeProtocolSessionRecord,
 } from "./server-types.js";
@@ -59,29 +58,12 @@ export function createProtocolAutomationPort(
       if (ownSessionId) {
         let bound: boolean;
         try {
-          try {
-            const result = await context.requestClient(
-              zcodeProtocolMethods.automationCheckTaskBinding,
-              { targetTaskId: ownSessionId },
-              zcodeAutomationCheckTaskBindingResultSchema,
-            );
-            bound = result.bound;
-          } catch (error) {
-            if (!(error instanceof ProtocolRequestError && error.code === -32601)) {
-              throw error;
-            }
-            // 协议版本仍为 1，新 CLI 连接升级前仍存活或远端的旧 Host 时，专用归属
-            // 方法会返回 -32601。只有“方法不存在”能证明是能力差异，此时回退旧版列表筛选；
-            // 数据库、传输和协议错误仍交给外层 fail-closed，不能误判为未绑定。
-            const legacyResult = await context.requestClient(
-              zcodeProtocolMethods.automationList,
-              {},
-              zcodeAutomationListResultSchema,
-            );
-            bound = legacyResult.automations.some(
-              (automation) => automation.targetTaskId === ownSessionId,
-            );
-          }
+          const result = await context.requestClient(
+            zcodeProtocolMethods.automationCheckTaskBinding,
+            { targetTaskId: ownSessionId },
+            zcodeAutomationCheckTaskBindingResultSchema,
+          );
+          bound = result.bound;
         } catch (error) {
           context.logger?.warn("Failed to check bound automations before CronCreate", {
             errorMessage: error instanceof Error ? error.message : String(error),

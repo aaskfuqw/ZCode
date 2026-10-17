@@ -5,9 +5,13 @@ import {
   TOPIC_RESOURCE_RELAY_CHANNEL,
   SERVICE_AUTHORITY_MODE_ENV,
   formatLogPrefix,
-  formatZodError,
-  helloAckMessageSchema,
+  remoteHelloAckMessageSchema,
 } from "@zcode/shared";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  ZCodeProtocolContractError,
+  parseCurrentProtocolHandshake,
+} from "@zcode/shared/zcode-protocol-v4";
 import type { HelloMessage, HelloAckMessage } from "@zcode/shared";
 import { createStdioServer } from "./stdio.js";
 import { registerStdioProcessLifecycle } from "./stdio-lifecycle.js";
@@ -43,6 +47,7 @@ async function main() {
   const hello: HelloMessage = {
     type: "zcode-hello",
     version: ZCODE_VERSION,
+    protocolContract: CURRENT_PROTOCOL_CONTRACT,
     platform: process.platform,
     arch: process.arch,
     pid: process.pid,
@@ -119,12 +124,7 @@ function waitForAck(): Promise<HelloAckMessage> {
 
         try {
           const rawValue = JSON.parse(line);
-          const result = helloAckMessageSchema.safeParse(rawValue);
-          if (!result.success) {
-            reject(new Error(`Invalid hello-ack: ${formatZodError(result.error)}`));
-            return;
-          }
-          const msg = result.data as HelloAckMessage;
+          const msg = parseCurrentProtocolHandshake(remoteHelloAckMessageSchema, rawValue);
           // If there's remaining data after the newline, push it back
           const remaining = buffer.slice(newlineIdx + 1);
           if (remaining.length > 0) {
@@ -132,7 +132,9 @@ function waitForAck(): Promise<HelloAckMessage> {
           }
           resolve(msg);
         } catch (err) {
-          reject(new Error(`Failed to parse hello-ack: ${err}`));
+          reject(
+            err instanceof ZCodeProtocolContractError ? err : new ZCodeProtocolContractError(err),
+          );
         }
       }
     };

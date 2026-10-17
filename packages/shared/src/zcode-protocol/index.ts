@@ -116,7 +116,7 @@ export {
 export const ZCODE_PROTOCOL_NAME = "ZCode Protocol" as const;
 export const ZCODE_PROTOCOL_VERSION = 1 as const;
 // V4 wire 与 legacy 主协议并存；禁止为了 V4 physical framing 改写 legacy 版本。
-export const ZCODE_PROTOCOL_V4_WIRE_VERSION = 3 as const;
+export { V4_WIRE_PROTOCOL_VERSION as ZCODE_PROTOCOL_V4_WIRE_VERSION } from "../zcode-protocol-v4/core.js";
 export const zcodeRuntimeCapabilitiesSchema = z.object({
   independentPlanState: z.boolean().optional(),
 });
@@ -3867,12 +3867,6 @@ export const zcodeProtocolMethods = {
   automationCheckTaskBinding: "automation/checkTaskBinding",
   automationList: "automation/list",
   automationDelete: "automation/delete",
-  // @deprecated：host 消费已清零（zcodeAgentService 改走 v4/usage/stats）。
-  // 仅剩 CLI server 的 wire 兼容 case；随旧词整体删除时一并移除。
-  usageStats: "usage/stats",
-  // ZCode Protocol 对 agent 只暴露 session-first 方法；task 是 UI 投影概念，不能泄露进协议方法名。
-  // @deprecated：host 已改走 v4/conversation/usage；后续与 usage/stats 一并移除。
-  sessionUsage: "session/usage",
   // 资源管理器：CLI 回报其 MCP 子进程 pid 与插件归属（纯内存，无 I/O），采样在 Host 侧完成。
   processChildProcesses: "process/childProcesses",
   processNetworkCapture: "process/networkCapture",

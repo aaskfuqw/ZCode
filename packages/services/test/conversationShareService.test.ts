@@ -470,7 +470,9 @@ describe("ConversationShareService", () => {
       max_artifact_bytes: 100,
       allowed_artifacts: [{ type: "text", extensions: ["txt"], mime_types: ["text/plain"] }],
     });
-    conversationAttachmentStatV4.mockRejectedValueOnce(new Error("ENOENT: attachment removed"));
+    conversationAttachmentStatV4.mockRejectedValueOnce(
+      new ZCodeAttachmentFaultError(ZCODE_ATTACHMENT_FAULT_CODES.shareStatNotFound),
+    );
 
     const result = await service.preflight({
       workspacePath: "/workspace",

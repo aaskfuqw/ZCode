@@ -223,8 +223,6 @@ export interface ForkCommitBundle {
   child: CreateSessionInput;
   messages: MessageWithParts[];
   entries: SessionEntryInfo[];
-  /** 存储复制来源（目标 ID -> 父记录 ID）；只保留旧磁盘快照，不参与模型选择。 */
-  copySources?: { messages: Record<string, string>; parts: Record<string, string> };
   goal?: { source: SessionGoal; status: GoalStatus };
   initialInput?: {
     id: string;
@@ -1123,9 +1121,9 @@ export interface SessionStorePort {
    * 实现只能更新 directory、path 和单调 time_updated，禁止写回其它 session 元数据。
    */
   repairRemoteSessionPaths?(input: RepairRemoteSessionPathsInput): Promise<boolean>;
-  saveMessage(input: MessageInfo, copyFrom?: { sessionID: SessionId; id: string }): Promise<void>;
+  saveMessage(input: MessageInfo): Promise<void>;
   removeMessage(input: { sessionID: SessionId; messageID: MessageId }): Promise<void>;
-  savePart(input: MessagePart, copyFrom?: { sessionID: SessionId; id: string }): Promise<void>;
+  savePart(input: MessagePart): Promise<void>;
   removePart(input: { sessionID: SessionId; messageID: MessageId; partID: PartId }): Promise<void>;
   messageWithParts(input: {
     sessionID: SessionId;

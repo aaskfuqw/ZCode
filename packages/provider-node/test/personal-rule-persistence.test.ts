@@ -276,7 +276,7 @@ describe("Todo104 个人规则原子落盘", () => {
       onRecovery: recovery,
     });
     repositories.push(repo);
-    expect((await repo.read()).providers.keys()).toEqual([]);
+    await expect(repo.read()).rejects.toThrow(filePath);
     expect(recovery).toHaveBeenCalled();
     await expect(
       repo.update((current) => ({ ...current, defaultModelSelection: undefined })),
@@ -284,19 +284,16 @@ describe("Todo104 个人规则原子落盘", () => {
     expect(await readFile(filePath, "utf8")).toBe(bad);
   });
 
-  it("最终文件缺默认代表已清除，不重新执行旧数据导入；全量替换可以清掉默认", async () => {
+  it("最终文件缺默认代表已清除；全量替换可以清掉默认", async () => {
     const filePath = join(directory, "provider_config.json");
     const empty = { providers: ProviderConfigMap.empty(), models: ModelConfigRules.empty() };
     await writeFile(filePath, JSON.stringify(encodeProviderConfigFile(empty)));
-    const importer = vi.fn(async () => ({ ...empty, defaultModelSelection: defaults }));
     const repo = new NodePersonalProviderConfigRepository({
       filePath,
-      importLegacy: importer,
       pollingIntervalMs: false,
     });
     repositories.push(repo);
     expect((await repo.read()).defaultModelSelection).toBeUndefined();
-    expect(importer).not.toHaveBeenCalled();
     await repo.update((current) => ({ ...current, defaultModelSelection: defaults }));
     const config = service(repo);
     await config.replacePersonalConfig({

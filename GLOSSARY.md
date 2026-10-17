@@ -12,6 +12,14 @@ _Avoid_: ZCode when referring to this fork
 The original ZCode product from which ZCode Next was forked.
 _Avoid_: ZCode Next when referring to the upstream product
 
+**Upstream compatibility**:
+Support for data, clients, or product protocols belonging to upstream ZCode. Next's current external service and third-party integration contracts are separate requirements.
+_Avoid_: using upstream compatibility to mean every adapter or fallback in Next
+
+**Next release baseline**:
+An explicitly declared Next release with defined compatibility commitments. No Next release baseline has been declared during early development.
+_Avoid_: treating every development build as a release baseline
+
 **Update**:
 Getting a newer build of this fork by pulling the repository and rebuilding it. The application itself never checks for, downloads, installs, or is blocked by a newer version, and no remote configuration can force one.
 _Avoid_: auto update, auto upgrade, in-app update, in-app upgrade, forced update, force update, update prompt, "check for updates"
@@ -21,7 +29,7 @@ Automatic collection and delivery of ZCode usage, stability, and performance obs
 _Avoid_: using telemetry to mean all logs, business events, or user-visible usage
 
 **Business device identity**:
-A stable device identity required by the official model and subscription services. ZCode Next has its own identity, preserved across Next upgrades and independent of telemetry and upstream ZCode's identity.
+A stable device identity required by the official model and subscription services. ZCode Next has its own identity, independent of telemetry and upstream ZCode's identity.
 _Avoid_: telemetry identity, analytics device ID
 
 **Marketing capability**:

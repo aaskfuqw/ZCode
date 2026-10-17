@@ -35,7 +35,7 @@ export async function checkSamplingExtras(
         (await env.agent.call("session/read", { sessionId: scope.sessionId })).messages.length,
         0,
       );
-      const usage = await env.agent.call("session/usage", { sessionId: scope.sessionId });
+      const usage = await env.agent.call("v4/conversation/usage", { sessionId: scope.sessionId });
       assert.ok(usage.modelRequestCount >= 4);
       assert.ok(usage.totalTokens >= 60);
     },

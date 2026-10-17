@@ -6,6 +6,8 @@ import { ServiceCollection, ISystemService, IZCodeAgentService } from "@zcode/se
 import { createHttpServer } from "@zcode/server";
 import { createTopicResourcePeers, createTopicResourceRelayChannel } from "@zcode/services/node";
 import { connectViaProtocol, connectViaWebSocket } from "@zcode/client";
+import { SERVER_REMOTE_PROTOCOL_VERSION } from "@zcode/shared";
+import { CURRENT_PROTOCOL_CONTRACT } from "@zcode/shared/zcode-protocol-v4";
 import {
   connectServerRemote,
   resolveServerRemoteEndpoints,
@@ -122,6 +124,67 @@ describe("server remote connection", () => {
     });
   });
 
+  it.each([
+    undefined,
+    {
+      ...CURRENT_PROTOCOL_CONTRACT,
+      protocolVersion: CURRENT_PROTOCOL_CONTRACT.protocolVersion + 1,
+    },
+    { ...CURRENT_PROTOCOL_CONTRACT, capabilities: {} },
+    { ...CURRENT_PROTOCOL_CONTRACT, capabilities: { workflowRunDeltas: false } },
+  ])(
+    "rejects incompatible Server metadata before requesting a ticket or opening RPC: %j",
+    async (protocolContract) => {
+      const fetchImpl = vi.fn(async () =>
+        Response.json({
+          serverId: "old-server",
+          version: "unrelated-build-version",
+          protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
+          protocolContract,
+          authRequired: false,
+          workspaces: [],
+          capabilities: { desktopContinuous: true, websocketRpc: true },
+        }),
+      );
+      await expect(
+        connectServerRemote({ kind: "server", url: "http://127.0.0.1:1" }, { fetchImpl }),
+      ).rejects.toMatchObject({
+        code: "fault.protocol.incompatible",
+        message: expect.stringContaining("Update or redeploy the paired Next components"),
+      });
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("reports a contract rejection from the host ticket endpoint before opening RPC", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          serverId: "server",
+          version: "different-product-version",
+          protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
+          protocolContract: CURRENT_PROTOCOL_CONTRACT,
+          authRequired: false,
+          workspaces: [],
+          capabilities: { desktopContinuous: true, websocketRpc: true },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ code: "fault.protocol.incompatible" }, { status: 409 }),
+      );
+    await expect(
+      connectServerRemote({ kind: "server", url: "http://127.0.0.1:1" }, { fetchImpl }),
+    ).rejects.toMatchObject({
+      code: "fault.protocol.incompatible",
+      message: expect.stringContaining("Update or redeploy"),
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchImpl.mock.calls[1]![1].body)).toEqual({
+      protocolContract: CURRENT_PROTOCOL_CONTRACT,
+    });
+  });
+
   it("routes reverse resource RPC to the exact authenticated Desktop peer and removes it on close", async () => {
     const peers = createTopicResourcePeers();
     const services = new ServiceCollection().register(IZCodeAgentService, {
@@ -203,7 +266,11 @@ describe("server remote connection", () => {
       {
         fetchImpl: async (input, init) => {
           requestedPaths.push(new URL(String(input)).pathname);
-          return fetch(input, init);
+          const response = await fetch(input, init);
+          if (new URL(String(input)).pathname === "/api/server-info") {
+            return Response.json({ ...(await response.json()), version: "different-build" });
+          }
+          return response;
         },
       },
     );
@@ -310,6 +377,8 @@ describe("server remote connection", () => {
 
     const ticketResponse = await fetch(`${httpBase}/api/rpc-host-capability`, {
       method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ protocolContract: CURRENT_PROTOCOL_CONTRACT }),
     });
     expect(ticketResponse.status).toBe(200);
     const ticket = (await ticketResponse.json()) as {

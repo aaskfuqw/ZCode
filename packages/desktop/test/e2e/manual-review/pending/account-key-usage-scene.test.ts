@@ -51,7 +51,6 @@ describe("PAT-KEY-E2E: 账号就绪时创建 Coding Plan Key", () => {
         bigmodel: { kind: "individual-coding-plan" },
       },
       providerFamilyDomain: "zai",
-      providerFamilyDomainMigrated: true,
       lastWorkspaceSession: [
         {
           kind: "local",

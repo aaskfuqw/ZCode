@@ -270,19 +270,20 @@ it.each([false, true])(
           }),
     ).rejects.toThrow("reject deleted task cleanup");
 
-  expect(
-    database
-      .prepare("SELECT deleted FROM tasks WHERE workspace_key = ? AND task_id = ?")
-      .get("/repo", task.taskId),
-  ).toEqual({ deleted: 0 });
-  expect(
-    database
-      .prepare("SELECT task_id FROM task_group_members WHERE workspace_key = ? AND task_id = ?")
-      .get("/repo", task.taskId),
-  ).toEqual({ task_id: task.taskId });
-});
+    expect(
+      database
+        .prepare("SELECT deleted FROM tasks WHERE workspace_key = ? AND task_id = ?")
+        .get("/repo", task.taskId),
+    ).toEqual({ deleted: 0 });
+    expect(
+      database
+        .prepare("SELECT task_id FROM task_group_members WHERE workspace_key = ? AND task_id = ?")
+        .get("/repo", task.taskId),
+    ).toEqual({ task_id: task.taskId });
+  },
+);
 
-it("cleans historical deleted task grouping references when the index reopens", async () => {
+it("keeps deletion and group references consistent after reopening the current index", async () => {
   const repo = createTrackedRepo();
   const task = await seedTask(repo, "historical-deleted", 100);
   const group = await repo.createTaskGroup({ title: "Group" });
@@ -298,15 +299,17 @@ it("cleans historical deleted task grouping references when the index reopens", 
   });
   const database = getRepoDatabase(repo);
   database
-    .prepare("UPDATE tasks SET deleted = 1 WHERE workspace_key = ? AND task_id = ?")
-    .run("/repo", task.taskId);
-  database
     .prepare(
       `INSERT INTO task_group_view_node_orders (
         node_type, node_key, sort_order, created_at, updated_at
       ) VALUES ('task', ?, ?, ?, ?)`,
     )
     .run(JSON.stringify(["/repo", task.taskId]), 2000, 100, 100);
+  await repo.updateTaskState({
+    workspacePath: task.workspacePath,
+    taskId: task.taskId,
+    patch: { deleted: true },
+  });
   repo.close();
 
   const reopenedRepo = createTrackedRepo();

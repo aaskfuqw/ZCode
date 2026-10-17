@@ -13,7 +13,7 @@ import {
 } from "../src/provider-config-file-codec.js";
 
 describe("provider-node private config codecs", () => {
-  it.each([true, false])("Todo134：旧手动 MFJS=%s 可读取，但不继续固化隐藏字段", (value) => {
+  it.each([true, false])("rejects obsolete manual MFJS=%s without changing input", (value) => {
     const config = {
       properties: {
         contextWindow: 1234,
@@ -38,16 +38,10 @@ describe("provider-node private config codecs", () => {
         },
       },
     };
-    const output = encodeProviderConfigFile(decodeProviderConfigFile(input));
-    expect(output.config.modelConfigRules.manualProviderModelRules[0]?.config).toEqual(
-      extractManualModelConfig(config),
-    );
-    expect(config.properties.requiresMfjsToolSchema).toBe(value);
-    expect(encodeProviderConfigFile(decodeProviderConfigFile(output))).toEqual(output);
-    Object.assign(config.properties, { unknown: true });
     expect(() => decodeProviderConfigFile(input)).toThrow();
+    expect(config.properties.requiresMfjsToolSchema).toBe(value);
   });
-  it("Todo130：仅在文件读取规范化合法旧完整手动规则，保留顺序/默认/启停；再写不含系统叶子", () => {
+  it("rejects obsolete complete manual rules and preserves current editable rules", () => {
     const legacy = {
       enabled: false,
       properties: {
@@ -84,20 +78,22 @@ describe("provider-node private config codecs", () => {
       },
     };
     const original = structuredClone(input);
-    const output = encodeProviderConfigFile(decodeProviderConfigFile(input));
-    expect(output).toEqual({
+    expect(() => decodeProviderConfigFile(input)).toThrow();
+    expect(input).toEqual(original);
+    const current = {
       ...input,
       config: {
         ...input.config,
         modelConfigRules: {
-          ...input.config.modelConfigRules,
+          providerModelRules: [],
           manualProviderModelRules: [
             { providerId: "p", modelId: "m", config: extractManualModelConfig(legacy) },
           ],
         },
       },
-    });
-    expect(input).toEqual(original);
+    };
+    const output = encodeProviderConfigFile(decodeProviderConfigFile(current));
+    expect(output).toEqual(current);
     expect(encodeProviderConfigFile(decodeProviderConfigFile(output))).toEqual(output);
     const invalid = structuredClone(input);
     Object.assign(invalid.config.modelConfigRules.manualProviderModelRules[0]!.config, {
@@ -143,13 +139,16 @@ describe("provider-node private config codecs", () => {
     expect(decodeProviderConfigFile(encoded).providers.keys()).toEqual(["personal"]);
   });
 
-  it("rejects missing, future, and structurally invalid Provider file envelopes", () => {
+  it("rejects missing, historical, future, and structurally invalid Provider file envelopes", () => {
     expect(() => decodeProviderConfigFile({ providers: {}, modelConfigRules: [] })).toThrow(
       UnsupportedProviderConfigVersionError,
     );
     expect(() =>
       decodeProviderConfigFile({ schemaVersion: 2, providers: {}, modelConfigRules: [] }),
     ).toThrow(UnsupportedProviderConfigVersionError);
+    expect(() => decodeProviderConfigFile({ schemaVersion: 0 })).toThrow(
+      UnsupportedProviderConfigVersionError,
+    );
     expect(() =>
       decodeProviderConfigFile({
         schemaVersion: 1,

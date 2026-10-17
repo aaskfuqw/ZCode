@@ -713,7 +713,7 @@ describe("gateway v4 chunked attachment transaction", () => {
         target: { rowId: 42, entityId: "not-authorized" },
         attachmentIndex: 0,
       }),
-    ).rejects.toThrow("fault.attachment.shareStatNotAuthorized");
+    ).rejects.toMatchObject({ code: "fault.attachment.shareStatNotAuthorized" });
     expect(stat).not.toHaveBeenCalled();
     gateway.dispose();
   });

@@ -57,6 +57,7 @@ export function createSubagentConfigScope<T>(options: {
     failed = false,
     reset = true;
   let value: T | undefined;
+  let loadError: unknown;
   const pending: SubagentFileChanges = new Map();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let draining: Promise<void> | undefined;
@@ -110,6 +111,7 @@ export function createSubagentConfigScope<T>(options: {
           if (controller.signal.aborted) continue;
           value = next;
           failed = false;
+          loadError = undefined;
           if (full) stabilize = false;
         } catch (error) {
           if (disposed) return;
@@ -119,7 +121,8 @@ export function createSubagentConfigScope<T>(options: {
             if (full) reset = true;
           } else {
             failed = true;
-            logger.warn(undefined, "Subagent 配置读取失败，使用内置定义并等待文件变化", {
+            loadError = error;
+            logger.warn(undefined, "Subagent 配置读取失败，等待文件修复或变化", {
               path: root,
               error: String(error),
             });
@@ -316,6 +319,9 @@ export function createSubagentConfigScope<T>(options: {
     },
     get failed() {
       return failed;
+    },
+    get error() {
+      return loadError;
     },
     get busy() {
       return (

@@ -296,7 +296,8 @@ describe("ZCode Protocol", () => {
     expect(methods).not.toContain("capabilities");
     expect(methods.every((method) => !method.includes("task"))).toBe(true);
     expect(methods).toContain("session/read");
-    expect(methods).toContain("session/usage");
+    expect(methods).not.toContain("session/usage");
+    expect(methods).not.toContain("usage/stats");
     expect(methods).toContain("session/subagents");
     expect(methods).toContain("session/setModel");
     expect(methods).toContain("session/cancelBackgroundTask");

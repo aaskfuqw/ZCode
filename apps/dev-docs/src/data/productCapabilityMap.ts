@@ -678,7 +678,7 @@ const edgeDefinitions: readonly CapabilityEdgeDefinition[] = [
   ["tool-scheduler", "usage-fact-collection", "state", "tool 事实"],
   ["usage-fact-collection", "usage-sqlite", "state", "持久化 30 天"],
   ["usage-sqlite", "app-usage-aggregation", "state", "SQL 聚合"],
-  ["app-usage-aggregation", "app-usage-bridge", "delivery", "usage/stats"],
+  ["app-usage-aggregation", "app-usage-bridge", "delivery", "v4/usage/stats"],
   ["ci-pipelines", "static-quality-gates", "runtime", "执行质量门禁"],
   ["ci-pipelines", "desktop-e2e-harness", "runtime", "调度 E2E"],
   ["ci-pipelines", "multi-target-build", "runtime", "调度构建矩阵"],

@@ -21,7 +21,18 @@ modules:
     roots: [packages/services/src/session]
     managed: false
     requires: [shared]
-    publicEntrypoints: [packages/services/src/session/contract.ts]
+    publicEntrypoints:
+      [
+        packages/services/src/session/zcodeTaskService.ts,
+        packages/services/src/session/zcodeTaskListTypes.ts,
+        packages/services/src/session/sessionRealtimePort.ts,
+        packages/services/src/session/automationRepo.ts,
+        packages/services/src/session/automationService.ts,
+        packages/services/src/session/automationCron.ts,
+        packages/services/src/session/automationCronValidation.ts,
+        packages/services/src/session/tasksDatabase/startup.ts,
+        packages/services/src/session/tasksDatabase/prepared.ts,
+      ]
     owner: conversation
   - id: storage
     roots: [packages/services/src/storage]

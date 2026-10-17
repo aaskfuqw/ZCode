@@ -16,8 +16,13 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
+import { tsImport } from "tsx/esm/api";
 import { dockerPlatformForTarget, resolveVerificationTarget } from "./verify-remote-ssh-target.mjs";
 
+const { CURRENT_PROTOCOL_CONTRACT, protocolContractSchema } = await tsImport(
+  "@zcode/shared/zcode-protocol-v4",
+  import.meta.url,
+);
 const HOST_CAPABILITY_HEADER = "x-zcode-rpc-host-capability";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -216,6 +221,10 @@ async function main() {
     serverInfo.capabilities?.websocketRpc === true,
     "server-info reports websocketRpc capability",
   );
+  assert(
+    protocolContractSchema.safeParse(serverInfo.protocolContract).success,
+    "Incompatible ZCode Next internal protocol. Update or redeploy the paired Next components.",
+  );
   log(`server-info ok: serverId=${serverInfo.serverId} version=${serverInfo.version}`);
 
   log("verify web replayable /ws upgrade");
@@ -241,7 +250,12 @@ async function main() {
     unauthorized.status === 401,
     `/ws/host without ticket must be 401, got ${unauthorized.status}`,
   );
-  const ticketResponse = await fetch(`${baseUrl}/api/rpc-host-capability`, { method: "POST" });
+  const ticketResponse = await fetch(`${baseUrl}/api/rpc-host-capability`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ protocolContract: CURRENT_PROTOCOL_CONTRACT }),
+  });
+  assert(ticketResponse.ok, `capability admission failed: ${ticketResponse.status}`);
   const ticket = await ticketResponse.json();
   assert(
     typeof ticket.capability === "string" && ticket.capability.length > 0,

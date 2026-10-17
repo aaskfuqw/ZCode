@@ -35,12 +35,17 @@ import {
   formatZodError,
   remoteTargetSchema,
   SERVER_REMOTE_PROTOCOL_VERSION,
+  serverRemoteHostAdmissionSchema,
   ZCODE_RPC_HOST_CAPABILITY_HEADER,
   ZCODE_VERSION,
   type BotProvider,
   type ServerRemoteInfo,
   type ServerRemoteWorkspaceInfo,
 } from "@zcode/shared";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  ZCodeProtocolContractError,
+} from "@zcode/shared/zcode-protocol-v4";
 import { connectRemote, createRemoteBackend, type RemoteConnection } from "./remote/index.js";
 import { createHostCapabilityStore } from "./hostCapability.js";
 
@@ -186,6 +191,7 @@ function createServerInfo(options: HttpServerOptions): ServerRemoteInfo {
       : {}),
     version: ZCODE_VERSION,
     protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
+    protocolContract: CURRENT_PROTOCOL_CONTRACT,
     authRequired: options.authRequired ?? Boolean(readTrimmedEnv("ZCODE_SERVER_TOKEN")),
     workspaces: resolveServerWorkspaces(options),
     capabilities: {
@@ -329,7 +335,16 @@ export function createHttpServer(
   }
 
   app.get("/api/server-info", (c) => c.json(createServerInfo(options)));
-  app.post("/api/rpc-host-capability", (c) => c.json(hostCapabilities.issue()));
+  app.post("/api/rpc-host-capability", async (c) => {
+    const admission = serverRemoteHostAdmissionSchema.safeParse(
+      await c.req.json().catch(() => undefined),
+    );
+    if (!admission.success) {
+      const error = new ZCodeProtocolContractError(admission.error);
+      return c.json({ error: error.message, code: error.code }, 409);
+    }
+    return c.json(hostCapabilities.issue());
+  });
 
   // 普通 `/ws` 永远是 terminal-client；浏览器/任意客户端设置旧 mode header
   // 都不能再把自己提升为 trusted host。

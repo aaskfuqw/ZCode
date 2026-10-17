@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ServiceCollection } from "@zcode/services";
 import { SERVER_REMOTE_PROTOCOL_VERSION } from "@zcode/shared";
+import { CURRENT_PROTOCOL_CONTRACT } from "@zcode/shared/zcode-protocol-v4";
 import { createHttpServer } from "../src/http.js";
 
 describe("server info HTTP endpoint", () => {
@@ -53,6 +54,7 @@ describe("server info HTTP endpoint", () => {
       name: "Studio Server",
       version: expect.any(String),
       protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
+      protocolContract: CURRENT_PROTOCOL_CONTRACT,
       authRequired: false,
       workspaces: [
         {
@@ -99,13 +101,47 @@ describe("server info HTTP endpoint", () => {
     expect(capabilityRejected.status).toBe(401);
     const capabilityAccepted = await fetch(
       `${baseUrl}/api/rpc-host-capability?token=secret-token`,
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ protocolContract: CURRENT_PROTOCOL_CONTRACT }),
+      },
     );
     expect(capabilityAccepted.status).toBe(200);
     await expect(capabilityAccepted.json()).resolves.toMatchObject({
       capability: expect.any(String),
       expiresAt: expect.any(Number),
     });
+  });
+
+  it.each([
+    undefined,
+    {},
+    { protocolContract: { ...CURRENT_PROTOCOL_CONTRACT, protocolVersion: -1 } },
+    { protocolContract: { ...CURRENT_PROTOCOL_CONTRACT, capabilities: {} } },
+    {
+      protocolContract: {
+        ...CURRENT_PROTOCOL_CONTRACT,
+        capabilities: { workflowRunDeltas: false },
+      },
+    },
+  ])("rejects incompatible Desktop admission before issuing a host ticket: %j", async (body) => {
+    const services = new ServiceCollection();
+    const server = createHttpServer(services, 0);
+    servers.push(server);
+    const address = server.address() as AddressInfo;
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/rpc-host-capability`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    expect(response.status).toBe(409);
+    const result = await response.json();
+    expect(result).toEqual({
+      code: "fault.protocol.incompatible",
+      error: expect.stringContaining("Update or redeploy the paired Next components"),
+    });
+    expect(result).not.toHaveProperty("capability");
   });
 
   it("serves static web files with SPA fallback", async () => {

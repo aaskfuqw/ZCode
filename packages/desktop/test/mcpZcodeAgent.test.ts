@@ -244,46 +244,42 @@ describe("MCP enabled state", () => {
     });
   });
 
-  it("cleans old directory override when writing zcode MCP server enabled state", async () => {
-    const home = makeTempRoot();
-    process.env.HOME = home;
-    mkdirSync(join(home, ".zcode-next", "cli"), { recursive: true });
-    writeFileSync(
-      join(home, ".zcode-next", "cli", "config.json"),
-      JSON.stringify({
-        mcp: {
-          servers: {
-            browser: { command: "npx", args: ["-y", "browser-mcp"] },
-          },
-          [join(home, ".zcode-next", "cli")]: {
-            browser: { enable: false },
-          },
+  it.each(["user", "workspace"] as const)(
+    "rejects obsolete %s MCP state without rewriting its file",
+    async (scope) => {
+      const home = makeTempRoot();
+      process.env.HOME = home;
+      const workspacePath = join(home, "workspace");
+      const configDir =
+        scope === "user" ? join(home, ".zcode-next", "cli") : join(workspacePath, ".zcode-next");
+      const filePath = join(configDir, "config.json");
+      mkdirSync(configDir, { recursive: true });
+      for (const mcp of [
+        { servers: { browser: { command: "npx", enable: false } } },
+        { servers: { browser: { command: "npx", enable: false, enabled: true } } },
+        {
+          servers: { browser: { command: "npx", enabled: false } },
+          [configDir]: { browser: { enable: false } },
         },
-      }),
-      "utf-8",
-    );
-
-    const initial = await loadCliMcpFromUserDirectory();
-    const server = initial.servers.find((item) => item.name === "browser");
-
-    await saveCliMcpToUserDirectory({
-      action: "set-enabled",
-      source: "zcodeagentmcp",
-      name: "browser",
-      enabled: false,
-      location: server?.location,
-    });
-
-    const saved = JSON.parse(
-      readFileSync(join(home, ".zcode-next", "cli", "config.json"), "utf-8"),
-    );
-    expect(saved.mcp.servers.browser).toEqual({
-      command: "npx",
-      args: ["-y", "browser-mcp"],
-      enabled: false,
-    });
-    expect(saved.mcp[join(home, ".zcode-next", "cli")]).toBeUndefined();
-  });
+      ]) {
+        const raw = JSON.stringify({ mcp, features: { memory: true } });
+        writeFileSync(filePath, raw, "utf-8");
+        await expect(
+          loadCliMcpFromUserDirectory(scope === "workspace" ? { workspacePath } : undefined),
+        ).rejects.toThrow(filePath);
+        await expect(
+          saveCliMcpToUserDirectory({
+            action: "set-enabled",
+            source: "zcodeagentmcp",
+            name: "browser",
+            enabled: true,
+            ...(scope === "workspace" ? { projectPath: workspacePath } : {}),
+          }),
+        ).rejects.toThrow("Manually replace obsolete");
+        expect(readFileSync(filePath, "utf-8")).toBe(raw);
+      }
+    },
+  );
 
   it("reports a server disabled through enabled:false as disabled", async () => {
     const home = makeTempRoot();
@@ -313,7 +309,6 @@ describe("MCP enabled state", () => {
     const home = makeTempRoot();
     process.env.HOME = home;
     mkdirSync(join(home, ".zcode-next", "cli"), { recursive: true });
-    // 复现线上配置：同一条 server 同时带 enable 与 enabled，停用后不能留下自相矛盾的字段。
     writeFileSync(
       join(home, ".zcode-next", "cli", "config.json"),
       JSON.stringify({
@@ -347,80 +342,11 @@ describe("MCP enabled state", () => {
     });
   });
 
-  it("migrates a legacy enable flag to enabled on load", async () => {
+  it("leaves the current config file byte-identical on load", async () => {
     const home = makeTempRoot();
     process.env.HOME = home;
     mkdirSync(join(home, ".zcode-next", "cli"), { recursive: true });
-    // 存量配置只有桌面端历史写入的 enable；加载时应就地迁移成契约字段 enabled。
-    writeFileSync(
-      join(home, ".zcode-next", "cli", "config.json"),
-      JSON.stringify({
-        mcp: {
-          servers: {
-            browser: { command: "npx", args: ["-y", "browser-mcp"], enable: false },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    const loaded = await loadCliMcpFromUserDirectory();
-
-    expect(loaded.servers.find((item) => item.name === "browser")).toEqual(
-      expect.objectContaining({ enabled: false }),
-    );
-    const saved = JSON.parse(
-      readFileSync(join(home, ".zcode-next", "cli", "config.json"), "utf-8"),
-    );
-    expect(saved.mcp.servers.browser).toEqual({
-      command: "npx",
-      args: ["-y", "browser-mcp"],
-      enabled: false,
-    });
-  });
-
-  it("keeps a server disabled when legacy enable:false collides with enabled:true", async () => {
-    const home = makeTempRoot();
-    process.env.HOME = home;
-    mkdirSync(join(home, ".zcode-next", "cli"), { recursive: true });
-    // 线上事故配置：停用写了 enable:false，但外部导入残留 enabled:true。迁移必须保住停用语义。
-    writeFileSync(
-      join(home, ".zcode-next", "cli", "config.json"),
-      JSON.stringify({
-        mcp: {
-          servers: {
-            browser: {
-              command: "npx",
-              args: ["-y", "browser-mcp"],
-              enable: false,
-              enabled: true,
-            },
-          },
-        },
-      }),
-      "utf-8",
-    );
-
-    const loaded = await loadCliMcpFromUserDirectory();
-
-    expect(loaded.servers.find((item) => item.name === "browser")).toEqual(
-      expect.objectContaining({ enabled: false }),
-    );
-    const saved = JSON.parse(
-      readFileSync(join(home, ".zcode-next", "cli", "config.json"), "utf-8"),
-    );
-    expect(saved.mcp.servers.browser).toEqual({
-      command: "npx",
-      args: ["-y", "browser-mcp"],
-      enabled: false,
-    });
-  });
-
-  it("leaves the config file byte-identical when no legacy enable flag exists", async () => {
-    const home = makeTempRoot();
-    process.env.HOME = home;
-    mkdirSync(join(home, ".zcode-next", "cli"), { recursive: true });
-    // 迁移必须幂等：没有残留字段时不能重写文件，否则每次加载都会动用户的配置。
+    // Loading current configuration is read-only.
     const raw = JSON.stringify({
       mcp: {
         servers: {

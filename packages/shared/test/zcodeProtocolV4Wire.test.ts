@@ -186,6 +186,7 @@ describe("ZCode Protocol V4 wire v3", () => {
           localTerminal: true,
           binaryFrames: false,
           compression: "none",
+          workflowRunDeltas: true,
         },
         auth: {},
       }).success,
@@ -203,6 +204,7 @@ describe("ZCode Protocol V4 wire v3", () => {
           localTerminal: true,
           binaryFrames: false,
           compression: "none",
+          workflowRunDeltas: true,
         },
         auth: {},
       }).success,
@@ -215,6 +217,7 @@ describe("ZCode Protocol V4 wire v3", () => {
         clientId: "client-1",
         clientKind: "desktop",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       }).success,
     ).toBe(true);
     expect(
@@ -224,6 +227,7 @@ describe("ZCode Protocol V4 wire v3", () => {
         clientId: "client-1",
         clientMode: "mobileRemote",
         appVersion: "4.0.0",
+        capabilities: { workflowRunDeltas: true },
       }).success,
     ).toBe(false);
     expect(
@@ -239,6 +243,7 @@ describe("ZCode Protocol V4 wire v3", () => {
           localTerminal: true,
           binaryFrames: false,
           compression: "none",
+          workflowRunDeltas: true,
         },
         auth: {},
       }).success,

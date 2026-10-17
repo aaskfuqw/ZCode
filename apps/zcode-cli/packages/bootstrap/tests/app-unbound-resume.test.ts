@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createLegacySelectionStoreFixture } from "./helpers/legacy-selection-store.js";
+import { createCurrentSelectionStoreFixture } from "./helpers/current-selection-store.js";
 import {
   SESSION_ENTRY_MODEL_SELECTION,
   createMessageId,
@@ -36,26 +36,16 @@ describe("App 从真实存储恢复未绑定选择", () => {
     { stored: { ...identity, options: null }, candidate: identity },
     { stored: { providerId: "provider-a" }, candidate: undefined },
     {
-      stored: { ...complete, providerId: "builtin:bigmodel" },
-      candidate: { ...complete, providerId: "bigmodel-api" },
-      bound: { ...complete, providerId: "bigmodel-api" },
-    },
-    {
-      stored: { ...complete, providerId: "builtin:bigmodel-coding-plan" },
-      candidate: { ...complete, providerId: "account:bigmodel-individual-coding-plan" },
-      bound: { ...complete, providerId: "account:bigmodel-individual-coding-plan" },
-    },
-    {
       stored: { ...complete, providerId: "removed" },
       candidate: { ...complete, providerId: "removed" },
     },
     { stored: { ...complete, modelId: "removed" }, candidate: { ...complete, modelId: "removed" } },
     { stored: complete, candidate: complete, bound: complete },
   ])(
-    "保留迁移后的意图 $stored，Registry 只影响运行绑定",
+    "保留当前存储意图 $stored，Registry 只影响运行绑定",
     async ({ stored, candidate, bound, readFailure }) => {
-      const fixture = await createLegacySelectionStoreFixture();
-      let { store } = fixture;
+      const fixture = await createCurrentSelectionStoreFixture();
+      const { store } = fixture;
       const sessionID = createSessionId("app-unbound-resume");
       const messageID = createMessageId("history-message");
       await store.createSession({
@@ -81,15 +71,7 @@ describe("App 从真实存储恢复未绑定选择", () => {
         type: "text",
         text: "History must remain visible",
       });
-      const oldSelection = stored as ModelSelection | undefined;
-      if (oldSelection?.providerId?.startsWith("builtin:")) {
-        fixture.seedLegacy(sessionID, {
-          providerId: oldSelection.providerId,
-          modelId: oldSelection.modelId,
-          thoughtLevel: oldSelection.options?.reasoningLevel,
-        });
-        store = fixture.store;
-      } else if (stored !== undefined)
+      if (stored !== undefined)
         await store.saveSessionEntry({
           id: `${sessionID}:runtime-model-selection`,
           sessionID,
@@ -127,12 +109,6 @@ describe("App 从真实存储恢复未绑定选择", () => {
         expect(result.messageCount).toBe(1);
         expect(result.modelSelection).toEqual(candidate);
         expect(app.runtime.getSessionModelSelection()).toEqual(bound);
-        if ((stored as ModelSelection | undefined)?.providerId.startsWith("builtin:")) {
-          expect(
-            (await store.sessionEntries({ sessionID, type: SESSION_ENTRY_MODEL_SELECTION })).at(-1)
-              ?.data,
-          ).toEqual(candidate);
-        }
         expect((await app.resume()).modelSelection).toEqual(readFailure ? undefined : candidate);
         expect(generateText).not.toHaveBeenCalled();
         expect(JSON.stringify(await app.loadSessionTranscript())).toContain(
@@ -154,7 +130,7 @@ describe("App 从真实存储恢复未绑定选择", () => {
   it("恢复选择在 Registry 中不可解析时不绑定，但必须留下 restore_unbound 告警", async () => {
     // 回归（2026-10-09 日志复盘）：冷恢复落在 Registry 刚就绪、账号权益未解析的窗口时，持久化选择按
     // provider-not-found 静默置空；之后只发加速轮不会再绑定，加速失败时找不到退回目标。此前这一步没有日志。
-    const fixture = await createLegacySelectionStoreFixture();
+    const fixture = await createCurrentSelectionStoreFixture();
     const { store } = fixture;
     const sessionID = createSessionId("app-unbound-resume-warn");
     const stored = { ...complete, providerId: "account:bigmodel-team-coding-plan" };
@@ -175,7 +151,13 @@ describe("App 从真实存储恢复未绑定选择", () => {
       data: stored,
     });
     const warn = vi.fn();
-    const logger: Logger = { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn(), child: () => logger };
+    const logger: Logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn,
+      error: vi.fn(),
+      child: () => logger,
+    };
     const loggerFactory: LoggerFactory = {
       createLogger: () => logger,
       withContext: () => logger,

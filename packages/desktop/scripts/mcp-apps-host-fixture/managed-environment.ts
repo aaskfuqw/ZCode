@@ -1,7 +1,11 @@
 import { BrowserWindow, ipcMain, webContents, type WebContents } from "electron";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { V4_WIRE_PROTOCOL_VERSION } from "@zcode/shared/zcode-protocol-v4";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  clientHelloSchema,
+  parseCurrentProtocolHandshake,
+} from "@zcode/shared/zcode-protocol-v4";
 import { installPluginSandboxHost } from "../../src/main/pluginSandbox/index.js";
 import { createPluginUiBridgeService } from "../../../services/src/plugin-ui-bridge/pluginUiBridgeService.js";
 import { createPluginUiSamplingService } from "../../../services/src/plugin-ui-bridge/pluginUiSamplingService.js";
@@ -11,7 +15,10 @@ import { evaluateGuest } from "./guest-evaluation.js";
 
 export async function managedEnvironment(root: string, node: string, cli: string) {
   const model = await startModel(root, cli);
-  const agent = await startAgent(root, node, cli, model.env);
+  const agent = await startAgent(root, node, cli, model.env).catch(async (error: unknown) => {
+    await model.close();
+    throw error;
+  });
   const events = new Events<any>();
   const windows: BrowserWindow[] = [];
   const modes = new Map<number, string>();
@@ -135,12 +142,13 @@ export async function managedEnvironment(root: string, node: string, cli: string
     if (method === "helloConversationV4")
       return {
         kind: "hello",
-        protocolVersion: V4_WIRE_PROTOCOL_VERSION,
+        protocolVersion: CURRENT_PROTOCOL_CONTRACT.protocolVersion,
         connectionId,
         clientMode: "desktop-continuous",
         deliveryProfile: "continuous",
         serverTime: Date.now(),
         capabilities: {
+          ...CURRENT_PROTOCOL_CONTRACT.capabilities,
           nativeDialogs: true,
           localTerminal: true,
           binaryFrames: false,
@@ -149,7 +157,10 @@ export async function managedEnvironment(root: string, node: string, cli: string
         },
         auth: {},
       };
-    if (method === "initializeConversationV4") return;
+    if (method === "initializeConversationV4") {
+      parseCurrentProtocolHandshake(clientHelloSchema, params);
+      return;
+    }
     if (method === "subscribeConversationV4") {
       const result = await agent.call("v4/conversation/subscribe", {
         connectionId,

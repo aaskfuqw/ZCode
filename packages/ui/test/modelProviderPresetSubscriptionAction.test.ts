@@ -257,7 +257,6 @@ describe("ModelProviderSection preset subscription action", () => {
       expect(updateSharedSettingsMock).toHaveBeenCalledWith({
         providerFamilyDomain: family,
         providerFamilyDomainUpdatedAt: expect.any(Number),
-        providerFamilyDomainMigrated: true,
         providerFamilyConnectionSelections: selections,
       });
       updateSharedSettingsMock.mockClear();

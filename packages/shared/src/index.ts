@@ -30,6 +30,7 @@ export type { WorkspacePurpose } from "./workspacePurpose.js";
 export { DEFAULT_LOCALE } from "./protocol.js";
 export { ZCODE_VERSION, ZCODE_COMMIT, ZCODE_BUILD_TIME } from "./version.js";
 export type { HelloMessage, HelloAckMessage } from "./handshake.js";
+export { remoteHelloMessageSchema, remoteHelloAckMessageSchema } from "./handshake.js";
 export type { ZCodeEnv, ZCodeProductFlavor } from "./env.js";
 export type { RemoteAssetInstallMode } from "./remoteAssetInstallMode.js";
 export type {
@@ -218,7 +219,6 @@ export * from "./custom-model-value.js";
 export * from "./model-selection-types.js";
 export * from "./model-selection-key.js";
 export * from "./model-selection.js";
-export * from "./legacy-model-provider-identity.js";
 export * from "./official-glm-model-id.js";
 export * from "./skills-types.js";
 export * from "./skill-sync.js";

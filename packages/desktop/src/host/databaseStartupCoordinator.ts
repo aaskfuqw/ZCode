@@ -78,6 +78,7 @@ export class DatabaseStartupCoordinator {
       sqliteCode: undefined,
       systemCode: undefined,
       migrationId: undefined,
+      dbPath: undefined,
       failedPhase: undefined,
       databasePhase: undefined,
       disk: [],

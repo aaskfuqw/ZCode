@@ -607,9 +607,7 @@ export class ZCodeProtocolAgentServer {
         return await this.requireV4Gateway().conversationAttachmentStat(request.params);
       case V4_METHODS.attachmentPreviewSource:
         return await this.requireV4Gateway().attachmentPreviewSource(request.params);
-      // ── usage query（additive）：与旧 usage/stats、session/usage 同一数据访问
-      // 层（usage store 聚合），仅换 v4 名字空间——不经 v4Gateway（无会话投影依赖），
-      // 也不经旧 op 分派（无桥）。旧 case 保留到旧词删除（老 host 版本兼容）。──
+      // Usage queries share the authoritative usage data access layer.
       case V4_METHODS.usageStats:
         return await getUsageStats(this.context, request.params);
       case V4_METHODS.conversationUsage:
@@ -797,12 +795,8 @@ export class ZCodeProtocolAgentServer {
         return await validatePlugin(this.context, request.params);
       case zcodeProtocolMethods.pluginsDescribe:
         return await describePlugin(this.context, request.params);
-      case zcodeProtocolMethods.usageStats:
-        return await getUsageStats(this.context, request.params);
       case zcodeProtocolMethods.sessionDebug:
         return querySessionDebug(this.context, request.params);
-      case zcodeProtocolMethods.sessionUsage:
-        return await getTaskTokenUsage(this.context, request.params);
       default:
         throw new ProtocolRequestError(-32601, `Method not found: ${request.method}`);
     }

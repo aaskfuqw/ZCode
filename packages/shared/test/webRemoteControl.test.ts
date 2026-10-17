@@ -314,6 +314,55 @@ describe("webRemoteControlTaskTargetSchema", () => {
 });
 
 describe("parseWebRemoteControlAppPayload", () => {
+  it.each([
+    {
+      method: "loadMcpFromUserDirectory",
+      args: { workspacePath: "/workspace/current" },
+      result: { servers: [] },
+    },
+    {
+      method: "saveMcpToUserDirectory",
+      args: {
+        action: "upsert",
+        source: "zcodeagentmcp",
+        name: "current-http",
+        config: { type: "http", url: "https://current.example.test/mcp" },
+      },
+      result: { success: true },
+    },
+  ])("preserves current MCP directory method $method", ({ method, args, result }) => {
+    const request = { zcode_type: "platform-request", requestId: "mcp-1", method, args };
+    const response = {
+      zcode_type: "platform-response",
+      requestId: "mcp-1",
+      method,
+      success: true,
+      result,
+    };
+    expect(parseWebRemoteControlAppPayload(request)).toEqual(request);
+    expect(parseWebRemoteControlAppPayload(response)).toEqual(response);
+  });
+
+  it("rejects the retired legacy MCP import method", () => {
+    expect(
+      parseWebRemoteControlAppPayload({
+        zcode_type: "platform-request",
+        requestId: "obsolete-mcp",
+        method: "migrateLegacyCommonMcp",
+        args: { legacyStorageDir: "/obsolete/profile" },
+      }),
+    ).toBeNull();
+    expect(
+      parseWebRemoteControlAppPayload({
+        zcode_type: "platform-response",
+        requestId: "obsolete-mcp",
+        method: "migrateLegacyCommonMcp",
+        success: true,
+        result: { servers: {}, totalCount: 0, importedCount: 0, skippedCount: 0 },
+      }),
+    ).toBeNull();
+  });
+
   it("accepts pushed workspace list updates", () => {
     expect(
       parseWebRemoteControlAppPayload({

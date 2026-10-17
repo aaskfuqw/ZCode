@@ -86,7 +86,7 @@ const zhCN: Record<string, string> = {
   "startup.global.error.corrupt":
     "数据库无法通过完整性检查。请保留数据和诊断信息，联系支持人员处理；不要删除数据库。",
   "startup.global.error.checksum_mismatch":
-    "数据库迁移记录与当前程序不匹配。请保留数据和诊断信息，联系支持人员处理。",
+    "数据库与当前开发版本的格式不兼容。请退出使用该数据库的所有 ZCode Next 进程，备份后手动移走诊断信息中对应的数据库文件及其 -wal、-shm 文件，再重新启动。不要删除项目或工作区文件。",
   "startup.global.error.open_failed":
     "无法打开数据库。请检查数据目录是否存在且可访问，处理后点击重试。",
   "startup.global.error.lock_timeout":

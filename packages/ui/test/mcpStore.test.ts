@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  setMcpStoreDirectoryService,
-  setMcpStorePlatform,
-  useMcpStore,
-} from "@/store/mcpStore.js";
-import { DEFAULT_MCP_CONFIG, MCP_CONFIG_KEY } from "@/store/mcpStoreHelpers.js";
+import { setMcpStoreDirectoryService, setMcpStorePlatform, useMcpStore } from "@/store/mcpStore.js";
+import { DEFAULT_MCP_CONFIG } from "@/store/mcpStoreHelpers.js";
 import { logger } from "@/logger.js";
 
 function createLocalStorageStub(initial: Record<string, string> = {}) {
@@ -65,12 +61,6 @@ describe("mcpStore", () => {
       loadMcpFromUserDirectory: vi.fn(async () => {
         throw new SyntaxError("invalid MCP config");
       }),
-      migrateLegacyCommonMcp: vi.fn(async () => ({
-        importedCount: 0,
-        servers: {},
-        skippedCount: 0,
-        totalCount: 0,
-      })),
       saveMcpToUserDirectory: vi.fn(async () => ({ success: true })),
     });
     useMcpStore.setState({
@@ -79,9 +69,9 @@ describe("mcpStore", () => {
       servers: [existingServer],
     });
 
-    await expect(
-      useMcpStore.getState().ensureLoadedForWorkspace("/local/workspace"),
-    ).resolves.toBe(false);
+    await expect(useMcpStore.getState().ensureLoadedForWorkspace("/local/workspace")).resolves.toBe(
+      false,
+    );
     expect(useMcpStore.getState().servers).toEqual([existingServer]);
   });
 
@@ -99,12 +89,6 @@ describe("mcpStore", () => {
     }));
     setMcpStorePlatform({
       loadMcpFromUserDirectory: platformLoad,
-      migrateLegacyCommonMcp: vi.fn(async () => ({
-        importedCount: 0,
-        servers: {},
-        skippedCount: 0,
-        totalCount: 0,
-      })),
       saveMcpToUserDirectory: vi.fn(async () => ({ success: true })),
     });
     const directoryService = {
@@ -123,15 +107,17 @@ describe("mcpStore", () => {
 
     await useMcpStore
       .getState()
-      .ensureLoadedForWorkspace("/remote/workspace", directoryService, "ssh:host:/remote/workspace");
+      .ensureLoadedForWorkspace(
+        "/remote/workspace",
+        directoryService,
+        "ssh:host:/remote/workspace",
+      );
 
     expect(directoryService.loadMcpFromUserDirectory).toHaveBeenCalledWith({
       workspacePath: "/remote/workspace",
     });
     expect(platformLoad).not.toHaveBeenCalled();
-    expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual([
-      "remote-http",
-    ]);
+    expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual(["remote-http"]);
   });
 
   it("切换到远程 workspace 时立即清空本地配置并丢弃晚到的旧加载结果", async () => {
@@ -167,12 +153,6 @@ describe("mcpStore", () => {
     );
     setMcpStorePlatform({
       loadMcpFromUserDirectory: platformLoad,
-      migrateLegacyCommonMcp: vi.fn(async () => ({
-        importedCount: 0,
-        servers: {},
-        skippedCount: 0,
-        totalCount: 0,
-      })),
       saveMcpToUserDirectory: vi.fn(async () => ({ success: true })),
     });
     const directoryService = {
@@ -193,9 +173,7 @@ describe("mcpStore", () => {
       saveMcpToUserDirectory: vi.fn(async () => {}),
     };
 
-    const loadWorkspaceA = useMcpStore
-      .getState()
-      .ensureLoadedForWorkspace("/local/workspace-a");
+    const loadWorkspaceA = useMcpStore.getState().ensureLoadedForWorkspace("/local/workspace-a");
     expect(platformLoad).toHaveBeenCalledTimes(1);
 
     const loadWorkspaceB = useMcpStore
@@ -226,18 +204,15 @@ describe("mcpStore", () => {
     expect(directoryService.loadMcpFromUserDirectory).toHaveBeenCalledWith({
       workspacePath: "/remote/workspace-b",
     });
-    expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual([
-      "remote-b",
-    ]);
+    expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual(["remote-b"]);
     expect(JSON.stringify(useMcpStore.getState().servers)).not.toContain("workspace-a-");
   });
 
   it("远端 workspace attachment 绑定前不把预期断连记录成 MCP 警告", async () => {
     vi.stubGlobal("window", {});
-    const disconnectedError = Object.assign(
-      new Error("ZCODE_REMOTE_WORKSPACE_DISCONNECTED"),
-      { code: "ZCODE_REMOTE_WORKSPACE_DISCONNECTED" },
-    );
+    const disconnectedError = Object.assign(new Error("ZCODE_REMOTE_WORKSPACE_DISCONNECTED"), {
+      code: "ZCODE_REMOTE_WORKSPACE_DISCONNECTED",
+    });
     const directoryService = {
       loadMcpFromUserDirectory: vi.fn(async () => {
         throw disconnectedError;
@@ -283,84 +258,60 @@ describe("mcpStore", () => {
     warn.mockRestore();
   });
 
-  it("本地 workspace 即使存在目录服务也保留 platform 迁移 legacy common MCP", async () => {
-    vi.stubGlobal("window", {});
-    vi.stubGlobal(
-      "localStorage",
-      createLocalStorageStub({
-        [MCP_CONFIG_KEY]: JSON.stringify({
-          mcp: {
-            mcpServers: {
-              legacyHttp: {
-                type: "http",
-                url: "https://legacy.example.test/mcp",
-              },
-            },
+  it.each([false, true])(
+    "ignores and preserves obsolete localStorage during local startup (current config: %s)",
+    async (hasCurrentConfig) => {
+      vi.stubGlobal("window", {});
+      const legacyConfig = JSON.stringify({
+        mcp: {
+          mcpServers: {
+            legacyHttp: { type: "http", url: "https://legacy.example.test/mcp" },
           },
-        }),
-      }),
-    );
-    const platformLoad = vi
-      .fn()
-      .mockResolvedValueOnce({ servers: [] })
-      .mockResolvedValueOnce({
-        servers: [
-          {
-            source: "zcodeagentmcp" as const,
-            scope: "user" as const,
-            name: "legacyHttp",
-            config: {
-              type: "http" as const,
-              url: "https://legacy.example.test/mcp",
-            },
-          },
-        ],
+        },
       });
-    const platformSave = vi.fn(async () => ({ success: true }));
-    setMcpStorePlatform({
-      loadMcpFromUserDirectory: platformLoad,
-      migrateLegacyCommonMcp: vi.fn(async () => ({
-        importedCount: 0,
-        servers: {},
-        skippedCount: 0,
-        totalCount: 0,
-      })),
-      saveMcpToUserDirectory: platformSave,
-    });
-    const directoryService = {
-      loadMcpFromUserDirectory: vi.fn(async () => ({
-        servers: [
-          {
-            source: "zcodeagentmcp" as const,
-            scope: "user" as const,
-            name: "remote-http",
-            config: { type: "http" as const, url: "https://remote.example.test/mcp" },
-          },
-        ],
-      })),
-      saveMcpToUserDirectory: vi.fn(async () => {}),
-    };
-    setMcpStoreDirectoryService(directoryService);
+      const storage = createLocalStorageStub({ "zcode-next-mcp-config": legacyConfig });
+      vi.stubGlobal("localStorage", storage);
+      const currentServers = hasCurrentConfig
+        ? [
+            {
+              source: "zcodeagentmcp" as const,
+              scope: "user" as const,
+              name: "current-http",
+              config: { type: "http" as const, url: "https://current.example.test/mcp" },
+            },
+          ]
+        : [];
+      const platformLoad = vi.fn(async () => ({ servers: currentServers }));
+      const platformSave = vi.fn(async () => ({ success: true }));
+      setMcpStorePlatform({
+        loadMcpFromUserDirectory: platformLoad,
+        saveMcpToUserDirectory: platformSave,
+      });
+      const directoryService = {
+        loadMcpFromUserDirectory: vi.fn(async () => ({ servers: [] })),
+        saveMcpToUserDirectory: vi.fn(async () => {}),
+      };
+      setMcpStoreDirectoryService(directoryService);
 
-    await useMcpStore
-      .getState()
-      .ensureLoadedForWorkspace("/local/workspace", directoryService);
+      await expect(
+        useMcpStore.getState().ensureLoadedForWorkspace("/local/workspace", directoryService),
+      ).resolves.toBe(true);
 
-    expect(directoryService.loadMcpFromUserDirectory).not.toHaveBeenCalled();
-    expect(platformLoad).toHaveBeenCalledWith({ workspacePath: "/local/workspace" });
-    expect(platformSave).toHaveBeenCalledWith({
-      action: "upsert",
-      source: "zcodeagentmcp",
-      name: "legacyHttp",
-      config: {
-        type: "http",
-        url: "https://legacy.example.test/mcp",
-      },
-    });
-    expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual([
-      "legacyHttp",
-    ]);
-  });
+      expect(directoryService.loadMcpFromUserDirectory).not.toHaveBeenCalled();
+      expect(directoryService.saveMcpToUserDirectory).not.toHaveBeenCalled();
+      expect(platformLoad).toHaveBeenCalledExactlyOnceWith({ workspacePath: "/local/workspace" });
+      expect(platformSave).not.toHaveBeenCalled();
+      expect(useMcpStore.getState().nativeServers).toEqual(currentServers);
+      expect(useMcpStore.getState().servers.map((server) => server.name)).toEqual(
+        currentServers.map((server) => server.name),
+      );
+      expect(useMcpStore.getState()).not.toHaveProperty("migrateLegacyCommonMcp");
+      expect(storage.getItem).not.toHaveBeenCalledWith("zcode-next-mcp-config");
+      expect(storage.setItem).not.toHaveBeenCalled();
+      expect(storage.removeItem).not.toHaveBeenCalled();
+      expect(storage.getItem("zcode-next-mcp-config")).toBe(legacyConfig);
+    },
+  );
 
   it("批量合并只更新 ZCode Agent MCP 行且清理 changed", () => {
     useMcpStore.setState({
@@ -639,12 +590,11 @@ describe("mcpStore", () => {
     });
 
     const epoch = useMcpStore.getState().beginServerStatusListRefresh();
-    useMcpStore.getState().updateServerStatus(
-      "zcodeagentmcp-global-filesystem",
-      "connecting",
-      undefined,
-      { invalidateStatusListRequests: false },
-    );
+    useMcpStore
+      .getState()
+      .updateServerStatus("zcodeagentmcp-global-filesystem", "connecting", undefined, {
+        invalidateStatusListRequests: false,
+      });
     useMcpStore.getState().mergeServerStatusSnapshots(
       {
         filesystem: {
@@ -669,7 +619,12 @@ describe("mcpStore", () => {
         {
           id: "zcodeagentmcp-global-context7",
           name: "context7",
-          config: { type: "stdio", command: "npx", args: ["-y", "@upstash/context7-mcp"], timeoutMs: 3 },
+          config: {
+            type: "stdio",
+            command: "npx",
+            args: ["-y", "@upstash/context7-mcp"],
+            timeoutMs: 3,
+          },
           enabled: true,
           changed: true,
           status: "unknown",
@@ -692,7 +647,12 @@ describe("mcpStore", () => {
         {
           id: "claudeclimcp-global-context7",
           name: "context7",
-          config: { type: "stdio", command: "npx", args: ["-y", "@upstash/context7-mcp"], timeoutMs: 3 },
+          config: {
+            type: "stdio",
+            command: "npx",
+            args: ["-y", "@upstash/context7-mcp"],
+            timeoutMs: 3,
+          },
           enabled: true,
           changed: true,
           status: "unknown",
@@ -992,12 +952,6 @@ describe("mcpStore", () => {
     );
     setMcpStorePlatform({
       loadMcpFromUserDirectory: vi.fn(async () => ({ servers: [] })),
-      migrateLegacyCommonMcp: vi.fn(async () => ({
-        importedCount: 0,
-        servers: {},
-        skippedCount: 0,
-        totalCount: 0,
-      })),
       saveMcpToUserDirectory,
     });
     useMcpStore.setState({

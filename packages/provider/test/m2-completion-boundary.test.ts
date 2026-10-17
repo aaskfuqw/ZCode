@@ -19,22 +19,6 @@ const productionRoots = [
   "apps/zcode-cli/packages/tui/src",
 ] as const;
 
-const legacyDtoOwners = new Set([
-  "packages/services/src/model-provider/legacyModelProviderSerialized.ts",
-  "packages/services/src/model-provider/legacyZCodeConfigProviderReader.ts",
-  "packages/services/src/model-provider/legacyPersonalProviderConfigImporter.ts",
-  "packages/services/src/model-provider/providerConfigRuntime.ts",
-]);
-const legacyDtoTestOwners = new Set([
-  "packages/services/test/legacyZCodeConfigProviderReader.test.ts",
-  "packages/services/test/legacyPersonalProviderConfigImporter.test.ts",
-  "packages/services/test/providerConfigRuntime.test.ts",
-  "packages/ui/test/providerSettingsFormBoundary.test.ts",
-]);
-const legacyApiFormatOwners = new Set([
-  "packages/services/src/model-provider/legacyModelProviderSerialized.ts",
-  "packages/services/src/model-provider/legacyZCodeConfigProviderReader.ts",
-]);
 const testRoots = [
   "packages/desktop/test",
   "packages/services/test",
@@ -43,14 +27,14 @@ const testRoots = [
 ] as const;
 
 describe("M2 completion boundary", () => {
-  it("旧 Provider DTO 只属于一次性物理迁移边界", async () => {
+  it("生产实现不再使用旧 Provider DTO", async () => {
     const matches = await findProductionFilesMatching(/\bModelProviderConfig\b/u);
-    expect(matches).toEqual([...legacyDtoOwners].sort());
+    expect(matches).toEqual([]);
   });
 
   it("非迁移测试不再以旧 Provider DTO 组织夹具", async () => {
     const matches = await findFilesMatching(testRoots, /\bModelProviderConfig\b/u);
-    expect(matches).toEqual([...legacyDtoTestOwners].sort());
+    expect(matches).toEqual(["packages/ui/test/providerSettingsFormBoundary.test.ts"]);
   });
 
   it("生产实现不再读取旧 Provider Store 路径", async () => {
@@ -59,10 +43,10 @@ describe("M2 completion boundary", () => {
 
   it("正式 Provider 消费链路不再使用旧 API format 类型", async () => {
     const matches = await findProductionFilesMatching(/\bModelProviderApiFormat\b/u);
-    expect(matches).toEqual([...legacyApiFormatOwners].sort());
+    expect(matches).toEqual([]);
   });
 
-  it("旧 Runtime Model Config 只属于一次性导入与兼容解析边界", async () => {
+  it("生产实现不再使用旧 Runtime Model Config", async () => {
     const matches = await findProductionFilesMatching(/\bRuntimeModelConfig\b/u);
     expect(matches).toEqual([]);
   });

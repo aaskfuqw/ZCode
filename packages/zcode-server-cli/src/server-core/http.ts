@@ -22,11 +22,16 @@ import {
 import { createServiceLogger, type TopicResourcePeers } from "@zcode/services/node";
 import {
   SERVER_REMOTE_PROTOCOL_VERSION,
+  serverRemoteHostAdmissionSchema,
   TOPIC_RESOURCE_RELAY_CHANNEL,
   ZCODE_RPC_HOST_CAPABILITY_HEADER,
   ZCODE_VERSION,
   type ServerRemoteInfo,
 } from "@zcode/shared";
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  ZCodeProtocolContractError,
+} from "@zcode/shared/zcode-protocol-v4";
 import { createHostCapabilityStore, type HostCapabilityStore } from "./hostCapability.js";
 
 export interface CoreHttpServer {
@@ -145,6 +150,7 @@ export async function createCoreHttpServer(
     serverId: options.serverId ?? hostname() ?? "zcode-server",
     version: ZCODE_VERSION,
     protocolVersion: SERVER_REMOTE_PROTOCOL_VERSION,
+    protocolContract: CURRENT_PROTOCOL_CONTRACT,
     authRequired: false,
     workspaces: [],
     capabilities: {
@@ -184,7 +190,16 @@ export async function createCoreHttpServer(
       },
     })),
   );
-  app.post("/api/rpc-host-capability", (context) => context.json(capabilities.issue()));
+  app.post("/api/rpc-host-capability", async (context) => {
+    const admission = serverRemoteHostAdmissionSchema.safeParse(
+      await context.req.json().catch(() => undefined),
+    );
+    if (!admission.success) {
+      const error = new ZCodeProtocolContractError(admission.error);
+      return context.json({ error: error.message, code: error.code }, 409);
+    }
+    return context.json(capabilities.issue());
+  });
   let resolveListening: (value: { port: number }) => void = () => undefined;
   const listening = new Promise<{ port: number }>((resolve) => {
     resolveListening = resolve;

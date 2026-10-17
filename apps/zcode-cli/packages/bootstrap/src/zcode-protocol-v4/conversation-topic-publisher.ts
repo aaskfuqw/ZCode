@@ -29,17 +29,13 @@ import type {
 import {
   DELIVERY_PROFILES,
   PROTOCOL_V4_LIMITS,
-  clampWorkflowRunsForLegacy,
   coalesceConversationDeltas,
   filterConversationDeltasForProfile,
   filterConversationRowsForProfile,
   utf8JsonByteLength,
 } from "@zcode/shared/zcode-protocol-v4";
 import { Buffer } from "node:buffer";
-import {
-  encodeConversationDeltasForLegacy,
-  workflowRunDeltaGrowthUpperBound,
-} from "./conversation-workflow-run-deltas.js";
+import { workflowRunDeltaGrowthUpperBound } from "./conversation-workflow-run-deltas.js";
 import {
   ProductProjection,
   type ConversationRowTargetAction,
@@ -93,11 +89,6 @@ interface Subscription {
   subscriptionId: string;
   connectionId: string;
   profile: DeliveryProfile;
-  /**
-   * 这条订阅认不认得 `workflowRun.*` 键级增量（握手能力位，由可信 host 注入）。
-   * false = 旧消费者：增量折成整键 patch、快照裁到旧界（conversation-workflow-run-deltas.ts）。
-   */
-  workflowRunDeltas: boolean;
   /** flush buffer：push 时已过 profile 过滤与该订阅的编码，flush 时 coalesce 打帧。 */
   buffer: ConversationDelta[];
   bufferBytes: number;
@@ -115,11 +106,6 @@ export interface ConversationSubscribeParams {
   base?: { logEpoch: string; seq: number };
   /** 缺省 replayable（ws 默认；MessagePort 宿主显式传 continuous）。 */
   deliveryProfile?: DeliveryProfileName;
-  /**
-   * 该连接的 clientHello 声明过认得 `workflowRun.*` 增量。与 deliveryProfile 同族：可信 host
-   * 注入，面向 UI 的 subscribe 选不了。缺省 false——能力位缺席一律按旧消费者办。
-   */
-  workflowRunDeltas?: boolean;
 }
 
 export interface ConversationSubscribeResult {
@@ -357,32 +343,16 @@ export class ConversationTopicPublisher {
     };
   }
 
-  /**
-   * 一个订阅者的快照帧：profile 决定行可见性，能力位决定 `workflowRuns` 发全量还是旧界。
-   *
-   * 快照与增量必须同一档：一个收着旧界整键 patch 的客户端，如果快照里突然来了 512 个节点，
-   * 它的 `.max(256)` 会让**整帧**解析失败（已知键上的解析错误不会只剥掉一个键）。
-   */
+  /** Build a snapshot using this connection's delivery profile. */
   private getWireSnapshotForSubscription(subscription: Subscription): ConversationSnapshot {
-    const snapshot = this.getWireSnapshotForProfile(subscription.profile);
-    if (subscription.workflowRunDeltas || snapshot.workflowRuns === undefined) return snapshot;
-    const workflowRuns = clampWorkflowRunsForLegacy(snapshot.workflowRuns);
-    return workflowRuns === snapshot.workflowRuns ? snapshot : { ...snapshot, workflowRuns };
+    return this.getWireSnapshotForProfile(subscription.profile);
   }
 
-  /**
-   * 一批 delta 的**每订阅者**编码：profile 过滤 + 旧消费者的整键折叠。
-   *
-   * 折叠取的是**当前**投影状态，所以恢复回放上历史增量会折成终态——中间态被跳过，终态一致，
-   * 与 coalesce 的既有行为同规（conversation-workflow-run-deltas.ts 的文件头）。
-   */
   private encodeDeltasForSubscription(
     deltas: readonly ConversationDelta[],
     subscription: Subscription,
   ): readonly ConversationDelta[] {
-    const filtered = filterConversationDeltasForProfile(deltas, subscription.profile);
-    if (subscription.workflowRunDeltas) return filtered;
-    return encodeConversationDeltasForLegacy(filtered, this.projection.getSnapshot().workflowRuns);
+    return filterConversationDeltasForProfile(deltas, subscription.profile);
   }
 
   /**
@@ -802,7 +772,6 @@ export class ConversationTopicPublisher {
       subscriptionId: `sub-${this.logEpoch}-${this.nextSubscriptionSerial++}`,
       connectionId: params.connectionId,
       profile,
-      workflowRunDeltas: params.workflowRunDeltas === true,
       buffer: [],
       bufferBytes: 0,
       resyncRequired: false,

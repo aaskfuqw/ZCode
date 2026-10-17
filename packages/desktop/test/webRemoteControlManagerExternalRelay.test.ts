@@ -127,12 +127,6 @@ function createManagerHarness(options?: {
       listSSHConfigAliases: async () => [],
       loadMcpFromUserDirectory: async () => ({ servers: [] }),
       saveMcpToUserDirectory: async () => ({ success: true }),
-      migrateLegacyCommonMcp: async () => ({
-        servers: {},
-        totalCount: 0,
-        importedCount: 0,
-        skippedCount: 0,
-      }),
     },
     reconnectWorkspace: options?.reconnectWorkspace ?? vi.fn(async () => undefined),
     reportRemoteUsageEvent,

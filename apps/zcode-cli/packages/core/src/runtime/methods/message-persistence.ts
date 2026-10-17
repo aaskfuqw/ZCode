@@ -343,10 +343,9 @@ export async function persistMessage(
   this: AgentRuntimeInternal,
   input: Parameters<SessionStorePort["saveMessage"]>[0],
   traceContext: TraceContext,
-  copyFrom?: Parameters<SessionStorePort["saveMessage"]>[1],
 ): Promise<void> {
   if (!this.sessionStore) return;
-  await this.sessionStore.saveMessage(input, copyFrom);
+  await this.sessionStore.saveMessage(input);
   this.logger?.debug("Session message persisted", {
     ...traceContextToLogContext(traceContext),
     event: "session.message.persisted",
@@ -361,10 +360,9 @@ export async function persistPart(
   this: AgentRuntimeInternal,
   input: MessagePart,
   traceContext: TraceContext,
-  copyFrom?: Parameters<SessionStorePort["savePart"]>[1],
 ): Promise<void> {
   if (!this.sessionStore) return;
-  await this.sessionStore.savePart(input, copyFrom);
+  await this.sessionStore.savePart(input);
   this.logger?.debug("Session part persisted", {
     ...traceContextToLogContext(traceContext),
     event: "session.part.persisted",

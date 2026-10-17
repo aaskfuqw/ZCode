@@ -74,7 +74,6 @@ async function prepare(
       locale: "en-US",
       localePreference: "en-US",
       providerFamilyDomain: "bigmodel",
-      providerFamilyDomainMigrated: true,
       providerFamilyConnectionSelections: {
         bigmodel:
           selection === "team"

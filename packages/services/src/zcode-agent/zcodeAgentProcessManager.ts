@@ -848,6 +848,10 @@ export class ZCodeAgentProcessManager {
     const workspaceKey = resolveWorkspaceKey(params);
     const existing = this.processesByWorkspaceKey.get(workspaceKey);
     if (existing && !existing.child.killed) {
+      await existing.client.ensureCurrentProtocol();
+      if (this.processesByWorkspaceKey.get(workspaceKey) !== existing || existing.exited) {
+        throw new Error("ZCode agent process start was cancelled.");
+      }
       return existing.client;
     }
 
@@ -1152,22 +1156,7 @@ export class ZCodeAgentProcessManager {
     child.once("spawn", () => {
       managed.spawned = true;
       // Node spawn() 会先返回 ChildProcess，再异步报告 cwd/command ENOENT。
-      // 旧代码在确认 spawn 成功前就发布 runtimeRestarted，订阅方随即重连并再次触发
-      // 启动，最终形成失败启动 -> 假重启 -> 重连的自激风暴。只有 spawn 事件才表示
-      // 新 CLI 运行时真实存在，可以安全通知 v4 订阅方重订。
-      if (runtimeGeneration > 1 && this.processesByWorkspaceKey.get(workspaceKey) === managed) {
-        this.runtimeRestartedEmitter.fire({ workspaceKey, runtimeIdentity });
-      }
-      if (this.processesByWorkspaceKey.get(workspaceKey) === managed) {
-        this.availableRuntimeIdentityByWorkspaceKey.set(workspaceKey, runtimeIdentity.identity);
-        this.runtimeLifecycleEmitter.fire({
-          workspacePath: params.workspacePath,
-          ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
-          workspaceKey,
-          runtimeIdentity,
-          state: "available",
-        });
-      }
+      // Publish process creation here; runtime availability is published only after admission.
       if (typeof child.pid === "number") {
         this.reportProcessLifecycle((reporter) =>
           reporter.onSpawn({
@@ -1346,6 +1335,35 @@ export class ZCodeAgentProcessManager {
           "protocol close",
         ).catch(() => undefined);
       }
+    });
+    try {
+      await client.ensureCurrentProtocol();
+    } catch (error) {
+      if (this.processesByWorkspaceKey.get(workspaceKey) === managed) {
+        this.processesByWorkspaceKey.delete(workspaceKey);
+      }
+      this.reportRuntimeUnavailable(managed);
+      await this.cleanupManagedProcessWithRetry(
+        managed,
+        "protocol-close",
+        "protocol-close",
+        "incompatible protocol",
+      );
+      throw error;
+    }
+    if (managed.exited || this.processesByWorkspaceKey.get(workspaceKey) !== managed) {
+      throw new Error("ZCode agent process start was cancelled.");
+    }
+    if (runtimeGeneration > 1) {
+      this.runtimeRestartedEmitter.fire({ workspaceKey, runtimeIdentity });
+    }
+    this.availableRuntimeIdentityByWorkspaceKey.set(workspaceKey, runtimeIdentity.identity);
+    this.runtimeLifecycleEmitter.fire({
+      workspacePath: params.workspacePath,
+      ...(params.workspaceIdentity ? { workspaceIdentity: params.workspaceIdentity } : {}),
+      workspaceKey,
+      runtimeIdentity,
+      state: "available",
     });
     return client;
   }

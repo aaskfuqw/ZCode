@@ -1,3 +1,4 @@
+import { withCurrentProtocolAgent } from "./helpers/currentProtocolAgent.js";
 import {
   existsSync,
   mkdirSync,
@@ -76,6 +77,30 @@ describe("E2E agent coverage", () => {
 });
 
 describe("resolveDefaultZCodeAgentCommand", () => {
+  it("rejects an incompatible Agent without publishing runtime availability", async () => {
+    const workspacePath = mkdtempSync(join(tmpdir(), "zcode-incompatible-agent-"));
+    const manager = new ZCodeAgentProcessManager({
+      commandResolver: () => ({
+        command: process.execPath,
+        cwd: workspacePath,
+        args: [
+          "-e",
+          `require("node:readline").createInterface({ input: process.stdin }).on("line", line => { const request = JSON.parse(line); process.stdout.write(JSON.stringify({ id: request.id, result: { protocolVersion: 1 } }) + "\\n"); });`,
+        ],
+      }),
+    });
+    const lifecycle = vi.fn();
+    manager.onRuntimeLifecycle(lifecycle);
+    try {
+      await expect(manager.getClient({ workspacePath })).rejects.toThrow("Update or redeploy");
+      expect(lifecycle.mock.calls.some(([event]) => event.state === "available")).toBe(false);
+      expect(manager.getExistingClient({ workspacePath })).toBeUndefined();
+    } finally {
+      await manager.disposeAllAndWait();
+      rmSync(workspacePath, { recursive: true, force: true });
+    }
+  });
+
   const desktopSurfaceArgsCases = [
     {
       name: "separate surface value",
@@ -350,7 +375,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
 
     command.resolve({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     });
 
@@ -368,7 +393,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     const recoveryEpoch = gate.beginRecovery();
     const commandResolver = vi.fn<() => ZCodeAgentCommand>(() => ({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     }));
     const manager = new ZCodeAgentProcessManager({
@@ -405,7 +430,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     await Promise.resolve();
     command.resolve({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     });
     await vi.waitFor(() => expect(gate.isRecovering()).toBe(true));
@@ -444,7 +469,12 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     createdDirs.push(workspacePath);
     const commandResolver = vi.fn<() => ZCodeAgentCommand>(() => ({
       command: process.execPath,
-      args: ["-e", "process.stdin.resume(); process.stdin.on('end', () => process.exit(0));"],
+      args: [
+        "-e",
+        withCurrentProtocolAgent(
+          "process.stdin.resume(); process.stdin.on('end', () => process.exit(0));",
+        ),
+      ],
       cwd: workspacePath,
     }));
     const manager = new ZCodeAgentProcessManager({ commandResolver });
@@ -488,7 +518,9 @@ describe("resolveDefaultZCodeAgentCommand", () => {
         command: process.execPath,
         args: [
           "-e",
-          `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, JSON.stringify({ official: process.env.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE, personal: process.env.ZCODE_PERSONAL_PROVIDER_CONFIG_FILE })); setInterval(() => {}, 1000);`,
+          withCurrentProtocolAgent(
+            `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, JSON.stringify({ official: process.env.ZCODE_BUILTIN_PROVIDER_CONFIG_FILE, personal: process.env.ZCODE_PERSONAL_PROVIDER_CONFIG_FILE })); setInterval(() => {}, 1000);`,
+          ),
         ],
         cwd: workspacePath,
       }),
@@ -515,7 +547,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     createdDirs.push(workspacePath);
     const commandResolver = vi.fn<() => ZCodeAgentCommand>(() => ({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     }));
     const manager = new ZCodeAgentProcessManager({ commandResolver });
@@ -532,7 +564,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     createdDirs.push(workspacePath);
     const commandResolver = vi.fn<() => ZCodeAgentCommand>(() => ({
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     }));
     const manager = new ZCodeAgentProcessManager({ commandResolver });
@@ -566,7 +598,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setInterval(() => {}, 1000);"],
+        args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
         cwd: workspacePath,
       }),
     });
@@ -595,7 +627,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setInterval(() => {}, 1000);"],
+        args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
         cwd: workspacePath,
       }),
     });
@@ -624,7 +656,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
     createdDirs.push(workspacePath);
     let command: ZCodeAgentCommand = {
       command: process.execPath,
-      args: ["-e", "setInterval(() => {}, 1000);"],
+      args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
       cwd: workspacePath,
     };
     const manager = new ZCodeAgentProcessManager({
@@ -640,7 +672,7 @@ describe("resolveDefaultZCodeAgentCommand", () => {
       args: ["app-server", "--stdio"],
       cwd: workspacePath,
     };
-    await manager.getClient({ workspacePath });
+    await expect(manager.getClient({ workspacePath })).rejects.toThrow("Update or redeploy");
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(restarts).toEqual([]);
@@ -664,10 +696,10 @@ describe("resolveDefaultZCodeAgentCommand", () => {
       command: process.execPath,
       args: [
         "-e",
-        `
+        withCurrentProtocolAgent(`
 require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, "spawned");
 setInterval(() => {}, 1000);
-`,
+`),
       ],
       cwd: workspacePath,
     });
@@ -691,7 +723,9 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `setTimeout(() => process.stdout.write("not-json\\n"), 50); setInterval(() => {}, 1000);`,
+          withCurrentProtocolAgent(
+            `setTimeout(() => process.stdout.write("not-json\\n"), 50); setInterval(() => {}, 1000);`,
+          ),
         ],
         cwd: workspacePath,
       }),
@@ -750,7 +784,10 @@ setInterval(() => {}, 1000);
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "process.stdin.resume(); setInterval(() => {}, 1000);"],
+        args: [
+          "-e",
+          withCurrentProtocolAgent("process.stdin.resume(); setInterval(() => {}, 1000);"),
+        ],
         cwd: workspacePath,
       }),
     });
@@ -787,13 +824,13 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `
+          withCurrentProtocolAgent(`
 require("node:fs").writeFileSync(${JSON.stringify(nodeEnvPath)}, JSON.stringify({
   nodeEnv: process.env.NODE_ENV || "<empty>",
   runtimeEnv: process.env.ZCODE_RUNTIME_ENV || "<empty>",
 }));
 setInterval(() => {}, 1000);
-`,
+`),
         ],
         cwd: workspacePath,
       }),
@@ -826,13 +863,13 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `
+          withCurrentProtocolAgent(`
 require("node:fs").writeFileSync(${JSON.stringify(nodeEnvPath)}, JSON.stringify({
   nodeEnv: process.env.NODE_ENV || "<empty>",
   runtimeEnv: process.env.ZCODE_RUNTIME_ENV || "<empty>",
 }));
 setInterval(() => {}, 1000);
-`,
+`),
         ],
         cwd: workspacePath,
       }),
@@ -863,7 +900,7 @@ setInterval(() => {}, 1000);
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setTimeout(() => process.exit(7), 20);"],
+        args: ["-e", withCurrentProtocolAgent("setTimeout(() => process.exit(7), 20);")],
         cwd: workspacePath,
       }),
       processLifecycleReporter: reporter,
@@ -877,7 +914,7 @@ setInterval(() => {}, 1000);
         provider: "glm",
         workspacePath,
         command: process.execPath,
-        args: ["-e", "setTimeout(() => process.exit(7), 20);"],
+        args: ["-e", withCurrentProtocolAgent("setTimeout(() => process.exit(7), 20);")],
       });
       expect(spawnEvent.pid).toEqual(expect.any(Number));
       expect(spawnEvent.startedAt).toEqual(expect.any(Number));
@@ -921,7 +958,9 @@ setInterval(() => {}, 1000);
         // PowerShell/CIM 定向复核受系统负载影响，把该用例误变成 cleanup deadline 测试。
         args: [
           "-e",
-          'process.stdout.write("invalid-ndjson\\n"); process.stdin.resume(); process.stdin.on("end", () => process.exit(1));',
+          withCurrentProtocolAgent(
+            'process.stdout.write("invalid-ndjson\\n"); process.stdin.resume(); process.stdin.on("end", () => process.exit(1));',
+          ),
         ],
         cwd: workspacePath,
       }),
@@ -972,12 +1011,12 @@ setInterval(() => {}, 1000);
         cwd: workspacePath,
         args: [
           "-e",
-          `
+          withCurrentProtocolAgent(`
         require("node:readline").createInterface({ input: process.stdin }).on("line", line => {
           const request = JSON.parse(line);
           if (request.method !== "process/childProcesses") process.stdout.write(JSON.stringify({ id: request.id, result: {} }) + "\\n");
         });
-      `,
+      `),
         ],
       }),
     });
@@ -1020,7 +1059,7 @@ setInterval(() => {}, 1000);
         cwd: workspacePath,
         args: [
           "-e",
-          `
+          withCurrentProtocolAgent(`
           const send = value => process.stdout.write(JSON.stringify(value) + "\\n");
           const state = (phase, sequence) => send({method:"startup/storageState",params:{schemaVersion:1,attemptId:"a",databaseId:"db",databaseKind:"session",phase,sequence,elapsedMs:0}});
           let buffer = "";
@@ -1033,7 +1072,7 @@ setInterval(() => {}, 1000);
             send({id:request.id,result:{}});
             setTimeout(()=>state("ready",2),150);
           });
-        `,
+        `),
         ],
       }),
     });
@@ -1059,7 +1098,7 @@ setInterval(() => {}, 1000);
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setInterval(() => {}, 1000);"],
+        args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
         cwd: workspacePath,
       }),
       processLifecycleReporter: reporter,
@@ -1093,7 +1132,7 @@ setInterval(() => {}, 1000);
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setInterval(() => {}, 1000);"],
+        args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
         cwd: workspacePath,
       }),
       processLifecycleReporter: reporter,
@@ -1134,7 +1173,9 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `process.stderr.write("Error: simulated EPIPE token=super-secret key=sk-1234567890abcdefghijklmnopqrstuv\\n"); process.exit(1);`,
+          withCurrentProtocolAgent(
+            `process.stderr.write("Error: simulated EPIPE token=super-secret key=sk-1234567890abcdefghijklmnopqrstuv\\n"); process.exit(1);`,
+          ),
         ],
         cwd: workspacePath,
       }),
@@ -1207,7 +1248,9 @@ setInterval(() => {}, 1000);
           cwd: workspacePath,
           args: [
             "-e",
-            `process.stderr.write(${JSON.stringify(frame)}); setInterval(() => {}, 1000);`,
+            withCurrentProtocolAgent(
+              `process.stderr.write(${JSON.stringify(frame)}); setInterval(() => {}, 1000);`,
+            ),
           ],
         }),
         processLifecycleReporter: reporter,
@@ -1256,7 +1299,7 @@ setInterval(() => {}, 1000);
     const manager = new ZCodeAgentProcessManager({
       commandResolver: () => ({
         command: process.execPath,
-        args: ["-e", "setInterval(() => {}, 1000);"],
+        args: ["-e", withCurrentProtocolAgent("setInterval(() => {}, 1000);")],
         cwd: workspacePath,
       }),
       processLifecycleReporter: reporter,
@@ -1286,7 +1329,7 @@ setInterval(() => {}, 1000);
     });
 
     try {
-      await manager.getClient({ workspacePath });
+      await expect(manager.getClient({ workspacePath })).rejects.toThrow("Update or redeploy");
 
       await vi.waitFor(() =>
         expect(logSpy).toHaveBeenCalledWith(
@@ -1339,7 +1382,9 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, process.cwd()); setInterval(() => {}, 1000);`,
+          withCurrentProtocolAgent(
+            `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, process.cwd()); setInterval(() => {}, 1000);`,
+          ),
         ],
         cwd: requestedWorkspacePath,
       }),
@@ -1382,7 +1427,9 @@ setInterval(() => {}, 1000);
         command: process.execPath,
         args: [
           "-e",
-          `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, process.cwd()); setInterval(() => {}, 1000);`,
+          withCurrentProtocolAgent(
+            `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, process.cwd()); setInterval(() => {}, 1000);`,
+          ),
         ],
         cwd: customCwd,
       }),
@@ -1417,7 +1464,7 @@ setInterval(() => {}, 1000);
     });
 
     try {
-      await manager.getClient({ workspacePath });
+      await expect(manager.getClient({ workspacePath })).rejects.toThrow("Update or redeploy");
       await vi.waitFor(() => expect(reporter.onError).toHaveBeenCalledTimes(1));
       expect(reporter.onError.mock.calls[0]![0]).toMatchObject({
         pid: null,

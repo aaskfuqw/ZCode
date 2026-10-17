@@ -210,7 +210,6 @@ export const runPrompt = async (
         : {
             standalone: {
               ...createCliProviderRefreshReporter(ctx.stderr),
-              ...(deps.userConfigPath ? { legacyCliUserConfigFilePath: deps.userConfigPath } : {}),
             },
           },
     );

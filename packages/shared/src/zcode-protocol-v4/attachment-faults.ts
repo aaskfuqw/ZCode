@@ -50,7 +50,6 @@ export class ZCodeAttachmentFaultError extends Error {
   readonly code: ZCodeAttachmentFaultCode;
 
   constructor(code: ZCodeAttachmentFaultCode, options?: { cause?: unknown; message?: string }) {
-    // message 默认就是 fault 码本身，旧版本客户端的文本匹配仍能命中。
     super(
       options?.message ?? code,
       options?.cause === undefined ? undefined : { cause: options.cause },
@@ -64,7 +63,6 @@ export class ZCodeAttachmentFaultError extends Error {
  * 从任意错误中读出附件 fault 码：
  * - 同进程抛出的 ZCodeAttachmentFaultError / 带 code 的 Error；
  * - 跨 JSON-RPC 回传的 `error.data.code`；
- * - 旧版本 CLI 只有消息文本时的兼容兜底（见下方注释）。
  */
 export function readZCodeAttachmentFaultCode(error: unknown): ZCodeAttachmentFaultCode | undefined {
   if (!error || typeof error !== "object") return undefined;
@@ -74,8 +72,5 @@ export function readZCodeAttachmentFaultCode(error: unknown): ZCodeAttachmentFau
     const data = candidate.data as { code?: unknown };
     if (isZCodeAttachmentFaultCode(data.code)) return data.code;
   }
-  // 兼容兜底：桌面端可能连接尚未带结构化 code 的旧 zcode-cli。仅在消息「整体等于」
-  // 某个 fault 码时命中，不做模糊匹配，避免把包装后的任意文本误判成确定分类。
-  if (error instanceof Error && isZCodeAttachmentFaultCode(error.message)) return error.message;
   return undefined;
 }

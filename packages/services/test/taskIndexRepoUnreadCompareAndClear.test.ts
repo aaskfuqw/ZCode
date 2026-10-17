@@ -2,7 +2,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { Worker } from "node:worker_threads";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ZCodeTaskMeta } from "@zcode/shared";
@@ -106,10 +105,6 @@ describe("TaskIndexRepo unread compare-and-clear", () => {
     await repo.syncTaskMeta({ meta: firstTask });
     await repo.syncTaskMeta({ meta: secondTask });
     repo.close();
-    const legacyDatabase = new DatabaseSync(getTasksIndexDatabasePath());
-    legacyDatabase.exec("ALTER TABLE tasks DROP COLUMN last_unread_at");
-    legacyDatabase.exec("DELETE FROM tasks_schema_migration");
-    legacyDatabase.close();
     repo = new TaskIndexRepo();
     const migrationLock = await holdSqliteWriteLock(getTasksIndexDatabasePath());
     try {

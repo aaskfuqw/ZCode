@@ -304,6 +304,7 @@ describe("useWorkspaceTaskLists membership events (tasks-index 行 + session det
           localTerminal: true,
           binaryFrames: false,
           compression: "none" as const,
+          workflowRunDeltas: true as const,
         },
         auth: {},
       })),

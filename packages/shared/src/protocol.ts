@@ -292,14 +292,6 @@ export interface AppSettings {
   closeToTrayOnWindows?: boolean;
   /** ZCode 运行会话时阻止系统闲置休眠（手动开关，防不了合盖）。 */
   keepAwakeWhileRunning?: boolean;
-  /** Windows 关闭到托盘默认值是否已执行过一次性迁移；只用于设置迁移，不参与业务判断。 */
-  closeToTrayOnWindowsMigrationInitialized?: boolean;
-  /**
-   * Linux 关闭到托盘默认值（关）是否已执行过一次性归位迁移。
-   * shared 迁移无平台概念、曾把存量 Linux 用户归为 true，而 Linux 此前无设置入口，
-   * main 进程 bootstrap 借此标记把首次启动的 Linux 用户一次性归位为默认关。
-   */
-  closeToTrayLinuxMigrationInitialized?: boolean;
   /** 桌面端全局页面缩放档位；用于重启后恢复界面缩放，Web/手机端忽略。 */
   desktopZoomLevel?: number;
   /** 桌面主窗口最近一次非最大化宽高及最大化状态；Web/手机端忽略。 */
@@ -312,9 +304,6 @@ export interface AppSettings {
   desktopChromiumHardwareAccelerationEnabled?: boolean;
   /** 是否在消息流中展示模型思考过程 */
   messageStreamShowReasoning?: boolean;
-  // TODO(settings-schema-version): 能证明所有受支持升级路径都已执行本次迁移后，改用统一 settings schema version，并一起删除此 marker、迁移函数和持久化判断。
-  /** 显示模型思考过程的默认值是否已执行过一次性迁移；只用于设置迁移，不参与消息渲染判断。 */
-  messageStreamShowReasoningMigrationInitialized?: boolean;
   /** 是否在消息流中展示 todo 工具渲染；不影响摘要面板的 todo */
   messageStreamShowTodos?: boolean;
   /** 是否把连续的只读工具调用聚合成 Explore。 */
@@ -342,8 +331,6 @@ export interface AppSettings {
   providerFamilyDomain?: ProviderFamilyDomain;
   /** 最近一次设置或清空 providerFamilyDomain 的时间。 */
   providerFamilyDomainUpdatedAt?: number;
-  /** 旧 oauth/provider 状态是否已经尝试迁移到 providerFamilyDomain。 */
-  providerFamilyDomainMigrated?: boolean;
   /** 新建或冷恢复 Session 是否为 Bash 注入 bfs/ugrep 增强；默认启用。 */
   nativeSearchEnhancementsEnabled?: boolean;
   /** 新建或冷恢复 Session 是否启用 Memory；默认关闭。 */

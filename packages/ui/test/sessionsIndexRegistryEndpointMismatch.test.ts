@@ -45,6 +45,7 @@ function mockAgentService(): SessionsIndexAgentService {
         localTerminal: true,
         binaryFrames: false,
         compression: "none" as const,
+        workflowRunDeltas: true as const,
       },
       auth: {},
     })),

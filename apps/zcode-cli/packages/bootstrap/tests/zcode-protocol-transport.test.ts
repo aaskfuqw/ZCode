@@ -1,9 +1,54 @@
+import {
+  CURRENT_PROTOCOL_CONTRACT,
+  V4_METHODS as ADMISSION_METHODS,
+} from "@zcode/shared/zcode-protocol-v4";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { zcodeProtocolMethods, type ZCodeProtocolMessage } from "@zcode/shared";
 import { ZCodeProtocolNdjsonConnection } from "../src/zcode-protocol/transport.js";
 
 describe("ZCodeProtocolNdjsonConnection", () => {
+  it("rejects an old peer before invoking a business handler", async () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    const handleMessage = vi.fn(async () => undefined);
+    let response = "";
+    output.on("data", (chunk) => {
+      response += chunk.toString();
+    });
+    const connection = new ZCodeProtocolNdjsonConnection({ input, output, handleMessage });
+    connection.start();
+    input.end(frame({ id: 1, method: "session/create", params: {} }));
+    await connection.waitForClose();
+    expect(JSON.parse(response)).toMatchObject({
+      id: 1,
+      error: {
+        data: { code: "fault.protocol.incompatible" },
+        message: expect.stringContaining("Update or redeploy"),
+      },
+    });
+    expect(handleMessage).not.toHaveBeenCalled();
+  });
+
+  it.each([{ protocolVersion: 1 }, { ...CURRENT_PROTOCOL_CONTRACT, capabilities: {} }])(
+    "rejects an incompatible initialize contract (%j)",
+    async (contract) => {
+      const input = new PassThrough();
+      const output = new PassThrough();
+      const handleMessage = vi.fn(async () => undefined);
+      let response = "";
+      output.on("data", (chunk) => {
+        response += chunk.toString();
+      });
+      const connection = new ZCodeProtocolNdjsonConnection({ input, output, handleMessage });
+      connection.start();
+      input.end(frame({ id: 1, method: ADMISSION_METHODS.connectionInitialize, params: contract }));
+      await connection.waitForClose();
+      expect(JSON.parse(response).error.data.code).toBe("fault.protocol.incompatible");
+      expect(handleMessage).not.toHaveBeenCalled();
+    },
+  );
+
   it("stdout 背压时丢弃观测批次，业务响应仍可写入", () => {
     const output = new PassThrough({ highWaterMark: 1 });
     const connection = new ZCodeProtocolNdjsonConnection({
@@ -37,7 +82,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
         return new Promise(() => {});
       },
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.write(frame({ id: "busy", method: "workspace/readState" }));
     input.write(frame({ method: "process/networkCapture", params: { captureId: "one" } }));
     input.write(frame({ method: "process/networkCapture", params: { captureId: null } }));
@@ -55,7 +100,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       handleMessage: () => new Promise(() => {}),
       onTransportClosed: closed,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.end(frame({ id: "hung", method: "workspace/readState", params: {} }));
     await connection.waitForClose();
     expect(closed).toHaveBeenCalledTimes(1);
@@ -91,7 +136,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
         },
       }),
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.end(frame({ id: "physical-order", method: "v4/conversation/subscribe", params: {} }));
     await connection.waitForClose();
     expect(order).toEqual(["response", "wire-0", "wire-1", "commit"]);
@@ -123,7 +168,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
         commit,
       }),
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.end(frame({ id: "physical-fail", method: "v4/conversation/subscribe", params: {} }));
     await expect(connection.waitForClose()).rejects.toThrow("physical write failed");
     expect(commit).not.toHaveBeenCalled();
@@ -152,7 +197,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       output,
       takePostResponseBatch,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.write(frame({ id: "async-epipe", method: "v4/conversation/subscribe", params: {} }));
     await vi.waitFor(() => expect(commit).toHaveBeenCalledTimes(1));
     const acceptedBytes = written;
@@ -207,7 +252,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
             ]
           : [],
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.end(
       frame({
@@ -260,7 +305,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       output,
       takePostResponseMessages: () => [],
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.end(
       frame({
@@ -292,7 +337,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.end(
       frame({
@@ -318,7 +363,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(frame({ id: "server-1", result: {} }));
 
@@ -364,7 +409,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       output,
       takePostResponseMessages,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
     input.write(
       frame({
         id: "subscribe-late",
@@ -429,7 +474,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(
       [
@@ -518,7 +563,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(
       [
@@ -587,7 +632,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(
       [
@@ -658,7 +703,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(
       [
@@ -730,7 +775,7 @@ describe("ZCodeProtocolNdjsonConnection", () => {
       input,
       output,
     });
-    connection.start();
+    startCurrentConnection(connection, input, output);
 
     input.write(
       [
@@ -764,4 +809,25 @@ describe("ZCodeProtocolNdjsonConnection", () => {
 
 function frame(message: ZCodeProtocolMessage): string {
   return `${JSON.stringify(message)}\n`;
+}
+
+function startCurrentConnection(
+  connection: ZCodeProtocolNdjsonConnection,
+  input: PassThrough,
+  output: PassThrough,
+): void {
+  const write = output.write;
+  output.write = (() => true) as typeof output.write;
+  try {
+    connection.start();
+    input.write(
+      JSON.stringify({
+        id: "protocol-setup",
+        method: ADMISSION_METHODS.connectionInitialize,
+        params: CURRENT_PROTOCOL_CONTRACT,
+      }) + "\n",
+    );
+  } finally {
+    output.write = write;
+  }
 }

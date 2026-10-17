@@ -192,7 +192,7 @@ describe("Todo104 分发同文件原子边界", () => {
     expect(result).not.toHaveProperty("configuredDefault");
     expect(result).not.toHaveProperty("sourceRevision");
     await writeFile(filePath, "{broken");
-    await expect(source.read("read-bad")).rejects.toThrow("无法同步");
+    await expect(source.read("read-bad")).rejects.toThrow(filePath);
     expect(await readFile(filePath, "utf8")).toBe("{broken");
   });
 

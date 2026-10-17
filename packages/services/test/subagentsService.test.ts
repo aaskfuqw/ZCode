@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -558,7 +558,7 @@ describe("subagent storage roots", () => {
 });
 
 describe("createSubagentsService", () => {
-  it("用户 Markdown 先原地迁移后正式读取，项目文件和中间格式不自动迁", async () => {
+  it("用户和项目 Markdown 读取不自动改写 Provider 身份或原文件", async () => {
     const home = await makeTempHome();
     const userRoot = await resolveUserSubagentRoot({ homeDir: home });
     const workspacePath = join(home, "workspace");
@@ -574,120 +574,142 @@ describe("createSubagentsService", () => {
     const service = createSubagentsService({ homeDir: home, isDesktopRuntime: true });
     const result = await service.list({ workspacePath });
     expect(result.agents.find((agent) => agent.name === "helper")?.modelSelection?.providerId).toBe(
-      "account:zai-individual-coding-plan",
+      "builtin:zai-coding-plan",
     );
     expect(
       result.agents.find((agent) => agent.name === "project-helper")?.modelSelection?.providerId,
     ).toBe("builtin:zai-coding-plan");
-    expect(await readFile(userFile, "utf8")).toBe(
-      content.replace(
-        "model: builtin:zai-coding-plan",
-        "model: account:zai-individual-coding-plan",
-      ),
-    );
+    expect(await readFile(userFile, "utf8")).toBe(content);
     expect(await readFile(projectFile, "utf8")).toBe(
       content.replace("name: helper", "name: project-helper"),
     );
-    expect(
-      (
-        await createSubagentsService({ homeDir: home, isDesktopRuntime: true }).list({
-          workspacePath,
-        })
-      ).agents.find((agent) => agent.name === "helper")?.modelSelection,
-    ).toEqual(result.agents.find((agent) => agent.name === "helper")?.modelSelection);
+    try {
+      await service.prepareRuntimeState({ workspacePath });
+      expect(await readFile(userFile, "utf8")).toBe(content);
+    } finally {
+      service.disposeAll();
+    }
   });
-  it("损坏的 Subagent state 不阻塞整个会话启动，也不覆盖原文件", async () => {
+  it("损坏 Subagent state 明确报错且保留原文件，手动重置后可重试", async () => {
     const home = await makeTempHome();
     const path = await resolveSubagentStateFile({ homeDir: home });
     await mkdir(join(home, ".zcode-next", "v2"), { recursive: true });
     const original = '{"builtInModelOverrides":';
     await writeFile(path, original);
-    await expect(
-      createSubagentsService({ homeDir: home }).prepareRuntimeState(),
-    ).resolves.toBeUndefined();
-    expect(await readFile(path, "utf8")).toBe(original);
+    const service = createSubagentsService({ homeDir: home });
+    const workspace = { workspacePath: join(home, "workspace") };
+    try {
+      await expect(service.prepareRuntimeState(workspace)).rejects.toThrow(path);
+      await expect(service.readRuntimeConfig(workspace)).rejects.toThrow(
+        "manually move only this file",
+      );
+      await expect(service.list(workspace)).rejects.toThrow(path);
+      await expect(
+        service.setEnabled({ agentId: "user:user:test", enabled: false }),
+      ).rejects.toThrow(path);
+      expect(await readFile(path, "utf8")).toBe(original);
+      expect(await readdir(join(home, ".zcode-next", "v2"))).toEqual(["agents-state.json"]);
+      await rm(path);
+      await expect(service.prepareRuntimeState(workspace)).resolves.toBeUndefined();
+      expect(await service.readRuntimeConfig(workspace)).toMatchObject({ kind: "ready" });
+    } finally {
+      service.disposeAll();
+    }
   });
 
-  it("启动准备将旧内置选择落盘，让独立 Agent loader 不必等待用户编辑", async () => {
+  it("启动准备和正常读取保留当前 state 原文，修改只写当前字段", async () => {
     const home = await makeTempHome();
     const statePath = await resolveSubagentStateFile({ homeDir: home });
     await mkdir(join(home, ".zcode-next", "v2"), { recursive: true });
-    const legacy = {
-      builtInModelOverrides: { Explore: "custom:builtin%3Azai-coding-plan:GLM-5.3-Flash" },
-      builtInThoughtLevelOverrides: { Explore: "high" },
-      disabledAgentIds: ["disabled-profile"],
-    };
-    await writeFile(statePath, JSON.stringify(legacy));
-    const service = createSubagentsService({
-      homeDir: home,
-    });
-    await service.prepareRuntimeState();
-    const saved = JSON.parse(await readFile(statePath, "utf8"));
-    expect(saved).toMatchObject(legacy);
-    expect(saved.builtInModelSelectionOverrides.Explore).toEqual({
+    const selection = {
       providerId: "account:zai-individual-coding-plan",
       modelId: "GLM-5.3-Flash",
       options: { reasoningLevel: "high" },
+    };
+    const current = {
+      builtInModelSelectionOverrides: { Explore: selection },
+      pluginAgentModelSelectionOverrides: { "plugin:fixture@personal:helper": selection },
+      disabledAgentIds: ["disabled-profile"],
+    };
+    const original = JSON.stringify(current);
+    await writeFile(statePath, original);
+    const service = createSubagentsService({
+      homeDir: home,
     });
-    await service.setBuiltInModelOverride({ agentName: "Explore", modelSelection: undefined });
-    await service.prepareRuntimeState();
-    expect(JSON.parse(await readFile(statePath, "utf8")).builtInModelSelectionOverrides).toEqual(
-      {},
-    );
+    try {
+      await service.prepareRuntimeState();
+      const result = await service.list({ workspacePath: join(home, "workspace") });
+      expect(result.agents.find((agent) => agent.name === "Explore")?.modelSelection).toEqual(
+        selection,
+      );
+      expect(await readFile(statePath, "utf8")).toBe(original);
+      await service.setBuiltInModelOverride({ agentName: "Explore", modelSelection: undefined });
+      expect(JSON.parse(await readFile(statePath, "utf8"))).toEqual({
+        ...current,
+        builtInModelSelectionOverrides: {},
+      });
+    } finally {
+      service.disposeAll();
+    }
   });
 
-  it("并发启动导入与新版手动清空，写队列保留用户结果", async () => {
+  it("并发启动准备与手动清空，写队列保留当前用户结果", async () => {
     const home = await makeTempHome();
     const statePath = await resolveSubagentStateFile({ homeDir: home });
     await mkdir(join(home, ".zcode-next", "v2"), { recursive: true });
     await writeFile(
       statePath,
-      JSON.stringify({ builtInModelOverrides: { Explore: "custom:builtin%3Azai-coding-plan:m" } }),
+      JSON.stringify({
+        builtInModelSelectionOverrides: { Explore: { providerId: "p", modelId: "m" } },
+      }),
     );
     const service = createSubagentsService({ homeDir: home });
-    await Promise.all([
-      service.prepareRuntimeState(),
-      service.setBuiltInModelOverride({ agentName: "Explore", modelSelection: undefined }),
-    ]);
-    await service.prepareRuntimeState();
-    expect(JSON.parse(await readFile(statePath, "utf8")).builtInModelSelectionOverrides).toEqual(
-      {},
-    );
+    try {
+      await Promise.all([
+        service.prepareRuntimeState(),
+        service.setBuiltInModelOverride({ agentName: "Explore", modelSelection: undefined }),
+      ]);
+      expect(JSON.parse(await readFile(statePath, "utf8")).builtInModelSelectionOverrides).toEqual(
+        {},
+      );
+    } finally {
+      service.disposeAll();
+    }
   });
 
-  it("旧内置模型覆盖导入并随正常保存固定；旧字段仅保留供回滚", async () => {
-    const home = await makeTempHome();
-    const statePath = await resolveSubagentStateFile({ homeDir: home });
-    await mkdir(join(home, ".zcode-next", "v2"), { recursive: true });
-    const legacy = {
-      builtInModelOverrides: { Explore: "custom:builtin%3Azai-coding-plan:GLM-5.3-Flash" },
+  it.each([
+    {
+      builtInModelOverrides: { Explore: "custom:p:m" },
       builtInThoughtLevelOverrides: { Explore: "high" },
-      disabledAgentIds: [],
-    };
-    await writeFile(statePath, JSON.stringify(legacy));
-    const service = createSubagentsService({
-      homeDir: home,
-      isDesktopRuntime: true,
-    });
-    const params = { workspacePath: join(home, "workspace"), mode: "settingsUserOnly" as const };
-    const listed = await service.list(params);
-    const explore = listed.agents.find((agent) => agent.name === "Explore")!;
-    expect(explore.modelSelection).toEqual({
-      providerId: "account:zai-individual-coding-plan",
-      modelId: "GLM-5.3-Flash",
-      options: { reasoningLevel: "high" },
-    });
-    await service.setEnabled({ agentId: explore.id, enabled: false });
-    const saved = JSON.parse(await readFile(statePath, "utf8"));
-    expect(saved).toMatchObject({
-      builtInModelOverrides: legacy.builtInModelOverrides,
-      builtInThoughtLevelOverrides: legacy.builtInThoughtLevelOverrides,
-    });
-    expect(saved.builtInModelSelectionOverrides.Explore).toEqual(explore.modelSelection);
-    await service.setBuiltInModelOverride({ agentName: "Explore", modelSelection: undefined });
-    expect(
-      (await service.list(params)).agents.find((agent) => agent.name === "Explore")?.modelSelection,
-    ).toBeUndefined();
+    },
+    { pluginAgentModelOverrides: { "plugin:fixture@personal:helper": "custom:p:m" } },
+    { builtInModelSelectionOverrides: {}, builtInThoughtLevelOverrides: {} },
+    { builtInModelSelectionOverrides: { Explore: { modelId: "m" } } },
+    { pluginAgentModelSelectionOverrides: { "plugin:fixture@personal:helper": "custom:p:m" } },
+    { builtInModelSelectionOverrides: null },
+    { disabledAgentIds: [123] },
+    [],
+    null,
+  ])("拒绝历史或无效 state %j 并指出配置的数据路径", async (invalid) => {
+    const home = await makeTempHome();
+    const storageRoot = join(home, "configured-storage");
+    await mkdir(join(home, ".zcode-next", "cli"), { recursive: true });
+    await writeFile(
+      join(home, ".zcode-next", "cli", "config.json"),
+      JSON.stringify({ storage: { dir: storageRoot } }),
+    );
+    await mkdir(join(storageRoot, "v2"), { recursive: true });
+    const statePath = await resolveSubagentStateFile({ homeDir: home });
+    const original = JSON.stringify(invalid);
+    await writeFile(statePath, original);
+    const service = createSubagentsService({ homeDir: home, isDesktopRuntime: true });
+    const params = { workspacePath: join(home, "workspace") };
+    await expect(service.list(params)).rejects.toThrow(statePath);
+    await expect(service.setBuiltInModelOverride({ agentName: "Explore" })).rejects.toThrow(
+      "manually move only this file",
+    );
+    expect(await readFile(statePath, "utf8")).toBe(original);
+    expect(await readdir(join(storageRoot, "v2"))).toEqual(["agents-state.json"]);
   });
 
   it("persists model overrides for built-in subagents without making them editable", async () => {
@@ -1039,9 +1061,15 @@ tools:
   it("persists plugin agent model overrides by agent id and echoes them in list", async () => {
     const home = await makeTempHome();
     const workspacePath = join(home, "workspace");
-    const pluginRoot = await writeOfficialPluginFixture(home, "documents", "0.1.4", "visual-judge", {
-      model: "custom:custom-openai:gpt-5.4",
-    });
+    const pluginRoot = await writeOfficialPluginFixture(
+      home,
+      "documents",
+      "0.1.4",
+      "visual-judge",
+      {
+        model: "custom:custom-openai:gpt-5.4",
+      },
+    );
     const agentId = "plugin:documents@zcode-plugins-official:visual-judge";
     const service = createSubagentsService({ homeDir: home, isDesktopRuntime: true });
 
@@ -1075,7 +1103,9 @@ tools:
     });
     // 运行时投影（规范名 + 裸名别名）与设置页资源投影必须回显同一覆盖，否则 @ 提及与设置页不一致。
     expect(
-      overridden.agents.filter((agent) => agent.source === "plugin").map((agent) => agent.modelSelection),
+      overridden.agents
+        .filter((agent) => agent.source === "plugin")
+        .map((agent) => agent.modelSelection),
     ).toEqual([selection, selection]);
 
     // 清除完整选择时一并清掉档位，回落到 md 声明；不恢复旧双 map 保存入口。

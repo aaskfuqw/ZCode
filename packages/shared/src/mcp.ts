@@ -55,6 +55,30 @@ export interface McpServerConfig {
 
 export type McpServerStatus = "connected" | "disconnected" | "error" | "connecting" | "unknown";
 
+/** First-party CLI files have one current MCP shape; external MCP formats keep their own parser. */
+export function assertCurrentZCodeMcpConfig(value: unknown, filePath: string): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  const mcp = (value as Record<string, unknown>).mcp;
+  if (!mcp || typeof mcp !== "object" || Array.isArray(mcp)) return;
+  const config = mcp as Record<string, unknown>;
+  const servers = config.servers;
+  if (
+    Object.keys(config).some((key) => key !== "servers") ||
+    (servers &&
+      typeof servers === "object" &&
+      !Array.isArray(servers) &&
+      Object.values(servers).some(
+        (server) => server && typeof server === "object" && Object.hasOwn(server, "enable"),
+      ))
+  ) {
+    throw new Error(
+      `Incompatible ZCode Next MCP configuration: ${filePath}. Manually replace obsolete ` +
+        "server enable fields with enabled and remove old directory overrides from mcp. " +
+        "Keep the current mcp.servers entries, unrelated configuration, project and workspace files.",
+    );
+  }
+}
+
 export interface CliMcpConfig {
   mcpServers: Record<string, McpServerConfig>;
   projects: Record<string, Record<string, McpServerConfig>>;
@@ -92,21 +116,6 @@ export interface LoadCliMcpFromUserDirectoryRequest {
 
 export interface LoadCliMcpFromUserDirectoryResult {
   servers: NativeMcpServerRecord[];
-}
-
-export interface MigrateLegacyCommonMcpRequest {
-  legacyStorageDir?: string;
-}
-
-export interface MigrateLegacyCommonMcpResult {
-  servers: Record<string, McpServerConfig>;
-  sourcePath?: string;
-  /** 旧数据中发现的 MCP 配置总数 */
-  totalCount: number;
-  /** 成功导入的数量 */
-  importedCount: number;
-  /** 因已存在而跳过的数量 */
-  skippedCount: number;
 }
 
 export interface McpConfig {

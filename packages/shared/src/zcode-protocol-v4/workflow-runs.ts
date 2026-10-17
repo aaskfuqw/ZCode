@@ -118,21 +118,6 @@ export const WORKFLOW_RUNS_LIMITS = {
 } as const;
 
 /**
- * **旧消费者**（没有 `workflowRunDeltas` 能力的那一代）编译进去的 actors / nodes 界。
- *
- * ⚠ 这两个数**永远不能改**：它们不是我们的界，是别人二进制里的校验界。超界的载荷不会被
- * 剥掉一个键——它会让整个 `state.updated` patch 解析失败、整帧被丢，那条订阅从此静默
- * （2026-09-04 的那次 `fault.subscription.recoveryFailed` 就是这个形状）。所以给这类订阅者
- * 发帧前必须先过 `clampWorkflowRunsForLegacy`。
- *
- * 「前 256 条」不是随手取的：旧归约触界时是**拒新**，它产出的恰好就是最早的那 256 条。
- */
-export const WORKFLOW_RUNS_LEGACY_LIMITS = {
-  maxActors: 256,
-  maxNodes: 256,
-} as const;
-
-/**
  * 一个被控制流进入过的阶段（`phase("…")` 标记；docs/dynamic-workflow/presentation.md
  * 2026-09-05）。`name` 是作者原词（时间线按它关联 display 的 `phases[].name`）；`rounds` 是进入
  * 次数——单调（reducer 取 max），所以 resume 重放的前缀不会把它加倍。

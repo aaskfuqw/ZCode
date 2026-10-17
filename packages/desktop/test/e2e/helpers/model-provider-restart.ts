@@ -49,7 +49,6 @@ export async function seedBigModelConnectionSelection(
       bigmodel: selection,
     },
     providerFamilyDomain: "bigmodel",
-    providerFamilyDomainMigrated: true,
   });
 }
 

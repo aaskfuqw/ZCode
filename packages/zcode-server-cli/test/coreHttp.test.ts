@@ -15,9 +15,16 @@ import {
 } from "@zcode/rpc";
 import { createTopicResourcePeers } from "@zcode/services/node";
 import { TOPIC_RESOURCE_RELAY_CHANNEL } from "@zcode/shared";
+import { CURRENT_PROTOCOL_CONTRACT } from "@zcode/shared/zcode-protocol-v4";
+
+const admissionRequest = {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ protocolContract: CURRENT_PROTOCOL_CONTRACT }),
+};
 
 async function connectResourcePeer(base: string, onValidate: () => void) {
-  const response = await fetch(`${base}/api/rpc-host-capability`, { method: "POST" });
+  const response = await fetch(`${base}/api/rpc-host-capability`, admissionRequest);
   const { capability } = (await response.json()) as { capability: string };
   const socket = new WebSocket(`${base.replace("http:", "ws:")}/ws/host`, {
     headers: { "x-zcode-rpc-host-capability": capability },
@@ -180,6 +187,7 @@ describe("standalone Server Core ingress", () => {
     expect(info.status).toBe(200);
     await expect(info.json()).resolves.toMatchObject({
       protocolVersion: 1,
+      protocolContract: CURRENT_PROTOCOL_CONTRACT,
       authRequired: false,
       capabilities: {
         desktopContinuous: true,
@@ -192,7 +200,7 @@ describe("standalone Server Core ingress", () => {
 
     const capabilityResponse = await fetch(
       `http://${server.host}:${server.port}/api/rpc-host-capability`,
-      { method: "POST" },
+      admissionRequest,
     );
     const capability = (await capabilityResponse.json()) as { capability: string };
     const socket = new WebSocket(`ws://${server.host}:${server.port}/ws/host`, {
@@ -256,9 +264,10 @@ describe("standalone Server Core ingress", () => {
       hostCapabilityStore: createHostCapabilityStore({ ttlMs: 100, now: () => now }),
     });
     servers.push(server);
-    const issued = await fetch(`http://${server.host}:${server.port}/api/rpc-host-capability`, {
-      method: "POST",
-    });
+    const issued = await fetch(
+      `http://${server.host}:${server.port}/api/rpc-host-capability`,
+      admissionRequest,
+    );
     const { capability, expiresAt } = (await issued.json()) as {
       capability: string;
       expiresAt: number;
@@ -276,4 +285,41 @@ describe("standalone Server Core ingress", () => {
       createCoreHttpServer(new ServiceCollection(), { host: "0.0.0.0" }),
     ).rejects.toThrow(/non-loopback.*authentication|loopback/i);
   });
+
+  it.each([
+    undefined,
+    {},
+    { protocolContract: { ...CURRENT_PROTOCOL_CONTRACT, protocolVersion: -1 } },
+    { protocolContract: { ...CURRENT_PROTOCOL_CONTRACT, capabilities: {} } },
+    {
+      protocolContract: {
+        ...CURRENT_PROTOCOL_CONTRACT,
+        capabilities: { workflowRunDeltas: false },
+      },
+    },
+  ])(
+    "rejects incompatible Desktop admission before issuing or attaching a host: %j",
+    async (body) => {
+      const store = createHostCapabilityStore();
+      const issue = vi.spyOn(store, "issue");
+      const peers = createTopicResourcePeers();
+      const attach = vi.spyOn(peers, "attach");
+      const server = await createCoreHttpServer(new ServiceCollection(), {
+        hostCapabilityStore: store,
+        topicResourcePeers: peers,
+      });
+      servers.push(server);
+      const response = await fetch(`http://${server.host}:${server.port}/api/rpc-host-capability`, {
+        ...admissionRequest,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({
+        code: "fault.protocol.incompatible",
+        error: expect.stringContaining("Update or redeploy the paired Next components"),
+      });
+      expect(issue).not.toHaveBeenCalled();
+      expect(attach).not.toHaveBeenCalled();
+    },
+  );
 });

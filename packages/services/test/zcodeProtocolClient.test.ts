@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Emitter } from "@zcode/rpc";
 import type { ZCodeProtocolMessage } from "@zcode/shared";
 import { zcodeSessionStateSnapshotSchema } from "@zcode/shared";
+import { CURRENT_PROTOCOL_CONTRACT, V4_METHODS } from "@zcode/shared/zcode-protocol-v4";
 import {
   DEFAULT_ZCODE_PROTOCOL_REQUEST_TIMEOUT_MS,
   ZCodeProtocolClient,
@@ -25,6 +26,8 @@ const protocolModelProperties = {
 class FakeZCodeTransport implements ZCodeProtocolTransport {
   readonly kind = "memory" as const;
   readonly sent: ZCodeProtocolMessage[] = [];
+  readonly handshakes: ZCodeProtocolMessage[] = [];
+  autoAdmit = true;
 
   private readonly messageEmitter = new Emitter<ZCodeProtocolMessage>();
   private readonly closeEmitter = new Emitter<ZCodeProtocolTransportClosedEvent>();
@@ -33,6 +36,15 @@ class FakeZCodeTransport implements ZCodeProtocolTransport {
   readonly onClose = this.closeEmitter.event;
 
   async send(message: ZCodeProtocolMessage): Promise<void> {
+    if (
+      "id" in message &&
+      "method" in message &&
+      message.method === V4_METHODS.connectionInitialize
+    ) {
+      this.handshakes.push(message);
+      if (this.autoAdmit) this.receive({ id: message.id, result: CURRENT_PROTOCOL_CONTRACT });
+      return;
+    }
     this.sent.push(message);
   }
 
@@ -92,11 +104,55 @@ const snapshot = {
 };
 
 describe("ZCodeProtocolClient", () => {
+  it("rejects an Agent without the initialize method before sending business requests", async () => {
+    const transport = new FakeZCodeTransport();
+    transport.autoAdmit = false;
+    const client = new ZCodeProtocolClient(transport);
+    const request = client.request("session/create", {});
+    transport.receive({ id: 0, error: { code: -32601, message: "Method not found" } });
+    await expect(request).rejects.toThrow("Update or redeploy");
+    expect(transport.sent).toEqual([]);
+    client.dispose();
+  });
+
+  it("admits a concurrent request and notification through one handshake before sending business messages", async () => {
+    const transport = new FakeZCodeTransport();
+    transport.autoAdmit = false;
+    const client = new ZCodeProtocolClient(transport);
+    const result = client.request("session/read", { sessionId: "s1" });
+    const notification = client.notify("process/networkCapture", { captureId: null });
+    expect(transport.handshakes).toHaveLength(1);
+    expect(transport.sent).toEqual([]);
+    transport.receive({ id: 0, result: CURRENT_PROTOCOL_CONTRACT });
+    await notification;
+    expect(transport.sent).toHaveLength(2);
+    transport.receive({ id: 1, result: {} });
+    await result;
+    client.dispose();
+  });
+
+  it.each([{ protocolVersion: 1 }, { ...CURRENT_PROTOCOL_CONTRACT, capabilities: {} }])(
+    "rejects an incompatible peer before any business request (%j)",
+    async (contract) => {
+      const transport = new FakeZCodeTransport();
+      transport.autoAdmit = false;
+      const client = new ZCodeProtocolClient(transport);
+      const request = client.request("session/create", {});
+      transport.receive({ id: 0, result: contract });
+      await expect(request).rejects.toThrow("Update or redeploy");
+      await expect(client.request("session/create", {})).rejects.toThrow("Update or redeploy");
+      expect(transport.handshakes).toHaveLength(1);
+      expect(transport.sent).toEqual([]);
+      client.dispose();
+    },
+  );
+
   it("dispose 批量拒绝不会把 fire-and-forget 请求的外层 Promise 判为 unhandled", async () => {
     // CR 复现：request() 返回的外层 Promise 才是 unhandledRejection 判定对象；
     // 调用方在启动后、挂靠 .catch 前 dispose，内外两层都必须已有兜底 handler。
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", onUnhandled);
@@ -118,6 +174,7 @@ describe("ZCodeProtocolClient", () => {
     vi.useFakeTimers();
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const timedOut = vi.fn(() => client.dispose());
     client.onRequestTimeout(timedOut);
     try {
@@ -142,6 +199,7 @@ describe("ZCodeProtocolClient", () => {
   it("观测不阻止业务 idle，成功和取消也不续期 idle", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const drained = vi.fn();
     client.onPendingRequestsDrained(drained);
     const controller = new AbortController();
@@ -178,6 +236,7 @@ describe("ZCodeProtocolClient", () => {
         requireStorageStartup: true,
         requestTimeoutMs: 10,
       });
+      await client.ensureCurrentProtocol();
       const notification = (phase: string, sequence: number) =>
         transport.receive({
           method: "startup/storageState",
@@ -218,6 +277,7 @@ describe("ZCodeProtocolClient", () => {
     try {
       const transport = new FakeZCodeTransport();
       const client = new ZCodeProtocolClient(transport, { requestTimeoutMs: 10 });
+      await client.ensureCurrentProtocol();
       const result = client.request("session/read", { sessionId: "s" });
       const packet = {
         schemaVersion: 1,
@@ -247,6 +307,7 @@ describe("ZCodeProtocolClient", () => {
   it("matches requests with responses and validates result schemas", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
 
     const request = client.request(
       "session/read",
@@ -265,9 +326,10 @@ describe("ZCodeProtocolClient", () => {
     });
   });
 
-  it("emits notifications without requiring a jsonrpc field", () => {
+  it("emits notifications without requiring a jsonrpc field", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const notifications: unknown[] = [];
     client.onNotification((event) => notifications.push(event));
 
@@ -281,6 +343,7 @@ describe("ZCodeProtocolClient", () => {
   it("serializes protocol traces on the request envelope", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
 
     const request = client.request(
       "session/create",
@@ -307,6 +370,7 @@ describe("ZCodeProtocolClient", () => {
     try {
       const transport = new FakeZCodeTransport();
       const client = new ZCodeProtocolClient(transport, { requestTimeoutMs: 10 });
+      await client.ensureCurrentProtocol();
       const timeouts: unknown[] = [];
       client.onRequestTimeout((event) => timeouts.push(event));
 
@@ -349,6 +413,7 @@ describe("ZCodeProtocolClient", () => {
     try {
       const transport = new FakeZCodeTransport();
       const client = new ZCodeProtocolClient(transport);
+      await client.ensureCurrentProtocol();
       const timeouts: unknown[] = [];
       client.onRequestTimeout((event) => timeouts.push(event));
 
@@ -389,6 +454,7 @@ describe("ZCodeProtocolClient", () => {
   it("cancels a pending request with an AbortSignal", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const controller = new AbortController();
 
     const request = client.request("workspace/generateText", {}, undefined, {
@@ -407,6 +473,7 @@ describe("ZCodeProtocolClient", () => {
   it("does not send a request when its AbortSignal is already aborted", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     const controller = new AbortController();
     controller.abort(new DOMException("cancelled", "AbortError"));
 
@@ -421,6 +488,7 @@ describe("ZCodeProtocolClient", () => {
   it("supports server-to-client requests and responses", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
     client.onRequest((request) => {
       void client.respond(request.id, { decision: "allow" });
     });
@@ -440,6 +508,7 @@ describe("ZCodeProtocolClient", () => {
   it("exposes isDisposed so callers can detect a recycled client before reuse", async () => {
     const transport = new FakeZCodeTransport();
     const client = new ZCodeProtocolClient(transport);
+    await client.ensureCurrentProtocol();
 
     expect(client.isDisposed).toBe(false);
 

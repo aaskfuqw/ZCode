@@ -117,71 +117,6 @@ describe("settingService", () => {
       "team-coding-plan",
     );
   });
-  it("迁移旧账号连接并保留回滚字段，新版选择不再被旧字段覆盖", async () => {
-    const home = makeTempHome();
-    const dir = join(home, ".zcode-next", "v2");
-    mkdirSync(dir, { recursive: true });
-    const file = join(dir, "setting.json");
-    const legacy = {
-      modelProviderFamilyModes: { bigmodel: "oauth", zai: "oauth" },
-      modelProviderFamilySelectedKeys: {
-        bigmodel: "team-plan:builtin:bigmodel-coding-plan:pro:org%3Aa:project-a",
-        zai: "coding-plan:builtin:zai-start-plan",
-      },
-      closeToTrayOnWindowsMigrationInitialized: true,
-      messageStreamShowReasoningMigrationInitialized: true,
-    };
-    writeFileSync(file, JSON.stringify(legacy));
-    const service = await createSettingServiceInHome(home);
-    const expected = {
-      bigmodel: {
-        kind: "team-coding-plan",
-        productId: "pro",
-        organizationId: "org:a",
-        projectId: "project-a",
-      },
-      zai: { kind: "start-plan" },
-    };
-    expect((await service.get()).providerFamilyConnectionSelections).toEqual(expected);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toMatchObject({
-      ...legacy,
-      providerFamilyConnectionSelections: expected,
-    });
-    await service.update({ providerFamilyConnectionSelections: {} });
-    expect((await service.get()).providerFamilyConnectionSelections).toEqual({});
-    expect(JSON.parse(readFileSync(file, "utf8"))).toMatchObject({
-      modelProviderFamilySelectedKeys: legacy.modelProviderFamilySelectedKeys,
-    });
-  });
-
-  it("旧个人连接可迁移，API 模式和缺组织的 Team 不猜成个人套餐", async () => {
-    const home = makeTempHome();
-    const dir = join(home, ".zcode-next", "v2");
-    mkdirSync(dir, { recursive: true });
-    const file = join(dir, "setting.json");
-    writeFileSync(
-      file,
-      JSON.stringify({
-        modelProviderFamilySelectedKeys: {
-          bigmodel: "coding-plan:builtin:bigmodel-coding-plan",
-          zai: "team-plan:builtin:zai-coding-plan:pro:project",
-        },
-      }),
-    );
-    const service = await createSettingServiceInHome(home);
-    expect((await service.get()).providerFamilyConnectionSelections).toEqual({
-      bigmodel: { kind: "individual-coding-plan" },
-    });
-    writeFileSync(
-      file,
-      JSON.stringify({
-        modelProviderFamilyModes: { bigmodel: "apiKey" },
-        modelProviderFamilySelectedKeys: { bigmodel: "coding-plan:builtin:bigmodel-coding-plan" },
-      }),
-    );
-    expect((await service.get()).providerFamilyConnectionSelections).toEqual({});
-  });
-
   it("缺少 setting.json 时返回默认值", async () => {
     const home = makeTempHome();
     const service = await createSettingServiceInHome(home);
@@ -193,7 +128,6 @@ describe("settingService", () => {
       taskAutoArchiveEnabled: false,
       taskAutoArchiveOlderThanDays: 7,
       messageStreamShowReasoning: true,
-      messageStreamShowReasoningMigrationInitialized: true,
       messageStreamShowTodos: false,
       nativeSearchEnhancementsEnabled: true,
       askUserQuestionAutoResolutionEnabled: true,
@@ -203,156 +137,58 @@ describe("settingService", () => {
     });
   });
 
-  it("旧配置默认开启提问自动继续，并持久化显式关闭", async () => {
+  it("current optional preferences keep defaults without a read-time write", async () => {
     const home = makeTempHome();
     const settingsDir = join(home, ".zcode-next", "v2");
+    const settingsFile = join(settingsDir, "setting.json");
     mkdirSync(settingsDir, { recursive: true });
-    writeFileSync(join(settingsDir, "setting.json"), JSON.stringify({ locale: "zh-CN" }), "utf-8");
-
+    const text = JSON.stringify({ locale: "zh-CN", localePreference: "system" });
+    writeFileSync(settingsFile, text, "utf-8");
     const service = await createSettingServiceInHome(home);
+
     await expect(service.get()).resolves.toMatchObject({
       askUserQuestionAutoResolutionEnabled: true,
+      messageStreamShowReasoning: true,
     });
+    expect((await service.get()).closeToTrayOnWindows).toBeUndefined();
+    expect(readFileSync(settingsFile, "utf-8")).toBe(text);
     await service.update({ askUserQuestionAutoResolutionEnabled: false });
-    const reloadedService = await createSettingServiceInHome(home);
-    await expect(reloadedService.get()).resolves.toMatchObject({
+    await expect(service.get()).resolves.toMatchObject({
       askUserQuestionAutoResolutionEnabled: false,
     });
   });
 
-  it("首次读取旧关闭到托盘配置时统一开启并持久化，之后保留用户关闭选择", async () => {
-    const home = makeTempHome();
-    const settingsDir = join(home, ".zcode-next", "v2");
-    const settingsFile = join(settingsDir, "setting.json");
-    mkdirSync(settingsDir, { recursive: true });
-    writeFileSync(
-      settingsFile,
-      JSON.stringify({
+  it.each([false, true])(
+    "keeps explicit tray/reasoning preferences %s without migration markers",
+    async (enabled) => {
+      const home = makeTempHome();
+      const settingsDir = join(home, ".zcode-next", "v2");
+      const settingsFile = join(settingsDir, "setting.json");
+      mkdirSync(settingsDir, { recursive: true });
+      const text = JSON.stringify({
         locale: "zh-CN",
-        closeToTrayOnWindows: false,
-      }),
-      "utf-8",
-    );
+        localePreference: "system",
+        closeToTrayOnWindows: enabled,
+        messageStreamShowReasoning: enabled,
+      });
+      writeFileSync(settingsFile, text, "utf-8");
+      const service = await createSettingServiceInHome(home);
 
-    const service = await createSettingServiceInHome(home);
-    await expect(service.get()).resolves.toMatchObject({
-      closeToTrayOnWindows: true,
-      closeToTrayOnWindowsMigrationInitialized: true,
-    });
-    expect(JSON.parse(readFileSync(settingsFile, "utf-8"))).toMatchObject({
-      closeToTrayOnWindows: true,
-      closeToTrayOnWindowsMigrationInitialized: true,
-    });
-
-    await service.update({ closeToTrayOnWindows: false });
-    const reloadedService = await createSettingServiceInHome(home);
-    await expect(reloadedService.get()).resolves.toMatchObject({
-      closeToTrayOnWindows: false,
-      closeToTrayOnWindowsMigrationInitialized: true,
-    });
-  });
-
-  it("首次读取旧 reasoning 配置时统一开启并持久化，之后保留用户关闭选择", async () => {
-    const home = makeTempHome();
-    const settingsDir = join(home, ".zcode-next", "v2");
-    const settingsFile = join(settingsDir, "setting.json");
-    mkdirSync(settingsDir, { recursive: true });
-    writeFileSync(
-      settingsFile,
-      JSON.stringify({
-        locale: "zh-CN",
-        messageStreamShowReasoning: false,
-        closeToTrayOnWindowsMigrationInitialized: true,
-      }),
-      "utf-8",
-    );
-
-    const service = await createSettingServiceInHome(home);
-    await expect(service.get()).resolves.toMatchObject({
-      messageStreamShowReasoning: true,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-    expect(JSON.parse(readFileSync(settingsFile, "utf-8"))).toMatchObject({
-      messageStreamShowReasoning: true,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-
-    await service.update({ messageStreamShowReasoning: false });
-    const reloadedService = await createSettingServiceInHome(home);
-    await expect(reloadedService.get()).resolves.toMatchObject({
-      messageStreamShowReasoning: false,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-    await expect(reloadedService.get()).resolves.toMatchObject({
-      messageStreamShowReasoning: false,
-      messageStreamShowReasoningMigrationInitialized: true,
-    });
-  });
-
-  it("一次性设置迁移写盘会进入设置更新队列，避免覆盖并发设置更新", async () => {
-    const home = makeTempHome();
-    const settingsDir = join(home, ".zcode-next", "v2");
-    const settingsFile = join(settingsDir, "setting.json");
-    mkdirSync(settingsDir, { recursive: true });
-    writeFileSync(
-      settingsFile,
-      JSON.stringify({
-        locale: "zh-CN",
-        messageStreamShowReasoning: false,
-      }),
-      "utf-8",
-    );
-
-    let releaseFirstSettingsWrite: (() => void) | undefined;
-    let firstSettingsWriteStarted: (() => void) | undefined;
-    const firstSettingsWriteStartedPromise = new Promise<void>((resolve) => {
-      firstSettingsWriteStarted = resolve;
-    });
-    const firstSettingsWriteReleasePromise = new Promise<void>((resolve) => {
-      releaseFirstSettingsWrite = resolve;
-    });
-    let settingsWriteCount = 0;
-
-    vi.doMock("node:fs/promises", async () => {
-      const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
-      return {
-        ...actual,
-        writeFile: vi.fn(async (...args: Parameters<typeof actual.writeFile>) => {
-          const [file] = args;
-          const filePath = String(file);
-          if (filePath.startsWith(`${settingsFile}.`) && filePath.endsWith(".tmp")) {
-            settingsWriteCount += 1;
-            if (settingsWriteCount === 1) {
-              firstSettingsWriteStarted?.();
-              await firstSettingsWriteReleasePromise;
-            }
-          }
-          return actual.writeFile(...args);
-        }),
-      };
-    });
-
-    const service = await createSettingServiceInHome(home);
-    const getPromise = service.get();
-    await firstSettingsWriteStartedPromise;
-
-    let updateSettled = false;
-    const updatePromise = service.update({ recentProjects: ["/tmp/new-project"] }).then(() => {
-      updateSettled = true;
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(updateSettled).toBe(false);
-
-    releaseFirstSettingsWrite?.();
-    await Promise.all([getPromise, updatePromise]);
-
-    expect(JSON.parse(readFileSync(settingsFile, "utf-8"))).toMatchObject({
-      messageStreamShowReasoning: true,
-      messageStreamShowReasoningMigrationInitialized: true,
-      recentProjects: ["/tmp/new-project"],
-    });
-  });
+      await expect(service.get()).resolves.toMatchObject({
+        closeToTrayOnWindows: enabled,
+        messageStreamShowReasoning: enabled,
+      });
+      expect(readFileSync(settingsFile, "utf-8")).toBe(text);
+      await service.update({ locale: "en-US" });
+      const settings = await service.get();
+      expect(settings.localePreference).toBe("system");
+      expect(settings.closeToTrayOnWindows).toBe(enabled);
+      expect(settings.messageStreamShowReasoning).toBe(enabled);
+      const saved = JSON.parse(readFileSync(settingsFile, "utf-8"));
+      expect(saved).not.toHaveProperty("closeToTrayOnWindowsMigrationInitialized");
+      expect(saved).not.toHaveProperty("messageStreamShowReasoningMigrationInitialized");
+    },
+  );
 
   it("设置进入原子提交后会等待 rename 收口再保存后续语言偏好", async () => {
     const home = makeTempHome();
@@ -617,7 +453,7 @@ describe("settingService", () => {
     expect(backupFiles).toHaveLength(1);
     expect(readFileSync(join(settingsDir, backupFiles[0] as string), "utf-8")).toBe(":wq\n");
 
-    await service.update({ locale: "en-US" });
+    await service.update({ locale: "en-US", localePreference: "en-US" });
 
     expect(JSON.parse(readFileSync(settingsFile, "utf-8"))).toMatchObject({
       locale: "en-US",
@@ -640,6 +476,7 @@ describe("settingService", () => {
       settingsFile,
       JSON.stringify({
         locale: "en-US",
+        localePreference: "en-US",
         recentProjects: ["/tmp/workspace-a"],
         lastWorkspaceSession: [
           {
@@ -723,6 +560,7 @@ describe("settingService", () => {
       settingsFile,
       JSON.stringify({
         locale: "en-US",
+        localePreference: "en-US",
         recentProjects: ["/tmp/demo"],
         zcodeEndpointOrigin: ["ftp://invalid.example"],
       }),
@@ -788,7 +626,6 @@ describe("settingService", () => {
 
     await expect(service.get()).resolves.toMatchObject({
       messageStreamShowReasoning: false,
-      messageStreamShowReasoningMigrationInitialized: true,
       messageStreamShowTodos: true,
     });
   });
@@ -1013,53 +850,6 @@ describe("settingService", () => {
           lastConnectionStatus: "failed",
         },
       ],
-    });
-  });
-
-  it("读取旧版 settings 时会迁移 lastOpenTabs 和 remoteWorkspaceHistory", async () => {
-    const home = makeTempHome();
-    const settingsFile = join(home, ".zcode-next", "v2", "setting.json");
-    mkdirSync(join(home, ".zcode-next", "v2"), { recursive: true });
-    writeFileSync(
-      settingsFile,
-      JSON.stringify({
-        recentProjects: ["/tmp/existing"],
-        locale: "zh-CN",
-        lastOpenTabs: ["/tmp/local-demo"],
-        lastWorkspaceSession: [{ kind: "remote", historyId: "legacy-remote" }],
-        remoteWorkspaceHistory: [
-          {
-            id: "legacy-remote",
-            workspacePath: "/workspace/demo",
-            target: {
-              kind: "docker",
-              container: "demo",
-            },
-            lastOpenedAt: 456,
-            lastConnectionStatus: "failed",
-          },
-        ],
-      }),
-      "utf-8",
-    );
-
-    const reloadedService = await createSettingServiceInHome(home);
-    const settings = await reloadedService.get();
-    expect(settings.lastWorkspaceSession).toHaveLength(2);
-    expect(settings.lastWorkspaceSession?.[0]).toMatchObject({
-      kind: "remote",
-      workspacePath: "/workspace/demo",
-      target: {
-        kind: "docker",
-        container: "demo",
-      },
-      lastOpenedAt: 456,
-      lastConnectionStatus: "failed",
-    });
-    expect(settings.lastWorkspaceSession?.[1]).toEqual({
-      kind: "local",
-      workspacePath: "/tmp/local-demo",
-      workspacePurpose: "project",
     });
   });
 

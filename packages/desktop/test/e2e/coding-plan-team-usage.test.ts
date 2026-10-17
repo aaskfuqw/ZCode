@@ -738,7 +738,6 @@ async function prepareScenario(
       bigmodel: connectionSelection,
     },
     providerFamilyDomain: "bigmodel",
-    providerFamilyDomainMigrated: true,
     // Bug 根因：同一 spec 多次 reloadSession 会继承前一场景关闭时写回的 workspace。
     // Team Plan case 的 model-resolution seed 明确写 DEFAULT_WORKSPACE，因此启动入口也
     // 必须固定到同一个 project workspace，不能偶发落入 conversation workspace。

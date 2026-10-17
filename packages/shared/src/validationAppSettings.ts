@@ -1,7 +1,5 @@
-/* oxlint-disable eslint(max-lines) -- AppSettings schema 聚合历史迁移、默认值和 patch 校验，拆分会削弱设置迁移的单一入口。 */
 import { z } from "zod";
 import { REMOTE_ASSET_INSTALL_MODES } from "./remoteAssetInstallMode.js";
-import { isKnownRemoteResourcePackageId } from "./remoteResourcePackages.js";
 import { wslUserSchema } from "./wslUserValidation.js";
 import { ZCODE_ENABLED_AGENT_PROVIDERS } from "./zcode-agent-policy.js";
 import { DYNAMIC_WORKFLOW_MODES } from "./dynamic-workflow-feature.js";
@@ -34,7 +32,7 @@ export const appSettingsOccupationEnum = appSettingsOccupationSchema;
 const nonEmptyStringSchema = z.string().trim().min(1);
 
 export const localeSchema = z.enum(["zh-CN", "en-US"]);
-export const localePreferenceSchema = z.enum(["system", "zh-CN", "en-US"]);
+const localePreferenceSchema = z.enum(["system", "zh-CN", "en-US"]);
 const zcodeInteractionBehaviorSchema = z.enum(["queue", "guide"]);
 // launch.md「The user's choice」：读文件时未知取值（降级后读到新版本写的值）按「跟随」处理，
 // 不能让一个偏好字段把整份设置读坏。
@@ -58,10 +56,52 @@ export const integratedTerminalShellSelectionSchema = z.discriminatedUnion("mode
   }),
 ]);
 const enabledBuiltinAgentCliProvidersSchema = z
-  // 兼容旧 settings：历史列表可能残留三方 CLI provider，解析后统一归一为 ZCode Agent。
-  .array(z.enum(["claude", "opencode", "gemini", "codex", "glm"]))
+  .array(z.enum(ZCODE_ENABLED_AGENT_PROVIDERS))
+  // The current runtime always enables its single built-in Agent.
   .transform(() => [...ZCODE_ENABLED_AGENT_PROVIDERS]);
 const providerFamilyDomainSchema = z.enum(["zai", "bigmodel"]);
+
+const currentSettingsInputSchema = z.unknown().superRefine((value, context) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  const raw = value as Record<string, unknown>;
+  const obsoleteAccount =
+    !Object.hasOwn(raw, "providerFamilyConnectionSelections") &&
+    (Object.hasOwn(raw, "modelProviderFamilySelectedKeys") ||
+      Object.hasOwn(raw, "modelProviderFamilyModes"));
+  const obsoleteLocale =
+    localeSchema.safeParse(raw.locale).success && !Object.hasOwn(raw, "localePreference");
+  const obsoleteProviders =
+    Array.isArray(raw.enabledBuiltinAgentCliProviders) &&
+    raw.enabledBuiltinAgentCliProviders.some((provider) =>
+      ["claude", "opencode", "gemini", "codex"].includes(provider),
+    );
+  const obsoleteWorkspace =
+    Object.hasOwn(raw, "lastOpenTabs") ||
+    Object.hasOwn(raw, "remoteWorkspaceHistory") ||
+    (Array.isArray(raw.lastWorkspaceSession) &&
+      raw.lastWorkspaceSession.some((entry: unknown) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+        const session = entry as Record<string, unknown>;
+        if (session.kind !== "remote") return false;
+        if (Object.hasOwn(session, "historyId")) return true;
+        const target = session.target;
+        return (
+          target !== null &&
+          typeof target === "object" &&
+          "kind" in target &&
+          target.kind === "ssh" &&
+          Object.hasOwn(target, "resourcePackages")
+        );
+      }));
+  if (obsoleteAccount || obsoleteLocale || obsoleteProviders || obsoleteWorkspace) {
+    context.addIssue({
+      code: "custom",
+      message:
+        "Unsupported historical AppSettings format; reset the affected settings file manually",
+      params: { incompatibleSettingsFormat: true },
+    });
+  }
+});
 
 const remoteWorkspaceTargetSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -72,11 +112,6 @@ const remoteWorkspaceTargetSchema = z.discriminatedUnion("kind", [
     sshConfigAlias: nonEmptyStringSchema.optional(),
     privateKeyPath: z.string().optional(),
     assetInstallMode: z.enum(REMOTE_ASSET_INSTALL_MODES).optional(),
-    resourcePackages: z
-      .object({
-        selectedPackageIds: z.array(z.string().refine(isKnownRemoteResourcePackageId)).optional(),
-      })
-      .optional(),
     passwordCredentialKey: nonEmptyStringSchema.optional(),
     privateKeyPassphraseCredentialKey: nonEmptyStringSchema.optional(),
   }),
@@ -196,251 +231,6 @@ function sanitizeEmbeddedBrowserViewportPreference(value: unknown): unknown {
   return next;
 }
 
-function migrateCloseToTrayOnWindowsDefault(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-  const raw = value as Record<string, unknown>;
-  if (raw.closeToTrayOnWindowsMigrationInitialized === true) {
-    return value;
-  }
-  return {
-    ...raw,
-    // 初始化原因：旧版会把默认 false 和用户手动关闭都保存成同一个值，无法可靠区分。
-    // 本版本统一开启一次；写入迁移标记后，后续再按用户明确选择保留 true/false。
-    closeToTrayOnWindows: true,
-    closeToTrayOnWindowsMigrationInitialized: true,
-  };
-}
-
-function migrateMessageStreamShowReasoningDefault(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-  const raw = value as Record<string, unknown>;
-  if (raw.messageStreamShowReasoningMigrationInitialized === true) {
-    return value;
-  }
-  return {
-    ...raw,
-    // 初始化原因：旧版会把默认 false 和用户手动关闭都保存成同一个值，无法可靠区分。
-    // 本版本统一开启一次；写入迁移标记后，后续再按用户明确选择保留 true/false。
-    messageStreamShowReasoning: true,
-    messageStreamShowReasoningMigrationInitialized: true,
-  };
-}
-
-function migrateLegacyLocalePreference(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-
-  const raw = value as Record<string, unknown>;
-  if ("localePreference" in raw || !("locale" in raw)) {
-    return value;
-  }
-
-  const parsedLocale = localeSchema.safeParse(raw.locale);
-  if (!parsedLocale.success) {
-    return value;
-  }
-
-  return {
-    ...raw,
-    // 旧 setting.json 只有 locale，无法区分“用户显式选择 zh-CN”和“默认值 zh-CN”。
-    // 对已经落盘的旧配置保留原 locale 作为显式偏好，避免升级后误切到 system。
-    localePreference: parsedLocale.data,
-  };
-}
-
-const legacyRemoteWorkspaceHistoryEntrySchema = z.object({
-  id: nonEmptyStringSchema,
-  workspacePath: nonEmptyStringSchema,
-  localWorkspacePath: nonEmptyStringSchema.optional(),
-  workspaceIdentity: nonEmptyStringSchema.optional(),
-  target: remoteWorkspaceTargetSchema,
-  lastOpenedAt: z.number().int().nonnegative(),
-  lastConnectionStatus: z.enum(["connected", "failed"]),
-  lastConnectionError: z.string().optional(),
-});
-
-function migrateLegacyBuiltinAgentCliProviders(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-
-  const raw = value as {
-    enabledBuiltinAgentCliProviders?: unknown;
-  };
-
-  // Bugfix: 单 ZCode Agent 迁移后，旧 setting.json 可能还保存已移除的第三方 CLI provider
-  // 的启用状态。若这些值继续进入 UI / bot 的 provider 选项，会和 server 侧唯一 glm 状态打架。
-  // 这里在 schema 入口统一归一到 ZCode Agent，让核心 provider 状态只有一个事实源。
-  return {
-    ...raw,
-    enabledBuiltinAgentCliProviders: [...ZCODE_ENABLED_AGENT_PROVIDERS],
-  };
-}
-
-function stripHistoricalRemoteResourcePackages(target: unknown): unknown {
-  if (!target || typeof target !== "object" || Array.isArray(target)) {
-    return target;
-  }
-
-  const rawTarget = target as Record<string, unknown>;
-  if (rawTarget.kind !== "ssh" || !("resourcePackages" in rawTarget)) {
-    return target;
-  }
-
-  const { resourcePackages: _resourcePackages, ...nextTarget } = rawTarget;
-  // SSH 部署固定使用完整 active 资源集；旧 setting.json 里的 resourcePackages 是历史裁剪，
-  // 在配置入口清掉，避免后续重连或 tab 恢复继续读取。
-  return nextTarget;
-}
-
-function migrateLegacyWorkspaceSession(value: unknown): unknown {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value;
-  }
-
-  const raw = value as {
-    lastOpenTabs?: unknown;
-    lastWorkspaceSession?: unknown;
-    remoteWorkspaceHistory?: unknown;
-  };
-  const migrated = { ...raw } as Record<string, unknown>;
-  const lastWorkspaceSession = Array.isArray(raw.lastWorkspaceSession)
-    ? raw.lastWorkspaceSession
-    : [];
-
-  const hasLegacyRemoteEntries = lastWorkspaceSession.some((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      return false;
-    }
-    return "historyId" in (entry as Record<string, unknown>);
-  });
-
-  const legacyRemoteHistory = Array.isArray(raw.remoteWorkspaceHistory)
-    ? raw.remoteWorkspaceHistory
-    : [];
-  const legacyRemoteHistoryById = new Map(
-    legacyRemoteHistory.flatMap((entry) => {
-      const sanitizedEntry =
-        entry && typeof entry === "object" && !Array.isArray(entry)
-          ? {
-              ...(entry as Record<string, unknown>),
-              // 更老的 remoteWorkspaceHistory 可能保存了已退役资源包 ID。
-              // 先剥离历史选择再走 schema，避免迁移阶段误删整条远程历史。
-              target: stripHistoricalRemoteResourcePackages(
-                (entry as Record<string, unknown>).target,
-              ),
-            }
-          : entry;
-      const parsed = legacyRemoteWorkspaceHistoryEntrySchema.safeParse(sanitizedEntry);
-      return parsed.success ? [[parsed.data.id, parsed.data] as const] : [];
-    }),
-  );
-
-  const migratedWorkspaceSessionEntries: Record<string, unknown>[] =
-    lastWorkspaceSession.length > 0
-      ? lastWorkspaceSession.flatMap((entry): Record<string, unknown>[] => {
-          if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-            return [];
-          }
-
-          const rawEntry = entry as Record<string, unknown>;
-          if (rawEntry.kind === "local" && typeof rawEntry.workspacePath === "string") {
-            return [
-              {
-                kind: "local",
-                workspacePath: rawEntry.workspacePath,
-                workspacePurpose:
-                  rawEntry.workspacePurpose === "conversation" ? "conversation" : "project",
-              },
-            ];
-          }
-
-          if (rawEntry.kind === "remote") {
-            if (typeof rawEntry.workspacePath === "string" && rawEntry.target) {
-              return [
-                {
-                  ...rawEntry,
-                  target: stripHistoricalRemoteResourcePackages(rawEntry.target),
-                },
-              ];
-            }
-
-            if (typeof rawEntry.historyId === "string") {
-              const legacyRemoteEntry = legacyRemoteHistoryById.get(rawEntry.historyId);
-              return legacyRemoteEntry
-                ? [
-                    {
-                      kind: "remote",
-                      workspacePath: legacyRemoteEntry.workspacePath,
-                      ...(legacyRemoteEntry.localWorkspacePath
-                        ? { localWorkspacePath: legacyRemoteEntry.localWorkspacePath }
-                        : {}),
-                      ...(legacyRemoteEntry.workspaceIdentity
-                        ? { workspaceIdentity: legacyRemoteEntry.workspaceIdentity }
-                        : {}),
-                      target: stripHistoricalRemoteResourcePackages(legacyRemoteEntry.target),
-                      lastOpenedAt: legacyRemoteEntry.lastOpenedAt,
-                      lastConnectionStatus: legacyRemoteEntry.lastConnectionStatus,
-                      ...(legacyRemoteEntry.lastConnectionError
-                        ? { lastConnectionError: legacyRemoteEntry.lastConnectionError }
-                        : {}),
-                    },
-                  ]
-                : [];
-            }
-          }
-
-          return [];
-        })
-      : [];
-  const migratedLegacyLocalEntries = Array.isArray(raw.lastOpenTabs)
-    ? raw.lastOpenTabs.flatMap((workspacePath) =>
-        typeof workspacePath === "string"
-          ? [
-              {
-                kind: "local" as const,
-                workspacePath,
-                workspacePurpose: "project" as const,
-              },
-            ]
-          : [],
-      )
-    : [];
-  const existingLocalWorkspacePaths = new Set(
-    migratedWorkspaceSessionEntries.flatMap((entry) =>
-      entry.kind === "local" && typeof entry.workspacePath === "string"
-        ? [entry.workspacePath]
-        : [],
-    ),
-  );
-  const nextWorkspaceSession = [
-    ...migratedWorkspaceSessionEntries,
-    ...migratedLegacyLocalEntries.filter(
-      (entry) => !existingLocalWorkspacePaths.has(entry.workspacePath),
-    ),
-  ];
-
-  // 旧 setting.json 把本地会话、远端历史、组合会话拆在三处存，
-  // 一旦只删掉其中一处，启动恢复就会出现“列表还在但恢复不到”或“远端数据残留”的分叉状态。
-  // 这里在 schema 解析阶段统一合并进 lastWorkspaceSession，并主动移除旧字段，
-  // 保证后续所有读写都只围绕单一真相源展开。
-  if (
-    nextWorkspaceSession.length > 0 ||
-    hasLegacyRemoteEntries ||
-    Array.isArray(raw.lastOpenTabs)
-  ) {
-    migrated.lastWorkspaceSession = nextWorkspaceSession;
-  }
-  delete migrated.lastOpenTabs;
-  delete migrated.remoteWorkspaceHistory;
-  return migrated;
-}
-
 const appSettingsObjectSchema = z.object({
   recentProjects: z.array(z.string()).default([]),
   locale: localeSchema.default("zh-CN"),
@@ -462,16 +252,12 @@ const appSettingsObjectSchema = z.object({
   computerUseComposerEntryHidden: z.boolean().default(true),
   taskAutoArchiveEnabled: z.boolean().default(false),
   taskAutoArchiveOlderThanDays: z.number().int().positive().max(365).default(7),
-  closeToTrayOnWindows: z.boolean().default(true),
-  closeToTrayOnWindowsMigrationInitialized: z.boolean().default(true),
-  // default(false)：新装与存量用户首次启动都视为未归位，由 main 进程按平台决定是否迁移。
-  closeToTrayLinuxMigrationInitialized: z.boolean().default(false),
+  closeToTrayOnWindows: z.boolean().optional(),
   keepAwakeWhileRunning: z.boolean().default(false),
   desktopZoomLevel: desktopZoomLevelSchema.optional(),
   desktopWindowSize: desktopWindowSizeSchema.optional(),
   desktopChromiumHardwareAccelerationEnabled: z.boolean().default(true),
   messageStreamShowReasoning: z.boolean().default(true),
-  messageStreamShowReasoningMigrationInitialized: z.boolean().default(true),
   messageStreamShowTodos: z.boolean().default(false),
   toolGroupingExploreEnabled: z.boolean().default(true),
   toolGroupingTerminalEnabled: z.boolean().default(true),
@@ -486,7 +272,6 @@ const appSettingsObjectSchema = z.object({
   providerFamilyConnectionSelections: providerFamilyConnectionSelectionSettingsSchema.default({}),
   providerFamilyDomain: providerFamilyDomainSchema.optional(),
   providerFamilyDomainUpdatedAt: z.number().int().nonnegative().optional(),
-  providerFamilyDomainMigrated: z.boolean().default(false),
   nativeSearchEnhancementsEnabled: z.boolean().default(true),
   onboardingOccupation: appSettingsOccupationSchema.nullish(),
   proactiveSuggestionsEnabled: z.boolean().optional(),
@@ -501,22 +286,14 @@ const appSettingsObjectSchema = z.object({
   zcodeEndpointOrigin: zcodeEndpointOriginSchema.optional(),
 });
 
-export const appSettingsSchema = z.preprocess(
-  (value) =>
-    sanitizeEmbeddedBrowserViewportPreference(
-      sanitizeDesktopWindowSize(
-        migrateMessageStreamShowReasoningDefault(
-          migrateCloseToTrayOnWindowsDefault(
-            migrateLegacyLocalePreference(
-              sanitizeZCodeEndpointOrigin(
-                migrateLegacyWorkspaceSession(migrateLegacyBuiltinAgentCliProviders(value)),
-              ),
-            ),
-          ),
-        ),
+export const appSettingsSchema = currentSettingsInputSchema.pipe(
+  z.preprocess(
+    (value) =>
+      sanitizeEmbeddedBrowserViewportPreference(
+        sanitizeDesktopWindowSize(sanitizeZCodeEndpointOrigin(value)),
       ),
-    ),
-  appSettingsObjectSchema,
+    appSettingsObjectSchema,
+  ),
 );
 
 export const appSettingsPatchSchema = z.object({
@@ -537,13 +314,10 @@ export const appSettingsPatchSchema = z.object({
   taskAutoArchiveOlderThanDays: z.number().int().positive().max(365).optional(),
   closeToTrayOnWindows: z.boolean().optional(),
   keepAwakeWhileRunning: z.boolean().optional(),
-  closeToTrayOnWindowsMigrationInitialized: z.boolean().optional(),
-  closeToTrayLinuxMigrationInitialized: z.boolean().optional(),
   desktopZoomLevel: desktopZoomLevelSchema.optional(),
   desktopWindowSize: desktopWindowSizeSchema.optional(),
   desktopChromiumHardwareAccelerationEnabled: z.boolean().optional(),
   messageStreamShowReasoning: z.boolean().optional(),
-  messageStreamShowReasoningMigrationInitialized: z.boolean().optional(),
   messageStreamShowTodos: z.boolean().optional(),
   toolGroupingExploreEnabled: z.boolean().optional(),
   toolGroupingTerminalEnabled: z.boolean().optional(),
@@ -557,7 +331,6 @@ export const appSettingsPatchSchema = z.object({
   providerFamilyConnectionSelections: providerFamilyConnectionSelectionSettingsSchema.optional(),
   providerFamilyDomain: z.union([providerFamilyDomainSchema, z.literal("")]).optional(),
   providerFamilyDomainUpdatedAt: z.number().int().nonnegative().optional(),
-  providerFamilyDomainMigrated: z.boolean().optional(),
   nativeSearchEnhancementsEnabled: z.boolean().optional(),
   onboardingOccupation: z
     .enum([

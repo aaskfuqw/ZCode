@@ -60,6 +60,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: [workspaceDir],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [
           {
             kind: "local",
@@ -94,6 +95,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: [workspaceA, workspaceB],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [
           {
             kind: "local",
@@ -130,6 +132,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: ["/tmp/workspace-a"],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [
           {
             kind: "local",
@@ -173,6 +176,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: ["/tmp/workspace-a"],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [
           {
             kind: "remote",
@@ -350,6 +354,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: ["/tmp/workspace-a"],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [],
         lastActiveTabIndex: 0,
       }),
@@ -375,6 +380,7 @@ describe("startup workspace", () => {
       JSON.stringify({
         recentProjects: [],
         locale: "zh-CN",
+        localePreference: "zh-CN",
         lastWorkspaceSession: [],
         lastActiveTabIndex: 0,
       }),

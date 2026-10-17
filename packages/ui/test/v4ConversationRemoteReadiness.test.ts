@@ -144,6 +144,7 @@ function makePreviewServices(id: string) {
             localTerminal: true,
             binaryFrames: false,
             compression: "none" as const,
+            workflowRunDeltas: true as const,
           },
           auth: {},
         })),

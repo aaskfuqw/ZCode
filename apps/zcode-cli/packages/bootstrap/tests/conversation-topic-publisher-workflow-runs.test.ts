@@ -1,9 +1,6 @@
 // ConversationTopicPublisher × workflowRuns 键级增量（DESIGN §5/§6）。
-// 这一套钉的是**每订阅者编码**这条分界线：同一份保留日志，认得增量的连接收 `workflowRun.*`，
-// 不认得的那一代收整键 patch + 旧界裁剪。走错一边的后果不是"慢一点"——旧客户端遇到未知 op
-// 会整帧解析失败，遇到 257 个节点会整帧解析失败，两种都让那条订阅从此静默。
+// Both current delivery profiles consume native workflow deltas and the current snapshot budget.
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
 import type {
   EventId,
   SessionEvent,
@@ -20,14 +17,9 @@ import type {
 } from "@zcode/shared/zcode-protocol-v4";
 import {
   PROTOCOL_V4_LIMITS,
-  WORKFLOW_RUNS_LEGACY_LIMITS,
   WORKFLOW_RUNS_LIMITS,
   applyConversationDeltas,
   conversationTopicFrameSchema,
-  workflowRunActorSchema,
-  workflowRunNodeSchema,
-  workflowRunSchema,
-  workflowRunsStateSchema,
 } from "@zcode/shared/zcode-protocol-v4";
 import {
   ConversationTopicPublisher,
@@ -36,23 +28,6 @@ import {
 } from "../src/zcode-protocol-v4/index.js";
 
 const RUN_ID = "dwfrun-1";
-
-/**
- * 旧消费者二进制里的那份 schema：actors / nodes 的界是 256。
- *
- * 从当前 schema `.extend` 出来而不是手抄——手抄一份 run 字段表正是 2026-09-04 事故的形状。
- * 它在这里的职责只有一个：证明裁剪不是"看起来短一点"，而是**旧解析器真的收得下**。
- */
-const legacyWorkflowRunsStateSchema = workflowRunsStateSchema.extend({
-  runs: z
-    .array(
-      workflowRunSchema.extend({
-        actors: z.array(workflowRunActorSchema).max(WORKFLOW_RUNS_LEGACY_LIMITS.maxActors),
-        nodes: z.array(workflowRunNodeSchema).max(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes),
-      }),
-    )
-    .max(WORKFLOW_RUNS_LIMITS.maxRuns),
-});
 
 class EventLog {
   private seq = 0;
@@ -114,90 +89,32 @@ function deltasOf(frame: ConversationTopicFrame | null): ConversationDelta[] {
   return (frame!.payload as { kind: "deltas"; deltas: ConversationDelta[] }).deltas;
 }
 
-describe("每订阅者编码：增量 vs 旧消费者", () => {
-  it("同一批事件：认得增量的连接收 workflowRun.*，旧连接收一条整键 patch", () => {
-    const log = new EventLog();
-    log.started();
-    const publisher = publisherWith(log.events);
-    publisher.subscribe({ connectionId: "modern", workflowRunDeltas: true });
-    publisher.subscribe({ connectionId: "legacy" });
-
-    publisher.ingest(log.progress("node-queued", { instance: { siteId: "ask#1", ordinal: 1 } }));
-    publisher.ingest(
-      log.progress("node-dispatched", { instance: { siteId: "ask#1", ordinal: 1 } }),
-    );
-
-    const modern = deltasOf(publisher.flush("sub-epoch-1-1"));
-    const legacy = deltasOf(publisher.flush("sub-epoch-1-2"));
-
-    expect(modern.map((delta) => delta.op)).toEqual(["workflowRun.updated"]);
-    expect((modern[0] as { runId: string }).runId).toBe(RUN_ID);
-    expect(legacy.map((delta) => delta.op)).toEqual(["state.updated"]);
-    expect(
-      (legacy[0] as { patch: { workflowRuns?: WorkflowRunsState } }).patch.workflowRuns?.runs[0]
-        ?.nodes,
-    ).toHaveLength(1);
-  });
-
-  it("旧订阅者的**快照**帧裁到旧界并置 truncated；增量订阅者拿到全量", () => {
-    const log = new EventLog();
-    log.started();
-    log.fanOut(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes + 44);
-    const publisher = publisherWith(log.events);
-
-    const modern = snapshotOf(
-      publisher.subscribe({ connectionId: "modern", workflowRunDeltas: true }).frame,
-    );
-    const legacy = snapshotOf(publisher.subscribe({ connectionId: "legacy" }).frame);
-
-    expect(modern.workflowRuns?.runs[0]?.nodes).toHaveLength(
-      WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes + 44,
-    );
-    expect(modern.workflowRuns?.runs[0]?.truncated).toBeUndefined();
-    expect(legacy.workflowRuns?.runs[0]?.nodes).toHaveLength(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes);
-    expect(legacy.workflowRuns?.runs[0]?.truncated).toBe(true);
-
-    // 裁剪不是"短一点"：不裁的话旧解析器整份拒收，那条订阅从此静默。
-    expect(legacyWorkflowRunsStateSchema.safeParse(legacy.workflowRuns).success).toBe(true);
-    expect(legacyWorkflowRunsStateSchema.safeParse(modern.workflowRuns).success).toBe(false);
-  });
-
-  it("旧订阅者的 resume 回放：日志里的历史增量折成一条**当前**整键 patch", () => {
-    const log = new EventLog();
-    log.started();
-    const publisher = publisherWith(log.events);
-    const base = { logEpoch: "epoch-1", seq: publisher.getSnapshot().seq };
-    log.fanOut(12);
-    for (const event of log.events.slice(-12)) publisher.ingest(event);
-
-    const legacy = deltasOf(publisher.subscribe({ connectionId: "legacy", base }).frame);
-    expect(legacy.map((delta) => delta.op)).toEqual(["state.updated"]);
-    const patched = (legacy[0] as { patch: { workflowRuns?: WorkflowRunsState } }).patch
-      .workflowRuns;
-    // 中间态被跳过、终态一致——与 coalesce 每天在做的事情是同一件。
-    expect(patched?.runs[0]?.nodes).toHaveLength(12);
-    expect(patched?.revision).toBe(publisher.getSnapshot().workflowRuns?.revision);
-
-    const modern = deltasOf(
-      publisher.subscribe({ connectionId: "modern", base, workflowRunDeltas: true }).frame,
-    );
-    // 增量订阅者的 12 条事件被规则 6 并成一条（同 runId 向最早那条合并）。
-    expect(modern.map((delta) => delta.op)).toEqual(["workflowRun.updated"]);
-    expect((modern[0] as { nodes?: unknown[] }).nodes).toHaveLength(12);
-  });
-
-  it("溢出降级发的快照同样按订阅者裁剪（旧订阅者的恢复路径不能反而更宽）", () => {
-    const log = new EventLog();
-    log.started();
-    log.fanOut(WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes + 8);
-    const publisher = publisherWith(log.events);
-    publisher.subscribe({ connectionId: "legacy" });
-    const recovered = snapshotOf(publisher.resync("sub-epoch-1-1"));
-    expect(recovered.workflowRuns?.runs[0]?.nodes).toHaveLength(
-      WORKFLOW_RUNS_LEGACY_LIMITS.maxNodes,
-    );
-    expect(legacyWorkflowRunsStateSchema.safeParse(recovered.workflowRuns).success).toBe(true);
-  });
+describe("current workflow delivery profiles", () => {
+  it.each(["continuous", "replayable"] as const)(
+    "%s receives native deltas and complete wide snapshots",
+    (deliveryProfile) => {
+      const log = new EventLog();
+      log.started();
+      log.fanOut(300);
+      const publisher = publisherWith(log.events);
+      const initial = publisher.subscribe({ connectionId: deliveryProfile, deliveryProfile });
+      expect(snapshotOf(initial.frame).workflowRuns?.runs[0]?.nodes).toHaveLength(300);
+      expect(snapshotOf(initial.frame).workflowRuns?.runs[0]?.truncated).toBeUndefined();
+      const base = { logEpoch: "epoch-1", seq: publisher.getSnapshot().seq };
+      publisher.ingest(
+        log.progress("node-dispatched", { instance: { siteId: "ask#1", ordinal: 300 } }),
+      );
+      expect(
+        deltasOf(publisher.flush(initial.ack.subscriptionId)).map((delta) => delta.op),
+      ).toEqual(["workflowRun.updated"]);
+      const resumed = publisher.subscribe({ connectionId: deliveryProfile, deliveryProfile, base });
+      expect(resumed.ack.mode).toBe("resume");
+      expect(deltasOf(resumed.frame).map((delta) => delta.op)).toEqual(["workflowRun.updated"]);
+      expect(
+        snapshotOf(publisher.resync(resumed.ack.subscriptionId)).workflowRuns?.runs[0]?.nodes,
+      ).toHaveLength(300);
+    },
+  );
 });
 
 describe("扇出宽度与订阅者 op 上界", () => {
@@ -210,7 +127,7 @@ describe("扇出宽度与订阅者 op 上界", () => {
     const log = new EventLog();
     log.started();
     const publisher = publisherWith(log.events);
-    publisher.subscribe({ connectionId: "modern", workflowRunDeltas: true });
+    publisher.subscribe({ connectionId: "modern" });
     publisher.flush("sub-epoch-1-1");
 
     log.fanOut(600);
@@ -402,7 +319,6 @@ describe("冷重物化", () => {
     const ack = rehydrated.subscribe({
       connectionId: "after-batch",
       base: { logEpoch: "epoch-1", seq: 2 },
-      workflowRunDeltas: true,
     }).ack;
     expect(ack.mode).toBe("snapshot");
   });
@@ -415,7 +331,7 @@ describe("snapshot(W) + 续流 ≡ 全量重放（带键级增量）", () => {
     return projection.getSnapshot();
   }
 
-  it("两种订阅者各自的中间帧不同，终态 workflowRuns 逐字节一致", () => {
+  it("continuous and replayable subscribers converge to the authoritative state", () => {
     const log = new EventLog();
     log.started();
     log.fanOut(30);
@@ -424,11 +340,13 @@ describe("snapshot(W) + 续流 ≡ 全量重放（带键级增量）", () => {
 
     const modernStore = {
       snapshot: snapshotOf(
-        publisher.subscribe({ connectionId: "modern", workflowRunDeltas: true }).frame,
+        publisher.subscribe({ connectionId: "modern", deliveryProfile: "continuous" }).frame,
       ),
     };
-    const legacyStore = {
-      snapshot: snapshotOf(publisher.subscribe({ connectionId: "legacy" }).frame),
+    const replayableStore = {
+      snapshot: snapshotOf(
+        publisher.subscribe({ connectionId: "replayable", deliveryProfile: "replayable" }).frame,
+      ),
     };
 
     for (let ordinal = 1; ordinal <= 30; ordinal += 1) {
@@ -440,14 +358,13 @@ describe("snapshot(W) + 续流 ≡ 全量重放（带键级增量）", () => {
       modernStore.snapshot,
       deltasOf(publisher.flush("sub-epoch-1-1")),
     );
-    legacyStore.snapshot = applyConversationDeltas(
-      legacyStore.snapshot,
+    replayableStore.snapshot = applyConversationDeltas(
+      replayableStore.snapshot,
       deltasOf(publisher.flush("sub-epoch-1-2")),
     );
 
     const replayed = authoritative(log.events).workflowRuns;
     expect(JSON.stringify(modernStore.snapshot.workflowRuns)).toBe(JSON.stringify(replayed));
-    // 旧订阅者的终态只在"旧界裁剪"这一处上有差（30 < 256，所以这里应当也逐字节一致）。
-    expect(JSON.stringify(legacyStore.snapshot.workflowRuns)).toBe(JSON.stringify(replayed));
+    expect(JSON.stringify(replayableStore.snapshot.workflowRuns)).toBe(JSON.stringify(replayed));
   });
 });

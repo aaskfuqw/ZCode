@@ -1,6 +1,6 @@
 # Coding Plan Provider 可用性语义
 
-Coding Plan provider 的模型菜单可见性由 `model-providers.json` 内的 provider 状态收敛：
+Current account-provider availability is resolved by `packages/services/src/model-provider/accountProviderConnectionResolver.ts` and projected through the current provider registry. The old `model-providers.json` store and its importers are retired; see [current configuration ownership](model-provider-config-overrides.md). The service and entitlement distinctions below concern current external integrations.
 
 - `apiKey` 表示本地已有凭据，不代表一定具备 Coding Plan 权益。
 - `enabled` 表示 provider 当前是否允许进入 Agent registry 和模型菜单。

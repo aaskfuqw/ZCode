@@ -748,14 +748,6 @@ async function commitAtomicConversationFork(
   const committedChild = await store.commitForkBundle({
     child: buildForkedSessionInput(runtime, options.parentSession, childSessionId, kind),
     messages: copiedMessages,
-    copySources: {
-      messages: Object.fromEntries(
-        [...identities.messageIds].map(([source, target]) => [target, source]),
-      ),
-      parts: Object.fromEntries(
-        [...identities.partIds].map(([source, target]) => [target, source]),
-      ),
-    },
     // 选型 entry 与 child/message/verifier 同事务提交；否则 child 首次注册能读到
     // 运行态，冷恢复却会回到 workspace 默认 thought。entry 的磁盘包装由 adapter 负责。
     // Plan 必须与权限一并进入原子的 child bundle，不能只复制创建时的旧 permission。

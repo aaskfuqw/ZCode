@@ -599,9 +599,7 @@ test("borrows one process provider registry for a headless prompt and disposes i
     startProcessProviderRegistryRuntime: async (_env, options) => {
       runtimeStarts += 1;
       assert.deepEqual(options, {
-        standalone: {
-          legacyCliUserConfigFilePath: "/tmp/zcode-legacy-cli.json",
-        },
+        standalone: {},
       });
       return {
         accountSource: {} as never,
@@ -6203,9 +6201,7 @@ test("reuses one process provider registry across TUI app replacements", async (
     startProcessProviderRegistryRuntime: async (_env, options) => {
       runtimeStarts += 1;
       assert.deepEqual(options, {
-        standalone: {
-          legacyCliUserConfigFilePath: "/tmp/zcode-legacy-tui.json",
-        },
+        standalone: {},
       });
       return {
         accountSource: {} as never,

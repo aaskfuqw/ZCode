@@ -3190,16 +3190,13 @@ async function requestSessionRuntimePreferences(
       // 诊断：偏好请求超时发生在 runtime 注册前；记录 session/scope，区分
       // “Host 没收到/没回包”和“恢复过程中其他阶段失败”。
       context.logger?.warn("ZCode Protocol runtime preferences request timed out", diagnostic);
-    } else if (errorCode !== -32601 && errorCode !== -32020) {
+    } else if (errorCode !== -32020) {
       context.logger?.warn("ZCode Protocol runtime preferences request failed", diagnostic);
     } else {
-      context.logger?.debug(
-        "ZCode Protocol runtime preferences compatibility fallback",
-        diagnostic,
-      );
+      context.logger?.debug("ZCode Protocol runtime preferences without a Host", diagnostic);
     }
-    if (error instanceof ProtocolRequestError && (error.code === -32601 || error.code === -32020)) {
-      // 兼容旧 Host 或无 Host 的纯 CLI 创建路径；Memory 服从产品默认关闭，
+    if (error instanceof ProtocolRequestError && error.code === -32020) {
+      // 无 Host 的纯 CLI 创建路径；Memory 服从产品默认关闭，
       // 增强搜索维持原有默认开启，其他协议/传输错误仍阻止 runtime 创建。
       return {
         askUserQuestionAutoResolutionEnabled: true,

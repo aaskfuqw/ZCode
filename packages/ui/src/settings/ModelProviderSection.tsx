@@ -821,7 +821,6 @@ export function ModelProviderSection({
         await updateSharedSettings({
           providerFamilyDomain: (nextProviderFamilyDomain ?? "") as never,
           providerFamilyDomainUpdatedAt: Date.now(),
-          providerFamilyDomainMigrated: true,
         });
         await refreshCodingPlanAccountAuthenticationState({ clearUserWhenLoggedOut: true });
         await refresh();
@@ -915,7 +914,6 @@ export function ModelProviderSection({
         await updateSharedSettings({
           providerFamilyDomain: familySpec.id,
           providerFamilyDomainUpdatedAt: Date.now(),
-          providerFamilyDomainMigrated: true,
           providerFamilyConnectionSelections: {
             ...connectionSelections,
             [familySpec.id]: selection,

@@ -2,6 +2,8 @@
 
 _Status: accepted on 2026-10-17_
 
+The reactive cleanup policy and Next upgrade-continuity commitments below are superseded by [ADR 0006](0006-retire-pre-release-compatibility-debt.md). Product separation and the retained capability boundaries remain in effect.
+
 The user has named this personal fork **ZCode Next**, required its data directories to be separate from upstream ZCode, and removed future compatibility with upstream ZCode as a product requirement. Limit implementation to product-facing names and the identifiers and paths required for separation; retain internal package names, source directories, protocol field names that do not cause collisions, and the existing artwork.
 
 ## Confirmed boundaries
