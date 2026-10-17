@@ -49,7 +49,7 @@ import { ConversationTurnNavigator } from "@/v4/ConversationTurnNavigator.js";
 import { syncConversationShareSelectionPanelLayout } from "@/v4/conversationShareSelectionPanelLayout.js";
 import type { ConversationRowRenderContext } from "@/v4/conversationRowContext.js";
 import { splitConversationTimelineLiveTail } from "@/v4/conversationTimelineLiveTail.js";
-import { armHighspeedFooterExpiryClock } from "@/highspeed/highspeedFooterExpiryClock.js";
+import { armHighspeedExpiryClock } from "@/highspeed/highspeedExpiryClock.js";
 import {
   getConversationContentWidthClassName,
   getConversationStatusPanelOffsetClassName,
@@ -625,13 +625,8 @@ function ConversationTimelineImpl({
   useEffect(() => {
     if (nextHighspeedExpiryMs === undefined) return;
 
-    // Bug 根因：会话完成后工作时钟会停止；若 Highspeed 卡稍后才到期，footer 不会自行出现。
-    // 单独订阅最近的卡片到期边界，避免为了等待倒计时持续刷新整个历史列表。
-    // spec §9.3：到期唤醒基于 renderer setTimeout，窗口隐藏/被遮挡时会被 Chromium 冻结停摆；
-    // helper 额外监听窗口恢复可见/获得焦点并即时追平 liveNowMs，footer 才能不依赖用户再发
-    // 消息就出现。与 SessionPane 的 highspeedAutoShareClock 窗口唤醒补偿分工：那条刷新分享
-    // 入口/查看按钮的完成态数据，这条刷新组尾 footer 的显隐时钟。
-    return armHighspeedFooterExpiryClock(nextHighspeedExpiryMs, () => setLiveNowMs(Date.now()));
+    // Keep expired Highspeed styling accurate after the work clock stops or the window resumes.
+    return armHighspeedExpiryClock(nextHighspeedExpiryMs, () => setLiveNowMs(Date.now()));
   }, [nextHighspeedExpiryMs]);
 
   useLayoutEffect(() => {

@@ -40,7 +40,7 @@ function fixture() {
     },
     providerSettingsService: { getView: vi.fn(async () => view), refresh: vi.fn(async () => view) },
     codingPlanSubscriptionService: {
-      getEnterprisePricing: vi.fn(async () => ({ productList: [] })),
+      getTeamConnections: vi.fn(async () => ({ productList: [] })),
     },
     usageStatsService: { getEntitlementSnapshot: vi.fn() },
   };
@@ -69,7 +69,7 @@ describe("套餐切换建议", () => {
   it("Team 建议校验具体项目，点击不改成别的 Team", async () => {
     const { services, event, view } = fixture();
     view.providers[1]!.accountState.availability = "unavailable";
-    services.codingPlanSubscriptionService.getEnterprisePricing.mockResolvedValue({
+    services.codingPlanSubscriptionService.getTeamConnections.mockResolvedValue({
       productList: [
         {
           productId: "product",

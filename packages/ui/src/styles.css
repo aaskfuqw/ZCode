@@ -5,26 +5,10 @@
 @import "@xterm/xterm/css/xterm.css";
 @import "katex/dist/katex.min.css";
 @import "./highspeed/highspeed-activation.css";
-@import "./highspeed/highspeed-share.css";
 @source "../../../node_modules/streamdown/dist/*.js"; /* 感觉这行也是不好使呢*/
 
 @plugin "@tailwindcss/typography";
 @plugin "../lucide-colors.mjs";
-
-/* Hero 可为任意图片/视频/iframe，不能用 App 主题推断关闭图标对比度。 */
-.cloud-content-dialog {
-  --media-close-surface: rgb(0 0 0 / 50%);
-  --media-close-surface-hover: rgb(0 0 0 / 65%);
-  --media-close-foreground: #fff;
-}
-.cloud-content-dialog [data-slot="dialog-close"] {
-  background-color: var(--media-close-surface);
-  color: var(--media-close-foreground);
-  border: 0;
-}
-.cloud-content-dialog [data-slot="dialog-close"]:hover {
-  background-color: var(--media-close-surface-hover);
-}
 
 /* Bugfix: KaTeX 会同时输出 MathML 辅助层和 HTML 视觉层；缺少 katex CSS 时两层都会显示，
  * 行内公式和块级公式就会看起来“渲染一遍又普通文本一遍”。 */
@@ -331,8 +315,6 @@ html[data-document-hidden] *::after {
   --color-plugin-node: color-mix(in oklab, var(--color-amber-600) 14%, transparent);
   --color-plugin-node-hover: color-mix(in oklab, var(--color-amber-600) 20%, transparent);
   --color-plugin-node-foreground: var(--color-amber-600);
-  --color-plugin-paid-plan-badge: #ffe3c8;
-  --color-plugin-paid-plan-badge-foreground: #4b280f;
 }
 
 .dark {
@@ -485,8 +467,6 @@ html[data-document-hidden] *::after {
   --color-plugin-node: color-mix(in oklab, var(--color-amber-400) 18%, transparent);
   --color-plugin-node-hover: color-mix(in oklab, var(--color-amber-400) 24%, transparent);
   --color-plugin-node-foreground: var(--color-amber-300);
-  --color-plugin-paid-plan-badge: #5a341b;
-  --color-plugin-paid-plan-badge-foreground: #ffd8b8;
 }
 
 .theme-zai-light {
@@ -631,8 +611,6 @@ html[data-document-hidden] *::after {
   --color-plugin-node: rgba(184, 122, 26, 0.1);
   --color-plugin-node-hover: rgba(184, 122, 26, 0.16);
   --color-plugin-node-foreground: #b87a1a;
-  --color-plugin-paid-plan-badge: #ffe3c8;
-  --color-plugin-paid-plan-badge-foreground: #4b280f;
 }
 
 .theme-zai-dark {
@@ -778,8 +756,6 @@ html[data-document-hidden] *::after {
   --color-plugin-node: rgba(224, 174, 112, 0.16);
   --color-plugin-node-hover: rgba(224, 174, 112, 0.22);
   --color-plugin-node-foreground: #efc58f;
-  --color-plugin-paid-plan-badge: #5a341b;
-  --color-plugin-paid-plan-badge-foreground: #ffd8b8;
 }
 
 /*
@@ -844,15 +820,6 @@ html[data-document-hidden] *::after {
 }
 
 @layer utilities {
-  .button-gradient {
-    background-image: linear-gradient(to bottom right, #191a1d, #747689);
-  }
-
-  .dark .button-gradient {
-    background-image: none;
-    background-color: #484a58;
-  }
-
   .animated-gradient-text {
     display: inline-block;
     background: linear-gradient(
@@ -881,11 +848,7 @@ html[data-document-hidden] *::after {
   .highspeed-animated-gradient-text .animated-gradient-text {
     /* Bug 根因：accelerated turn 只改了工时文案，内部思考和工具仍继承普通扫光色。 */
     --animated-gradient-text-strong: var(--color-icon-purple);
-    --animated-gradient-text-soft: color-mix(
-      in srgb,
-      var(--color-icon-purple) 22%,
-      transparent
-    );
+    --animated-gradient-text-soft: color-mix(in srgb, var(--color-icon-purple) 22%, transparent);
   }
 
   .cua-group-gradient-text {

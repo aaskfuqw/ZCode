@@ -17,7 +17,7 @@ import {
   resolveAutomaticModelProviderFamilyConnectionSelection,
 } from "@/lib/modelProviderFamilyConnectionSelection.js";
 
-import { getEnterprisePricingProductsOrEmpty } from "@/root/oauthTeamPricing.js";
+import { getTeamConnectionsProductsOrEmpty } from "@/root/oauthTeamPricing.js";
 
 function resolveModelProviderFamilySpecFromOAuth(
   provider: OAuthProviderId | string,
@@ -143,7 +143,7 @@ export async function refreshLatestModelProviderFamilySelectionAfterLogin(params
       providerId: startPlanProviderId,
       accountAccess: accesses.get(startPlanProviderId),
     }),
-    getEnterprisePricingProductsOrEmpty(params.services, domain),
+    getTeamConnectionsProductsOrEmpty(params.services, domain),
   ]);
   // 旧 Start 连接只保留读取，不以权益失效为由删除或自动替换成付费连接。
   const savedSelection = currentSettings.providerFamilyConnectionSelections?.[domain];

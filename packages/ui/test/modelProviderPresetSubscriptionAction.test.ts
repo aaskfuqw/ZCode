@@ -420,7 +420,7 @@ describe("ModelProviderSection preset subscription action", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("Coding Plan 购买成功后刷新 Account Source 与设置页", async () => {
+  it("Coding Plan 主动刷新时更新 Account Source 与设置页", async () => {
     selectedNavItemMock = {
       key: "coding-plan:account:zai-individual-coding-plan",
       type: "codingPlan",
@@ -439,7 +439,7 @@ describe("ModelProviderSection preset subscription action", () => {
 
     expect(capturedDetailProps).not.toBeNull();
 
-    (capturedDetailProps?.onCodingPlanPurchaseComplete as (() => void) | undefined)?.();
+    (capturedDetailProps?.onCodingPlanEntitlementRefresh as (() => void) | undefined)?.();
 
     await vi.waitFor(() => {
       expect(refreshMock).toHaveBeenCalled();

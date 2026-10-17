@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   CODING_PLAN_TEAM_MOCK_BASE_URL_ENV,
-  CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV,
+  ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV,
   applyCodingPlanTeamMockEnv,
-  applyCodingPlanUpgradeMockEnv,
+  applyAccountProviderMockEnv,
   clearCodingPlanTeamMockEnv,
-  clearCodingPlanUpgradeMockEnv,
+  clearAccountProviderMockEnv,
   shouldPrepareCodingPlanTeamMock,
 } from "./e2e/helpers/coding-plan-mock-env.js";
 
@@ -48,13 +48,13 @@ describe("Coding Plan E2E mock env", () => {
     const upgradeBaseUrl = "http://127.0.0.1:41002";
 
     applyCodingPlanTeamMockEnv(environment, teamBaseUrl);
-    applyCodingPlanUpgradeMockEnv(environment, upgradeBaseUrl);
+    applyAccountProviderMockEnv(environment, upgradeBaseUrl);
 
     expect(environment[CODING_PLAN_TEAM_MOCK_BASE_URL_ENV]).toBe(teamBaseUrl);
-    expect(environment[CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV]).toBe(upgradeBaseUrl);
+    expect(environment[ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV]).toBe(upgradeBaseUrl);
 
     applyCodingPlanTeamMockEnv(environment, teamBaseUrl);
-    clearCodingPlanUpgradeMockEnv(environment, upgradeBaseUrl);
+    clearAccountProviderMockEnv(environment, upgradeBaseUrl);
 
     expect(environment.ZCODE_BASE_URL).toBe(teamBaseUrl);
     expect(environment.ZCODE_ENDPOINT_ORIGIN).toBe(teamBaseUrl);
@@ -67,7 +67,7 @@ describe("Coding Plan E2E mock env", () => {
     const upgradeBaseUrl = "http://127.0.0.1:42002";
 
     applyCodingPlanTeamMockEnv(environment, teamBaseUrl);
-    applyCodingPlanUpgradeMockEnv(environment, upgradeBaseUrl);
+    applyAccountProviderMockEnv(environment, upgradeBaseUrl);
     clearCodingPlanTeamMockEnv(environment, teamBaseUrl);
 
     expect(environment.ZCODE_BASE_URL).toBe(upgradeBaseUrl);

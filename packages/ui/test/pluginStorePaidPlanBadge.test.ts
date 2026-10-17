@@ -12,7 +12,7 @@ vi.mock("@/ControlHintTooltip.js", () => ({
 }));
 
 // 付费套餐提示：市场目录条目的 `listing.requiresPaidPlan` 决定商店卡片与详情页标题
-// 右侧是否出现渐变徽标。缺字段（无需套餐/老目录）时整个标记不渲染。
+// 右侧是否出现使用条件。缺字段（无需套餐/老目录）时整个标记不渲染。
 function makeItem(requiresPaidPlan: boolean | undefined): StorePluginItem {
   return {
     id: "pro-plugin@zcode-plugins-official",
@@ -74,23 +74,23 @@ describe("plugin store paid plan badge", () => {
   it("marks a plugin that needs a paid plan on the store card title", async () => {
     const html = await renderCard(makeItem(true));
     expect(html).toContain('data-testid="plugin-store-paid-plan-badge"');
-    expect(html).toContain("bg-[var(--color-plugin-paid-plan-badge)]");
-    expect(html).toContain("text-[var(--color-plugin-paid-plan-badge-foreground)]");
+    expect(html).toContain("border-border");
+    expect(html).toContain("text-foreground-subtle");
     expect(html).not.toContain("button-gradient");
     expect(html).toContain("text-ui-sm");
-    expect(html).toContain("lucide-crown");
+    expect(html).toContain("lucide-info");
     expect(html).toContain("Coding Plan");
-    expect(html).toContain("lucide-crown");
+    expect(html).toContain("lucide-info");
     expect(html).not.toContain("lucide-trending-up");
-    expect(html).toContain('data-tooltip-title="This plugin works better with a Coding Plan"');
+    expect(html).toContain('data-tooltip-title="This plugin requires a Coding Plan"');
   });
 
   it("marks a plugin that needs a paid plan on the detail title", async () => {
     const html = await renderDetail(makeItem(true));
     expect(html).toContain('data-testid="plugin-store-paid-plan-badge"');
-    expect(html).toContain("bg-[var(--color-plugin-paid-plan-badge)]");
+    expect(html).toContain("border-border");
     expect(html).toContain("Coding Plan");
-    expect(html).toContain('data-tooltip-title="This plugin works better with a Coding Plan"');
+    expect(html).toContain('data-tooltip-title="This plugin requires a Coding Plan"');
   });
 
   it("uses the concise coding plan label in Chinese", async () => {

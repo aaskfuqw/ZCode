@@ -21,7 +21,6 @@ import { createServiceLogger } from "../logger/serviceLogger.js";
 import { readApiJson } from "../providers/api/apiJson.js";
 import type { IOAuthService } from "./oauth.js";
 import { isCurrentOAuthCredentialRequest } from "#src/oauth/oauthUnauthorizedRequest.js";
-import { hasOAuthAuthorizationCode, parseOAuthLoginAttribution } from "./callbackAttribution.js";
 import {
   refreshLegacyBigModelCachedProfile,
   withProviderProfileSchema,
@@ -46,7 +45,6 @@ interface PendingState {
   state: string;
   provider: OAuthProviderId;
   timeout: NodeJS.Timeout;
-  phase: "awaiting-attribution-or-code" | "awaiting-code-after-attribution";
   completionPromise?: Promise<OAuthCallbackResult | null>;
   polling?: {
     expiresAt: number;
@@ -438,7 +436,6 @@ export class OAuthService implements IOAuthService {
   private async runPendingSessionCompletion(
     pending: PendingState,
     complete: () => Promise<{ tokenSet: OAuthTokenSet; profile: OAuthUserProfile }>,
-    preserveAttribution?: () => Promise<void>,
   ): Promise<OAuthCallbackResult | null> {
     const completion = this.runSessionMutation(async () => {
       // polling 与 deep link 可能同时完成，也可能在等待期间开始新登录。
@@ -449,13 +446,10 @@ export class OAuthService implements IOAuthService {
           this.recentlyCompletedPollingState?.state === pending.state &&
           this.recentlyCompletedPollingState.generation === this.oauthFlowStartGeneration
         ) {
-          // 回调入队时已通过有效性检查，不能因队列等待超过去重窗口而丢失归因。
-          await preserveAttribution?.();
           return { kind: "duplicate" as const, provider: pending.provider };
         }
         return null;
       }
-      await preserveAttribution?.();
       if (this.pendingState !== pending) return null;
       const { tokenSet, profile } = await complete();
       // exchangeToken 期间用户可能取消或切换到新 flow；旧请求返回后必须再次校验，
@@ -676,7 +670,6 @@ export class OAuthService implements IOAuthService {
       state,
       provider: adapter.providerId,
       timeout,
-      phase: "awaiting-attribution-or-code",
       polling: {
         expiresAt,
         flowId,
@@ -846,7 +839,6 @@ export class OAuthService implements IOAuthService {
       state,
       provider: adapter.providerId,
       timeout,
-      phase: "awaiting-attribution-or-code",
     };
 
     const authorizeUrl = adapter.buildAuthorizeUrl({
@@ -874,18 +866,6 @@ export class OAuthService implements IOAuthService {
         completed.generation === this.oauthFlowStartGeneration &&
         this.now() < completed.expiresAt
       ) {
-        const attribution = parseOAuthLoginAttribution(new URL(url).searchParams);
-        await this.runSessionMutation(async () => {
-          // 修复原因：轮询先成功时仍需保存浏览器归因，不能把登录去重当作丢弃整条回调。
-          if (
-            !this.pendingState &&
-            this.recentlyCompletedPollingState === completed &&
-            completed.generation === this.oauthFlowStartGeneration &&
-            attribution
-          ) {
-            await this.repo.saveLoginAttribution(attribution);
-          }
-        });
         return { kind: "duplicate", provider: completed.provider };
       }
       throw new Error("OAuth state 不匹配或已过期");
@@ -901,28 +881,14 @@ export class OAuthService implements IOAuthService {
       throw new Error("OAuth flow 已过期");
     }
 
-    const attribution = parseOAuthLoginAttribution(parsedUrl.searchParams);
-    if (attribution && !hasOAuthAuthorizationCode(parsedUrl.searchParams)) {
-      if (pending.phase === "awaiting-code-after-attribution") {
-        throw new Error("OAuth 归因回调已处理");
-      }
-
-      // 修复原因：纯归因回调是最终授权码前的中转步骤，不能清掉仍需继续登录的 state；
-      // 但若不显式推进 phase，同一 state 可重复写入归因并隐式复用 pending 生命周期。
-      pending.phase = "awaiting-code-after-attribution";
-      try {
-        await this.repo.saveLoginAttribution(attribution);
-      } catch (error) {
-        if (this.pendingState === pending) {
-          pending.phase = "awaiting-attribution-or-code";
-        }
-        throw error;
-      }
-      return {
-        kind: "attribution",
-        provider: pending.provider,
-        attribution,
-      };
+    // A state-only browser handoff keeps the flow alive for the final authorization code.
+    if (
+      !parsedUrl.searchParams.get("code") &&
+      !parsedUrl.searchParams.get("authCode") &&
+      !parsedUrl.searchParams.has("error") &&
+      !parsedUrl.searchParams.has("error_description")
+    ) {
+      return null;
     }
 
     const adapter = this.getAdapter(pending.provider);
@@ -932,33 +898,29 @@ export class OAuthService implements IOAuthService {
       displayName: "User",
     };
 
-    return this.runPendingSessionCompletion(
-      pending,
-      async () => {
-        const callback = adapter.parseCallbackParams(url);
-        const context = {
-          providerId: adapter.providerId,
-          state: callback.state,
-          redirectUri: adapter.redirectUri,
-          now: this.now,
-        };
-        const tokenSet = await this.runWithAdapterError(adapter, () =>
-          adapter.exchangeToken(callback, context),
-        );
-        let profile = fallbackProfile;
-        if (adapter.fetchUserInfo) {
-          try {
-            profile = await this.runWithAdapterError(adapter, () =>
-              adapter.fetchUserInfo!(tokenSet, context),
-            );
-          } catch {
-            // 获取用户信息失败不阻塞登录
-          }
+    return this.runPendingSessionCompletion(pending, async () => {
+      const callback = adapter.parseCallbackParams(url);
+      const context = {
+        providerId: adapter.providerId,
+        state: callback.state,
+        redirectUri: adapter.redirectUri,
+        now: this.now,
+      };
+      const tokenSet = await this.runWithAdapterError(adapter, () =>
+        adapter.exchangeToken(callback, context),
+      );
+      let profile = fallbackProfile;
+      if (adapter.fetchUserInfo) {
+        try {
+          profile = await this.runWithAdapterError(adapter, () =>
+            adapter.fetchUserInfo!(tokenSet, context),
+          );
+        } catch {
+          // 获取用户信息失败不阻塞登录
         }
-        return { tokenSet, profile };
-      },
-      attribution ? () => this.repo.saveLoginAttribution(attribution) : undefined,
-    );
+      }
+      return { tokenSet, profile };
+    });
   }
 
   async refreshToken(provider?: OAuthProviderId): Promise<void> {

@@ -1,5 +1,4 @@
 export type RequestVerificationConfig = Readonly<Record<string, unknown>>;
-export type RequestVerificationProof = Record<never, never>;
 export type RequestVerificationClientConfig = Record<never, never>;
 export const requestVerificationReasons = ["model-request"] as const;
 export type RequestVerificationReason = (typeof requestVerificationReasons)[number];
@@ -11,11 +10,7 @@ export function readRequestVerificationConfig(
 ): RequestVerificationConfig | null {
   return null;
 }
-export function requestVerificationClaimHeaders(
-  _proof: RequestVerificationProof,
-): Record<string, string> {
-  return {};
-}
+
 export function withoutRequestVerificationHeaders(
   headers: Record<string, string> | undefined,
 ): Record<string, string> {

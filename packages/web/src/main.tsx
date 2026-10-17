@@ -764,7 +764,6 @@ function createWebPlatform(options?: {
     openExternalFile: () => Promise.resolve({ success: false, error: "Not supported in web mode" }),
     registerOAuthState: (_payload) => {},
     onOAuthCallback: () => () => {},
-    onPaymentCallback: () => () => {},
     onShareImport: () => () => {},
     notifyRendererReady: () => {},
     showTaskNotification: (payload) => {

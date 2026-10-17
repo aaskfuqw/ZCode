@@ -119,6 +119,14 @@ for (const [width, locale, theme] of [
               locale === "zh-CN" ? /待生效/ : /Pending/,
             );
           if (state === "empty") assert.match(await page.locator("main").innerText(), /0%/);
+          assert.equal(
+            await page
+              .getByRole("button", {
+                name: /升级套餐|邀请好友|领取|购买|Upgrade|Subscribe|Claim|Invite/i,
+              })
+              .count(),
+            0,
+          );
           const bounds = await page.evaluate(() => ({
             width: innerWidth,
             scroll: document.documentElement.scrollWidth,

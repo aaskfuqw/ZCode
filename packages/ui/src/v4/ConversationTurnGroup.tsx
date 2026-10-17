@@ -13,7 +13,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { ChevronRightIcon, EyeIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import {
   TID_CHAT_ASSISTANT_HISTORY_CONTENT,
   TID_CHAT_ASSISTANT_HISTORY_TRIGGER,
@@ -34,7 +34,6 @@ import type {
 import { ChatLoading } from "@/components/ai-elements/chat-loading.js";
 import { ChatApiRetryStatus } from "@/chat-input-toolbar/display.js";
 import { cn } from "@/components/lib/utils.js";
-import { Button } from "@/components/ui/button.js";
 import { Checkbox } from "@/components/ui/checkbox.js";
 import { MessageActions } from "@/components/ai-elements/message.js";
 import {
@@ -56,14 +55,10 @@ import {
   type OffPeakCreateTaskSummary,
 } from "@/ToolCallBlocks/renderers/offpeak-create.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { HighspeedShareDialog } from "@/highspeed/HighspeedShareNoticeCard.js";
-import { isHighspeedShareEligible } from "@/highspeed/highspeedShare.js";
 import {
-  aggregateHighspeedCardMetrics,
   getHighspeedTurnByCommandId,
   getHighspeedTurnVersion,
   subscribeHighspeedTurns,
-  type HighspeedShareMetrics,
 } from "@/highspeed/highspeedTurnStore.js";
 import type { AssistantPreviewCard } from "@/lib/assistantPreviewCards.js";
 import { useAssistantCodeCommentFeatureEnabled } from "@/AssistantCodeCommentFeatureProvider.js";
@@ -148,56 +143,6 @@ interface OffPeakTurnCard {
 }
 
 const MIN_VISIBLE_API_RETRY_ATTEMPT = 3;
-
-interface HighspeedOutputFooterProps {
-  generatedLabel: string;
-  shareLabel: string;
-  shareAriaLabel: string;
-  shareEnabled: boolean;
-  sharePending: boolean;
-  onShare: () => void;
-}
-
-function HighspeedOutputFooter({
-  generatedLabel,
-  shareLabel,
-  shareAriaLabel,
-  shareEnabled,
-  sharePending,
-  onShare,
-}: HighspeedOutputFooterProps) {
-  return (
-    <div
-      data-highspeed-output-footer="true"
-      className="relative flex w-full items-center justify-center py-[18px] opacity-80"
-    >
-      <div aria-hidden="true" className="absolute inset-x-0 top-1/2 border-t border-border" />
-      <div className="relative flex items-center gap-2 bg-background px-3">
-        <span className="text-ui-base text-foreground-subtle">{generatedLabel}</span>
-        {shareEnabled ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="default"
-            className="h-7 gap-1 rounded-[8px] bg-black/5 px-2 py-1 text-ui-base font-medium leading-5 text-foreground hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-            data-highspeed-output-share="true"
-            disabled={sharePending}
-            aria-label={shareAriaLabel}
-            onClick={onShare}
-          >
-            <EyeIcon
-              className="size-4 text-foreground/85"
-              strokeWidth={4 / 3}
-              aria-hidden="true"
-              data-highspeed-output-share-icon="true"
-            />
-            {shareLabel}
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 function toRetryStatus(apiRetry: ApiRetryState): ZCodeApiRetryStatus {
   const attempt = Math.max(1, Math.floor(apiRetry.attempt));
@@ -1290,49 +1235,6 @@ function ConversationTurnGroupImpl({
   const highspeedMeta = unit.isRunning
     ? undefined
     : visibleUserRows.find((row) => row.highspeed)?.highspeed;
-  const highspeedShareTarget = useMemo(() => {
-    let target: { cardId: string; metrics: HighspeedShareMetrics } | null = null;
-    if (
-      highspeedTurn?.metrics &&
-      highspeedTurn.metricsPersistedAt !== undefined &&
-      highspeedTurn.metrics.regularTps > 0 &&
-      highspeedTurn.metrics.highspeedTps !== undefined &&
-      highspeedTurn.metrics.highspeedTps > 0
-    ) {
-      target = {
-        cardId: highspeedTurn.card.cardId,
-        metrics: aggregateHighspeedCardMetrics(highspeedTurn.card.cardId),
-      };
-    } else if (unit.highspeedOutputFooterTarget) {
-      target = unit.highspeedOutputFooterTarget;
-    } else if (
-      highspeedMeta?.outputTokens !== undefined &&
-      highspeedMeta.outputTokens > 0 &&
-      highspeedMeta.highspeedTps !== undefined &&
-      highspeedMeta.highspeedTps > 0 &&
-      highspeedMeta.regularTps !== undefined &&
-      highspeedMeta.regularTps > 0
-    ) {
-      // Bug 原因：冷恢复后 Renderer 内存记录为空，但 transcript 已持久化完整分享统计；
-      // 只依赖 highspeedTurn 会让可见的历史分享按钮永久 disabled。
-      target = {
-        cardId: highspeedMeta.cardId,
-        metrics: {
-          outputTokens: highspeedMeta.outputTokens,
-          // 分享接口不要求 durationMs；缺失时仅让本地耗时降级为 0，不阻塞分享。
-          durationMs: highspeedMeta.durationMs ?? 0,
-          regularTps: highspeedMeta.regularTps,
-          highspeedTps: highspeedMeta.highspeedTps,
-          ...(highspeedMeta.savedDurationMs !== undefined
-            ? { savedDurationMs: highspeedMeta.savedDurationMs }
-            : {}),
-        },
-      };
-    }
-    // 卡片和历史标识继续保留，但不超过 1.2x 或缺少完整耗时数据时不提供分享入口。
-    return target && isHighspeedShareEligible(target.metrics) ? target : null;
-  }, [highspeedMeta, highspeedTurn, unit.highspeedOutputFooterTarget]);
-  const [highspeedShareDialogOpen, setHighspeedShareDialogOpen] = useState(false);
   const firstReasoningRowId = useMemo(
     () => unit.assistantWorkRows.find((row) => row.kind === "reasoning")?.rowId,
     [unit.assistantWorkRows],
@@ -1451,8 +1353,6 @@ function ConversationTurnGroupImpl({
   const canRetryLatestAssistant = latestAssistantTextRow?.actions?.canRetry === true;
   const canForkLatestAssistant = latestAssistantTextRow?.actions?.canFork === true;
   const backgroundResultTitle = resolveBackgroundResultTitle(unit);
-  const showHighspeedOutputFooter =
-    unit.showHighspeedOutputFooter === true && isHighspeed && !unit.timelineOnly && !unit.isRunning;
   const hasAssistantWorkContent = unit.timelineOnly
     ? unit.assistantWorkRows.length > 0
     : unit.assistantWorkRows.length > 0 ||
@@ -1463,7 +1363,6 @@ function ConversationTurnGroupImpl({
     Boolean(unit.header?.fileChanges) ||
     canRenderAssistantActions ||
     hasHookActions ||
-    showHighspeedOutputFooter ||
     workflowTurnDigests.length > 0;
   const editWorkspaceRewindAvailability = useMemo<EditWorkspaceRewindAvailability>(() => {
     const fileChanges = unit.header?.fileChanges;
@@ -1712,23 +1611,7 @@ function ConversationTurnGroupImpl({
               />
             </MessageActions>
           ) : null}
-          {showHighspeedOutputFooter ? (
-            <HighspeedOutputFooter
-              generatedLabel={intl.formatMessage({ id: "chat.highspeed.generatedBy" })}
-              shareLabel={intl.formatMessage({ id: "chat.highspeed.viewAction" })}
-              shareAriaLabel={intl.formatMessage({ id: "chat.highspeed.share" })}
-              shareEnabled={highspeedShareTarget !== null}
-              sharePending={false}
-              onShare={() => setHighspeedShareDialogOpen(true)}
-            />
-          ) : null}
-          {highspeedShareTarget ? (
-            <HighspeedShareDialog
-              metrics={highspeedShareTarget.metrics}
-              open={highspeedShareDialogOpen}
-              onOpenChange={setHighspeedShareDialogOpen}
-            />
-          ) : null}
+
           {unit.assistantTailRows.length > 0 ? (
             // turnTailBoundary 之前虽然从工作历史中拆出，却仍在 flow 内渲染，
             // 使 CronCreate、文件 summary 与操作栏看起来落在 fork 分割线之后。boundary

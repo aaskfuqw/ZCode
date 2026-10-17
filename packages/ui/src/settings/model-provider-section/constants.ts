@@ -227,3 +227,5 @@ export interface ModelProviderNavGroup {
   title: string;
   items: ModelProviderNavItem[];
 }
+
+export type CodingPlanLoginOptions = { forceOAuth?: boolean };

@@ -27,7 +27,6 @@ import {
   type OffPeakAutomationTemplate,
 } from "@/settings/automationTemplateCatalog.js";
 import { useAutomationTemplates } from "@/settings/useAutomationTemplates.js";
-import { useOptionalCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { useOffPeakTaskStore, type OffPeakCreateDraft } from "@/store/offPeakTaskStore.js";
 import { useMemo } from "react";
 
@@ -49,7 +48,6 @@ export function OffPeakNewTaskEntry({ onOpenAutomations }: OffPeakNewTaskEntryPr
   const providerSettingsView =
     providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
   useOffPeakEligibility(sharedSettings, providerSettingsView?.revision);
-  const codingPlanUpgradeDialog = useOptionalCodingPlanUpgradeDialog();
   const grayConfig = useOffPeakTaskStore((state) => state.grayConfig);
   const dismissed = useOffPeakTaskStore((state) => state.newTaskBannerDismissed);
   const dismiss = useOffPeakTaskStore((state) => state.dismissNewTaskBanner);
@@ -78,17 +76,6 @@ export function OffPeakNewTaskEntry({ onOpenAutomations }: OffPeakNewTaskEntryPr
       durationMs: 8000,
       position: "top-center",
       variant: "info",
-      actionLabel: intl.formatMessage({ id: "settings.modelProvider.codingPlan.upgrade" }),
-      onAction: () => {
-        const providerId =
-          sharedSettings?.providerFamilyDomain === "bigmodel"
-            ? BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan
-            : BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan;
-        codingPlanUpgradeDialog?.openCodingPlanUpgrade({
-          providerId,
-          initialAudience: "personal",
-        });
-      },
       dismissible: true,
       dismissLabel: intl.formatMessage({ id: "common.close" }),
     });
@@ -107,9 +94,9 @@ export function OffPeakNewTaskEntry({ onOpenAutomations }: OffPeakNewTaskEntryPr
     // Bugfix：首页文案走 i18n、草稿却曾写死英文，导致中文系统点击模板后创建页中英混排。
     // 点击时按当前 locale 生成同源标题与指令；Customize 仍保持空白创建。
     const materialized = materializeOffPeakTemplateDraft(template, locale);
-    const draft: OffPeakCreateDraft = {
-      ...(template.customize ? {} : { title: materialized.title, prompt: materialized.prompt }),
-    };
+    const draft: OffPeakCreateDraft = template.customize
+      ? {}
+      : { title: materialized.title, prompt: materialized.prompt };
     setPendingCreateDraft(draft);
     onOpenAutomations?.();
   };

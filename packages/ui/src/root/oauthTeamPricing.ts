@@ -6,14 +6,13 @@ type EnterprisePricingProductsResult =
   | { status: "success"; productList: EnterpriseCodingPlanPricingProduct[] }
   | { status: "error" };
 
-export async function getEnterprisePricingProducts(
+export async function getTeamConnectionsProducts(
   services: IServiceAccessor,
   domain: ProviderFamilyDomain,
 ): Promise<EnterprisePricingProductsResult> {
   // 两个账号域均须按自身 Family 查询；失败与明确空列表分开，不能据此自动改掉已有连接。
   try {
-    const pricing = await services.codingPlanSubscriptionService.getEnterprisePricing({
-      authenticated: true,
+    const pricing = await services.codingPlanSubscriptionService.getTeamConnections({
       family: domain,
     });
     return { status: "success", productList: pricing.productList };
@@ -23,10 +22,10 @@ export async function getEnterprisePricingProducts(
   }
 }
 
-export async function getEnterprisePricingProductsOrEmpty(
+export async function getTeamConnectionsProductsOrEmpty(
   services: IServiceAccessor,
   domain: ProviderFamilyDomain,
 ): Promise<EnterpriseCodingPlanPricingProduct[]> {
-  const pricing = await getEnterprisePricingProducts(services, domain);
+  const pricing = await getTeamConnectionsProducts(services, domain);
   return pricing.status === "success" ? pricing.productList : [];
 }

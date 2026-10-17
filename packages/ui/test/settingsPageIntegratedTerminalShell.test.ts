@@ -36,7 +36,7 @@ const localListIntegratedTerminalShells = vi.fn(async () => []);
 
 const remoteServices = {
   codingPlanSubscriptionService: {
-    getEnterprisePricing: vi.fn(async () => ({ productList: [] })),
+    getTeamConnections: vi.fn(async () => ({ productList: [] })),
   },
   settingService: {
     get: vi.fn(async () => ({})),
@@ -193,13 +193,6 @@ vi.mock("@/lib/settingsNavigation.js", () => ({
   shouldFallbackSettingsUsageTabToApp: () => false,
   writeLastSettingsSectionPreference: vi.fn(),
 }));
-
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useCodingPlanUpgradeDialog: () => ({
-    openCodingPlanUpgrade: vi.fn(),
-  }),
-}));
-
 vi.mock("@/lib/sidebarUsageCodingPlanProviderPreference.js", () => ({
   readSidebarUsageCodingPlanProviderPreference: () => undefined,
   readSidebarUsageCodingPlanSourcePreference: () => undefined,

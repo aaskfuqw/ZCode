@@ -9,7 +9,6 @@ const h = vi.hoisted(() => {
   const dismissNewTaskBanner = vi.fn();
   const setPendingCreateDraft = vi.fn();
   const refreshCodingPlanSupport = vi.fn(async () => {});
-  const openCodingPlanUpgrade = vi.fn();
   const inventory = { status: "ready" as "ready" | "loading" | "error", retry: vi.fn() };
   const loggerDebug = vi.fn();
   const toast = vi.fn();
@@ -81,7 +80,6 @@ const h = vi.hoisted(() => {
     messages,
     offPeakTemplateIds,
     providerSettingsState,
-    openCodingPlanUpgrade,
     inventory,
     refreshCodingPlanSupport,
     services,
@@ -154,12 +152,6 @@ vi.mock("@/settings/useAutomationTemplates.js", () => ({
 }));
 vi.mock("@/logger.js", () => ({
   logger: { debug: h.loggerDebug },
-}));
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useOptionalCodingPlanUpgradeDialog: () => ({
-    openCodingPlanUpgrade: h.openCodingPlanUpgrade,
-    inventory: h.inventory,
-  }),
 }));
 vi.mock("@/store/offPeakTaskStore.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/store/offPeakTaskStore.js")>();
@@ -382,17 +374,14 @@ describe("OffPeakNewTaskEntry", () => {
     expect(h.refreshCodingPlanSupport).toHaveBeenCalledTimes(2);
   });
 
-  it("非 Coding Plan 用户点击模板时直接弹升级 toast，并拦截草稿与导航", () => {
+  it("非 Coding Plan 用户点击模板时提示使用条件，并拦截草稿与导航", () => {
     vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("idle-funnel-home");
-    h.messages.current["settings.modelProvider.codingPlan.upgrade"] = "升级";
     const onOpenAutomations = clickStandupTemplate();
 
     expect(h.toast).toHaveBeenCalledWith("offPeak.create.codingPlanToast", {
       durationMs: 8000,
       position: "top-center",
       variant: "info",
-      actionLabel: "升级",
-      onAction: expect.any(Function),
       dismissible: true,
       dismissLabel: "common.close",
     });
@@ -402,13 +391,6 @@ describe("OffPeakNewTaskEntry", () => {
       "[off-peak] blocked home template without any Coding Plan",
       { templateId: "standupGitSummary" },
     );
-
-    const toastOptions = h.toast.mock.calls[0]?.[1];
-    toastOptions?.onAction?.();
-    expect(h.openCodingPlanUpgrade).toHaveBeenCalledWith({
-      providerId: BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan,
-      initialAudience: "personal",
-    });
   });
 
   it("Account Overlay 确认 Coding Plan 可用时放行闲时任务导航", () => {
@@ -461,21 +443,20 @@ describe("OffPeakNewTaskEntry", () => {
     {
       locale: "zh-CN",
       messages: zhCN,
-      bannerText: "订阅用户新功能体验：创建“闲时任务”，我们将免费在算力富余时段为你完成指派任务。",
+      bannerText: "闲时任务会在算力富余时段执行。",
       bannerTipText: "本功能不消耗订阅用户套餐额度、本功能仅面向订阅用户开放",
       fullCopy:
-        "订阅用户新功能体验：创建“闲时任务”，我们将免费在算力富余时段为你完成指派任务。本功能不消耗订阅用户套餐额度、本功能仅面向订阅用户开放",
+        "闲时任务会在算力富余时段执行。本功能不消耗订阅用户套餐额度、本功能仅面向订阅用户开放",
       copySeparator: "",
     },
     {
       locale: "en-US",
       messages: enUS,
-      bannerText:
-        'New feature for subscribers: Create "Idle-time task" , We will complete your assigned task for free during periods of surplus computing power.',
+      bannerText: "Idle-time tasks run during periods of spare computing capacity.",
       bannerTipText:
         "This feature does not consume your subscription plan quota and is available exclusively to subscribers.",
       fullCopy:
-        'New feature for subscribers: Create "Idle-time task" , We will complete your assigned task for free during periods of surplus computing power. This feature does not consume your subscription plan quota and is available exclusively to subscribers.',
+        "Idle-time tasks run during periods of spare computing capacity. This feature does not consume your subscription plan quota and is available exclusively to subscribers.",
       copySeparator: " ",
     },
   ])(

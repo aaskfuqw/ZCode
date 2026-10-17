@@ -80,23 +80,16 @@ Start Plan 的 balance 返回 429 时保留 Start 标题、单一失败提示和
 
 | Case   | Setup / Action                                                                         | 必须断言                                                                                                                                                          |
 | ------ | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CTP-14 | BigModel 未连接，打开编程套餐                                                          | 连接动作、个人和团队购买 banner；无体验购买 banner、无模型列表/添加模型                                                                                           |
-| CTP-15 | 个人无权益，团队商品仍 subscribed 但团队已过期                                         | 个人和团队购买 banner 同时出现；无模型列表；个人订阅请求使用 API key                                                                                              |
+| CTP-14 | BigModel 未连接，打开编程套餐                                                          | Login and neutral account status; no purchase actions or executable models without entitlement                                                                    |
+| CTP-15 | 个人无权益，团队商品仍 subscribed 但团队已过期                                         | Neutral no-entitlement status; no purchase actions or executable models; personal subscription reads still use the correct API key                                |
 | CTP-16 | 选择团队，分别已过期、未分配、接口失败                                                 | 对应状态文案；确认过期/未分配时无模型列表（查询失败不等于无权益）；登录态不退化为连接按钮；失败点击重试后有效权益恢复模型列表；团队请求使用业务 token 和组织/项目 |
 | CTP-17 | Start 返回 status=active、旧 server_time、已过期 ends_at 和旧余额                      | 以 HTTP Date 判过期；显示过期状态，无今日余额/旧模型列表                                                                                                          |
 | CTP-18 | Start 同时返回已过期和有效计划                                                         | 仅有效计划与余额显示，模型列表可用                                                                                                                                |
-| CTP-19 | 有效 Start + 已选择并确认可用的个人或团队连接，打开独立 Start 导航（保留付费连接身份） | 有效 Start 无升级/150% 操作；再以过期 Start 验证无个人/团队购买 banner；无付费权益作为正对照时升级可见                                                            |
+| CTP-19 | 有效 Start + 已选择并确认可用的个人或团队连接，打开独立 Start 导航（保留付费连接身份） | Active, expired and missing Start entitlements never show upgrade, claim or sales actions; valid existing balances and model configuration remain visible         |
 
 组合按差异裁剪：CTP-16 覆盖三个独立团队状态；CTP-19 覆盖个人、团队及无权益。中英文品牌命名沿用 PN-01/02，额度失败保留入口沿用 CTP-11 的个人/团队和宽/窄屏组合；一秒共享请求与异步失效由服务单测验证。桌面窄窗口不等同真实手机 `/remote`，后者不在本次桌面回放证据内。这 9 个 case 已经用户确认，于 2026-09-18 迁移到 settings 正式目录；Docker/CI 准入单独验证。
 
-回放发现并修复：Start 页曾直接使用团队导航的 `status=purchased` 判断已有付费权益，而该值可以来自历史 `pricing.subscribed`。现在购买/升级入口只读取 `ProviderSettingsView` 中同平台付费 Provider 的 Account `availability=available` 且 `entitled=true`。目录仅负责发现商品和团队身份。对应组件单测交叉覆盖导航状态与 Account 权益，旧实现出现 2 个失败，修复后通过。
-
-```text
-订阅接口 → Account owner 确认权益 → ProviderSettingsView → Start 购买/升级入口
-商品目录 → 团队导航身份（不作为权益证据）
-```
-
-自动化入口：[coding-plan-entitlement-presentation.test.ts](../../packages/desktop/test/e2e/settings/coding-plan-entitlement-presentation.test.ts)。业务数据由 [entitlement-presentation.ts](../../packages/desktop/test/e2e/fixtures/entitlement-presentation.ts) 提供，含有效静态个人/团队目录、`subscribed=true` 的实时团队商品、体验套餐预览及 150% 活动，避免对缺失配置做空的“不显示”断言。
+ADR 0003 supersedes the historical sales assertions. Team discovery supplies account/project identity; Account Source remains authoritative for executable models. The retained entitlement-presentation spec and fixture cover status, quota, expiration, retry and model visibility. Previous run records below describe their original code revision and do not certify this removal.
 
 现有用例维护：CTP-10 / QR 共用的 Account 模型选择更新到本轮 Builtin catalog 的 GLM-5.3；隔离账号首次启动使用共享 `skipOccupationOnboardingIfPresent` 完成引导。原来的 Escape 只临时关闭引导，QR-09/10 重载后会重新遮挡 Composer；失败时的 DOM 证据明确为 `onboarding-page`，不是权益或额度接口失败。
 

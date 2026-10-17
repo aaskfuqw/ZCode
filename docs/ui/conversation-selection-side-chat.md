@@ -91,11 +91,14 @@ Side Pane 启动页 / 顶部 + 菜单 / 主 composer `/side`、`/btw`
 | workspace 隔离                     | session workspace ref                | `workspaceIdentity?.trim() \|\| workspacePath` | tab key 与 command route       |
 | live 列表可见性                    | CLI sessions-index/task-index filter | task list cache                                | root query 排除 parented child |
 
-## Start 同模型推荐
+## First-input model inheritance
 
-`/side <text>` / `/btw <text>` 创建并提交首条消息前，使用父 session snapshot 已生效的 provider/model/thought 判断同模型 Start 推荐；不读取父 Composer 尚未提交的模型草稿。缺少完整可验证的继承选择时，继续原有 Host 继承行为并跳过推荐。
-
-确认切换将完整 `firstInput.modelSelection` 随唯一 `createSelectionSideSession` 命令传入，Host 用它创建 child 并启动首条输入；“不了”省略该字段，保持原继承；关闭弹窗不发命令、不创建 child，保留原输入。裸命令与空副屏入口不推荐。原 ACK admission、去重及 continuous/replayable 边界不变。
+ADR 0003 removes automatic Start recommendations. `/side <text>` and `/btw <text>`
+submit through the existing atomic child-session creation command, inheriting the
+accepted parent-session selection rather than its unsubmitted composer draft.
+Explicit model-selection payloads retain their existing protocol semantics.
+Command admission, ACK handling, pending deduplication, owner/lease checks and
+Desktop/mobile delivery semantics remain with their current owners.
 
 ## Selection and reference contract
 

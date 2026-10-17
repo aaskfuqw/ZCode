@@ -30,7 +30,7 @@ describe("desktop e2e beforeSession setup", () => {
         events.push("coding-plan-team");
       },
       configureCodingPlanTeamMockForSpecs,
-      startCodingPlanUpgradeMockIfNeeded: async () => {
+      startAccountProviderMockIfNeeded: async () => {
         events.push("coding-plan-upgrade");
       },
       startUpstreamHttpIfNeeded: async () => {

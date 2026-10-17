@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BIGMODEL_PROVIDER_ID, type OAuthTokenSet } from "@zcode/shared";
 import { OAuthService } from "#src/oauth/oauthService.js";
-import { parseOAuthLoginAttribution } from "#src/oauth/callbackAttribution.js";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -29,7 +28,6 @@ async function setup() {
     return {
       code: params.get("code")!,
       state: params.get("state")!,
-      attribution: parseOAuthLoginAttribution(params),
     };
   });
   const exchangeToken = vi.fn(() => exchange.promise);
@@ -39,7 +37,7 @@ async function setup() {
       ? Response.json({
           code: 0,
           data: {
-            authorize_url: "https://example.com/authorize?state=race-state&channel_id=launch",
+            authorize_url: "https://example.com/authorize?state=race-state",
             expires_at: 2_000_000_300,
             flow_id: "race",
             poll_interval_sec: 1,
@@ -76,10 +74,8 @@ async function setup() {
     },
   );
   services.push(service);
-  const started = await service.startOAuthWithPolling(BIGMODEL_PROVIDER_ID);
-  expect(new URL(started.authorizeUrl).searchParams.get("channel_id")).toBe("launch");
-  const callback =
-    "zcode://oauth/callback?state=race-state&code=code&channel_id=desktop&utm_source=site&utm_campaign=launch";
+  await service.startOAuthWithPolling(BIGMODEL_PROVIDER_ID);
+  const callback = "zcode://oauth/callback?state=race-state&code=code";
   const ready = () =>
     pollResponse.resolve(
       Response.json({
@@ -110,14 +106,9 @@ async function setup() {
   };
 }
 
-const attribution = JSON.stringify({
-  channel_id: "desktop",
-  utm_source: "site",
-  utm_campaign: "launch",
-});
 describe("OAuth completion arbitration", () => {
   it.each(["callback", "poll"] as const)(
-    "%s first succeeds: skips the second exchange but preserves attribution",
+    "%s first succeeds: completes the session only once",
     async (first) => {
       const f = await setup();
       const firstCall =
@@ -140,7 +131,6 @@ describe("OAuth completion arbitration", () => {
       const secondResult = await secondCall;
       expect(secondResult?.kind).not.toBe("session");
       expect(f.credentials.get("oauth:bigmodel:access_token")).toBe("winner");
-      expect(f.credentials.get("oauth:login_attribution")).toBe(attribution);
       expect(f.save.mock.calls.filter(([key]) => key === "oauth:active_provider")).toHaveLength(1);
     },
   );
@@ -168,22 +158,19 @@ describe("OAuth completion arbitration", () => {
       const results = await Promise.all([firstCall, secondCall]);
       expect(results.filter((r) => r?.kind === "session")).toHaveLength(1);
       expect(f.credentials.get("oauth:bigmodel:access_token")).toBe("fallback");
-      expect(f.credentials.get("oauth:login_attribution")).toBe(attribution);
     },
   );
 
-  it("preserves attribution from a late callback without parsing its code", async () => {
+  it("ignores a late callback without parsing its code", async () => {
     const f = await setup();
     f.ready();
     f.normalize.resolve({ accessToken: "poll", zcodeJwtToken: "jwt" });
     await f.service.pollPendingOAuth();
     expect(await f.service.handleCallback(f.callback)).toMatchObject({ kind: "duplicate" });
     expect(f.parse).not.toHaveBeenCalled();
-    expect(f.credentials.get("oauth:login_attribution")).toBe(attribution);
     await expect(
       f.service.handleCallback(f.callback.replace("race-state", "wrong-state")),
     ).rejects.toThrow();
-    expect(f.credentials.get("oauth:login_attribution")).toBe(attribution);
   });
   it.each(["callback", "poll"] as const)(
     "%s first and both paths fail: reports failure without credentials",
@@ -219,7 +206,7 @@ describe("OAuth completion arbitration", () => {
     },
   );
 
-  it("cancellation skips a queued callback including its attribution", async () => {
+  it("cancellation skips a queued callback", async () => {
     const f = await setup();
     const poll = f.service.pollPendingOAuth();
     f.ready();
@@ -256,48 +243,12 @@ describe("OAuth completion arbitration", () => {
     expect(await poll).toMatchObject({ kind: "duplicate" });
     expect(f.normalizePolledTokenSet).not.toHaveBeenCalled();
   });
-  it("does not accept attribution after a completed flow is cancelled", async () => {
+  it("rejects callbacks after a completed flow is cancelled", async () => {
     const f = await setup();
     f.ready();
     f.normalize.resolve({ accessToken: "poll" });
     await f.service.pollPendingOAuth();
     await f.service.cancelPending();
     await expect(f.service.handleCallback(f.callback)).rejects.toThrow("OAuth state");
-    expect(f.credentials.has("oauth:login_attribution")).toBe(false);
   });
 });
-
-it.each(["pending", "completed"])(
-  "keeps %s callbacks admitted before the grace deadline",
-  async (phase) => {
-    const f = await setup();
-    const gate = deferred<void>();
-    f.save.mockImplementation(async (key, value) => {
-      if (key === "oauth:login_attribution") await gate.promise;
-      f.credentials.set(key, value);
-    });
-    const poll = f.service.pollPendingOAuth();
-    f.ready();
-    await vi.waitFor(() => expect(f.normalizePolledTokenSet).toHaveBeenCalledOnce());
-    if (phase === "completed") {
-      f.normalize.resolve({ accessToken: "winner" });
-      await poll;
-    }
-    const first = f.service.handleCallback(f.callback);
-    const second = f.service.handleCallback(
-      f.callback.replace("utm_campaign=launch", "utm_campaign=queued"),
-    );
-    f.normalize.resolve({ accessToken: "winner" });
-    await poll;
-    await vi.waitFor(() =>
-      expect(f.save.mock.calls.some(([key]) => key === "oauth:login_attribution")).toBe(true),
-    );
-    f.advanceTime(30_001);
-    gate.resolve();
-    expect(await first).toMatchObject({ kind: "duplicate" });
-    expect(await second).toMatchObject({ kind: "duplicate" });
-    expect(JSON.parse(f.credentials.get("oauth:login_attribution")!).utm_campaign).toBe("queued");
-    expect(f.parse).not.toHaveBeenCalled();
-    await expect(f.service.handleCallback(f.callback)).rejects.toThrow("OAuth state");
-  },
-);

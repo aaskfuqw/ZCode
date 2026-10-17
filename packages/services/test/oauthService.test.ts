@@ -17,8 +17,6 @@ import { ZaiProviderAdapter } from "../src/oauth/providers/zaiProviderAdapter.js
 import type { ICredentialService } from "../src/credential/credential.js";
 import type { OAuthProviderAdapter } from "../src/oauth/providers/index.js";
 import { OAuthService } from "../src/oauth/oauthService.js";
-import { OAuthCredentialRepo } from "../src/oauth/repo/oauthCredentialRepo.js";
-
 import { AccountProviderApiKeyResolver } from "../src/model-provider/accountProviderApiKeyResolver.js";
 import { createAccountProjectTokenClient } from "../src/model-provider/accountProjectTokenClient.js";
 import { resolveAccountTeamPlanRuntimeApiKey } from "../src/model-provider/accountProviderTeamPlanRequestKey.js";
@@ -34,9 +32,8 @@ function buildDesktopOAuthLoginRedirectUri(origin: string): string {
 
 const PRODUCTION_DESKTOP_OAUTH_LOGIN_REDIRECT_URI =
   buildDesktopOAuthLoginRedirectUri("https://zcode.z.ai/");
-const TEST_DESKTOP_OAUTH_LOGIN_REDIRECT_URI = buildDesktopOAuthLoginRedirectUri(
-  "https://zcode.z.ai/",
-);
+const TEST_DESKTOP_OAUTH_LOGIN_REDIRECT_URI =
+  buildDesktopOAuthLoginRedirectUri("https://zcode.z.ai/");
 
 // Windows 机器上设置了 ZAI_TEST_OAUTH_ORIGIN 等环境变量，会覆盖测试预期的 test 端点值
 // 过滤掉这些可能污染测试的环境变量
@@ -902,40 +899,6 @@ describe("oauthService", () => {
     await expect(service.pollPendingOAuth()).resolves.toBeNull();
     expect(credentialStore.get("oauth:zai:access_token")).toBeUndefined();
   });
-
-  it("persists website attribution without an expiry time", async () => {
-    const service = createBigModelService({
-      apiClient: createMockApiClient(vi.fn<typeof fetch>()),
-    });
-    const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-
-    await service.handleCallback(
-      `zcode://oauth/callback?state=${state}&channel_id=douyin&utm_source=wechat`,
-    );
-
-    const repo = new OAuthCredentialRepo(credentialServiceStub);
-    await expect(repo.loadLoginAttribution()).resolves.toEqual({
-      channel_id: "douyin",
-      utm_source: "wechat",
-    });
-  });
-
-  it("reads the temporary expiring attribution record written by an earlier branch revision", async () => {
-    await credentialServiceStub.save(
-      "oauth:login_attribution",
-      JSON.stringify({
-        params: { channel_id: "migrated-channel", utm_campaign: "launch" },
-        expiresAt: 1,
-      }),
-    );
-    const repo = new OAuthCredentialRepo(credentialServiceStub);
-
-    await expect(repo.loadLoginAttribution()).resolves.toEqual({
-      channel_id: "migrated-channel",
-      utm_campaign: "launch",
-    });
-  });
-
   it("缺少 apiClient 注入时会立即报错", () => {
     expect(
       () =>
@@ -1009,9 +972,7 @@ describe("oauthService", () => {
     const { authorizeUrl } = await service.startOAuth(ZAI_PROVIDER_ID);
     const parsed = new URL(authorizeUrl);
 
-    expect(parsed.origin + parsed.pathname).toBe(
-      "https://chat.z.ai/api/oauth/authorize",
-    );
+    expect(parsed.origin + parsed.pathname).toBe("https://chat.z.ai/api/oauth/authorize");
     expect(parsed.searchParams.get("redirect_uri")).toBe(TEST_DESKTOP_OAUTH_LOGIN_REDIRECT_URI);
     expect(parsed.searchParams.get("client_id")).toBe("client_P8X5CMWmlaRO9gyO-KSqtg");
   });
@@ -1060,58 +1021,41 @@ describe("oauthService", () => {
 
     expect(parsed.origin + parsed.pathname).toBe("https://bigmodel.cn/login");
   });
-
-  it("accepts attribution once and preserves the same state for the final authorization callback", async () => {
+  it("does not treat a rejected authorization callback as an intermediate handoff", async () => {
     const fetchMock = vi.fn<typeof fetch>();
-    const service = createBigModelService({
-      apiClient: createMockApiClient(fetchMock),
-    });
+    const service = createBigModelService({ apiClient: createMockApiClient(fetchMock) });
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-
     await expect(
-      service.handleCallback(
-        `zcode://oauth/callback?state=${state}&channel_id=google_ads&utm_source=google`,
-      ),
-    ).resolves.toEqual({
-      kind: "attribution",
-      provider: BIGMODEL_PROVIDER_ID,
-      attribution: {
-        channel_id: "google_ads",
-        utm_source: "google",
-      },
-    });
-    expect(await credentialServiceStub.load("oauth:login_attribution")).toBe(
-      JSON.stringify({ channel_id: "google_ads", utm_source: "google" }),
-    );
-
-    await expect(
-      service.handleCallback(
-        `zcode://oauth/callback?state=${state}&channel_id=duplicate&utm_source=duplicate`,
-      ),
-    ).rejects.toThrow("OAuth 归因回调已处理");
-    expect(await credentialServiceStub.load("oauth:login_attribution")).toBe(
-      JSON.stringify({ channel_id: "google_ads", utm_source: "google" }),
-    );
-
-    fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
-    fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
-
-    await expect(
-      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-001&state=${state}`),
-    ).resolves.toMatchObject({
-      kind: "session",
-      provider: BIGMODEL_PROVIDER_ID,
-    });
+      service.handleCallback(`zcode://oauth/callback?state=${state}&error=access_denied`),
+    ).rejects.toThrow("OAuth 回调缺少");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await credentialServiceStub.load("oauth:active_provider")).toBeNull();
   });
 
-  it("invalidates an attributed state when a new OAuth flow starts", async () => {
+  it("keeps repeated state-only callbacks pending until the authorization code arrives", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const service = createBigModelService({ apiClient: createMockApiClient(fetchMock) });
+    const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
+    for (let i = 0; i < 2; i++) {
+      await expect(
+        service.handleCallback(`zcode://oauth/callback?state=${state}`),
+      ).resolves.toBeNull();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(await credentialServiceStub.load("oauth:active_provider")).toBeNull();
+    fetchMock.mockResolvedValueOnce(createBigModelZcodeTokenResponse());
+    fetchMock.mockResolvedValueOnce(createBigModelUserInfoResponse());
+    await expect(
+      service.handleCallback(`zcode://oauth/callback?authCode=auth-code-001&state=${state}`),
+    ).resolves.toMatchObject({ kind: "session", provider: BIGMODEL_PROVIDER_ID });
+  });
+
+  it("invalidates a state-only handoff when a new OAuth flow starts", async () => {
     const service = createBigModelService({
       apiClient: createMockApiClient(vi.fn<typeof fetch>()),
     });
     const first = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-    await service.handleCallback(
-      `zcode://oauth/callback?state=${first.state}&channel_id=google_ads`,
-    );
+    await service.handleCallback(`zcode://oauth/callback?state=${first.state}`);
 
     const second = await service.startOAuth(BIGMODEL_PROVIDER_ID);
 
@@ -1122,13 +1066,13 @@ describe("oauthService", () => {
     await service.cancelPending();
   });
 
-  it("expires an attributed state after the OAuth timeout", async () => {
+  it("expires a state-only handoff after the OAuth timeout", async () => {
     vi.useFakeTimers();
     const service = createBigModelService({
       apiClient: createMockApiClient(vi.fn<typeof fetch>()),
     });
     const { state } = await service.startOAuth(BIGMODEL_PROVIDER_ID);
-    await service.handleCallback(`zcode://oauth/callback?state=${state}&channel_id=google_ads`);
+    await service.handleCallback(`zcode://oauth/callback?state=${state}`);
 
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
 
@@ -1150,9 +1094,7 @@ describe("oauthService", () => {
     const { authorizeUrl } = await service.startOAuth(ZAI_PROVIDER_ID);
     const parsed = new URL(authorizeUrl);
 
-    expect(parsed.origin + parsed.pathname).toBe(
-      "https://chat.z.ai/api/oauth/authorize",
-    );
+    expect(parsed.origin + parsed.pathname).toBe("https://chat.z.ai/api/oauth/authorize");
     expect(parsed.searchParams.get("client_id")).toBe("client_P8X5CMWmlaRO9gyO-KSqtg");
   });
 
@@ -1187,7 +1129,7 @@ describe("oauthService", () => {
     );
     fetchMock.mockResolvedValueOnce(createZaiBusinessLoginResponse());
     const result = await service.handleCallback(
-      `zcode://oauth/callback?code=zai-code-001&state=${state}&channel_id=google_ads&utm_source=google&utm_campaign=brand_search`,
+      `zcode://oauth/callback?code=zai-code-001&state=${state}&utm_source=google&utm_campaign=brand_search`,
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -1228,13 +1170,6 @@ describe("oauthService", () => {
     );
     expect(await credentialServiceStub.load("oauth:zai:refresh_token")).toBeNull();
     expect(await credentialServiceStub.load("zcodejwttoken")).toBe("zcode_backend_jwt");
-    expect(await credentialServiceStub.load("oauth:login_attribution")).toBe(
-      JSON.stringify({
-        channel_id: "google_ads",
-        utm_source: "google",
-        utm_campaign: "brand_search",
-      }),
-    );
     expect(await credentialServiceStub.load("oauth:zai:user_info")).toBe(
       JSON.stringify({
         user_id: "zai-u-001",
@@ -1862,9 +1797,6 @@ describe("oauthService", () => {
     );
     expect(await credentialServiceStub.load("oauth:bigmodel:refresh_token")).toBeNull();
     expect(await credentialServiceStub.load("zcodejwttoken")).toBe("bigmodel-zcode-jwt");
-    expect(await credentialServiceStub.load("oauth:login_attribution")).toBe(
-      JSON.stringify({ utm_source: "google" }),
-    );
     expect(await credentialServiceStub.load("oauth:bigmodel:user_info")).toBe(
       JSON.stringify({
         ...result.userInfo,
@@ -2121,7 +2053,8 @@ describe("oauthService", () => {
             accessToken,
             zcodeJwtToken,
           }),
-          normalizeError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
+          normalizeError: (error: unknown) =>
+            error instanceof Error ? error : new Error(String(error)),
         },
       ],
       now: () => 2_000_000_000_000,
@@ -2162,7 +2095,8 @@ describe("oauthService", () => {
             state: new URL(url).searchParams.get("state") ?? "",
           }),
           exchangeToken: async () => exchange,
-          normalizeError: (error: unknown) => (error instanceof Error ? error : new Error(String(error))),
+          normalizeError: (error: unknown) =>
+            error instanceof Error ? error : new Error(String(error)),
         },
       ],
     });
@@ -3415,11 +3349,6 @@ describe("oauthService", () => {
       JSON.stringify({ user_id: "account-a", name: "Ada" }),
     );
     await credentialServiceStub.save("zcodejwttoken", "zai-jwt");
-    await credentialServiceStub.save(
-      "oauth:login_attribution",
-      JSON.stringify({ channel_id: "google_ads" }),
-    );
-
     await service.logout();
 
     expect(await credentialServiceStub.load("oauth:active_provider")).toBeNull();
@@ -3427,9 +3356,6 @@ describe("oauthService", () => {
     expect(await credentialServiceStub.load("oauth:zai:refresh_token")).toBeNull();
     expect(await credentialServiceStub.load("oauth:zai:user_info")).toBeNull();
     expect(await credentialServiceStub.load("zcodejwttoken")).toBeNull();
-    expect(await credentialServiceStub.load("oauth:login_attribution")).toBe(
-      JSON.stringify({ channel_id: "google_ads" }),
-    );
     expect(onProviderLogout).toHaveBeenCalledWith(ZAI_PROVIDER_ID, "account-a");
   });
 

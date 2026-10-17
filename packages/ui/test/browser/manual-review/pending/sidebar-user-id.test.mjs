@@ -22,8 +22,6 @@ before(async () => {
         load(id) {
           if (id.endsWith("/hooks/usePlatform.tsx"))
             return "export const usePlatform=()=>({executeDesktopCommand:async()=>{}});";
-          if (id.endsWith("/rewards/RewardsProvider.tsx"))
-            return "export const useOpenRewards=()=>()=>{};";
           if (id.endsWith("/shortcuts/useShortcutBindings.ts"))
             return 'export const useShortcutCommandLabel=()=>"";';
           if (id.endsWith("/store/StoreProvider.tsx"))
@@ -90,6 +88,10 @@ async function open(params = {}, clipboard = "ok", width = 960) {
   await trigger.waitFor();
   assert.equal(await trigger.getByText("Pro", { exact: true }).count(), 0);
   await trigger.click();
+  assert.equal(
+    await page.getByRole("menuitem", { name: /升级套餐|邀请好友|Upgrade|Invite/ }).count(),
+    0,
+  );
   return page;
 }
 for (const theme of ["light", "dark"])

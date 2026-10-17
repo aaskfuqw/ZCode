@@ -300,7 +300,7 @@ function createStartupRestoreServices(params: {
         }),
       },
       codingPlanSubscriptionService: {
-        getEnterprisePricing: vi.fn(async () => {
+        getTeamConnections: vi.fn(async () => {
           if (params.enterprisePricingError) {
             throw params.enterprisePricingError;
           }
@@ -368,7 +368,7 @@ describe("refreshRestoredOAuthProviderFamilyAfterStartup", () => {
         expect(result).toEqual(selection);
         expect(update).not.toHaveBeenCalled();
         expect(services.usageStatsService.getEntitlementSnapshot).not.toHaveBeenCalled();
-        expect(services.codingPlanSubscriptionService.getEnterprisePricing).not.toHaveBeenCalled();
+        expect(services.codingPlanSubscriptionService.getTeamConnections).not.toHaveBeenCalled();
       }
     },
   );
@@ -418,7 +418,7 @@ describe("refreshRestoredOAuthProviderFamilyAfterStartup", () => {
             });
       expect(result).toBeNull();
       expect(update).not.toHaveBeenCalled();
-      expect(services.codingPlanSubscriptionService.getEnterprisePricing).not.toHaveBeenCalled();
+      expect(services.codingPlanSubscriptionService.getTeamConnections).not.toHaveBeenCalled();
     },
   );
   it("首次没有选择仍初始化，并按查询前的设置条件写入", async () => {

@@ -1,17 +1,11 @@
 /* eslint-disable max-lines -- OAuth 凭据仓储集中维护 ZAI/BigModel 登录镜像 key 边界，拆分会让鉴权事实源更难追踪。 */
 import { Buffer } from "node:buffer";
-import type {
-  OAuthLoginAttribution,
-  OAuthProviderId,
-  OAuthTokenSet,
-  OAuthUserProfile,
-} from "@zcode/shared";
+import type { OAuthProviderId, OAuthTokenSet, OAuthUserProfile } from "@zcode/shared";
 import { BIGMODEL_PROVIDER_ID, isCredentialDecryptError, ZAI_PROVIDER_ID } from "@zcode/shared";
 import type { ICredentialService } from "../../credential/credential.js";
 import { createServiceLogger } from "../../logger/serviceLogger.js";
 
 const ACTIVE_PROVIDER_KEY = "oauth:active_provider";
-const LOGIN_ATTRIBUTION_KEY = "oauth:login_attribution";
 const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
 const KNOWN_OAUTH_PROVIDER_IDS = [BIGMODEL_PROVIDER_ID, ZAI_PROVIDER_ID] as const;
 const log = createServiceLogger("oauthCredentialRepo");
@@ -221,64 +215,6 @@ export class OAuthCredentialRepo {
       throw new Error("保存当前登录 user 前缺少 active provider");
     }
     await this.saveUserProfile(provider, profile);
-  }
-
-  async saveLoginAttribution(attribution: OAuthLoginAttribution): Promise<void> {
-    const persistAttribution = Object.fromEntries(
-      Object.entries(attribution).flatMap(([key, value]) => {
-        const trimmed = typeof value === "string" ? value.trim() : "";
-        return trimmed ? [[key, trimmed]] : [];
-      }),
-    );
-
-    if (Object.keys(persistAttribution).length === 0) {
-      return;
-    }
-
-    await this.credentialService.save(LOGIN_ATTRIBUTION_KEY, JSON.stringify(persistAttribution));
-  }
-
-  async loadLoginAttribution(): Promise<OAuthLoginAttribution | null> {
-    let raw: string | null;
-    try {
-      raw = await this.credentialService.load(LOGIN_ATTRIBUTION_KEY);
-    } catch (error) {
-      if (!isCredentialDecryptError(error)) {
-        throw error;
-      }
-      return null;
-    }
-
-    if (!raw) {
-      return null;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      // 兼容本分支早期保存过的 { params, expiresAt } 结构；取消 TTL 后只读取 params。
-      const storedParams =
-        parsed.params && typeof parsed.params === "object"
-          ? (parsed.params as Record<string, unknown>)
-          : parsed;
-
-      const params = Object.fromEntries(
-        Object.entries(storedParams).flatMap(([key, value]) =>
-          (key === "channel_id" || key === "utm_source" || key === "utm_campaign") &&
-          typeof value === "string" &&
-          value.trim()
-            ? [[key, value.trim()]]
-            : [],
-        ),
-      ) as OAuthLoginAttribution;
-      if (Object.keys(params).length === 0) {
-        await this.credentialService.delete(LOGIN_ATTRIBUTION_KEY);
-        return null;
-      }
-      return params;
-    } catch {
-      await this.credentialService.delete(LOGIN_ATTRIBUTION_KEY);
-      return null;
-    }
   }
 
   async clearActiveSession(): Promise<void> {

@@ -1,5 +1,3 @@
-import { resolveSelectionSideInheritedModel } from "@/lib/selectionSideInheritedModel.js";
-import { useStartPlanRecommendation } from "@/hooks/useStartPlanRecommendation.js";
 import { BotGroupDeliveryProvider } from "@/v4/BotGroupDeliveryAction.js";
 /* oxlint-disable eslint(max-lines) -- SessionPane 是单 pane 竖切的命令编排收口（订阅/发送/停止/fork/edit/retry/queue/slash 全集），与旧 ChatView 同粒度；HEAD 已超限（693 行计数），拆散命令组会打散 dispatchCommand/snapshotRef 的闭包纪律。 */
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
@@ -15,7 +13,6 @@ import {
 } from "react";
 import { Hand } from "lucide-react";
 import {
-  BUILTIN_MODEL_PROVIDER_IDS,
   buildCustomSupplierKey,
   TID_CHAT_EMPTY,
   TID_V4_SESSION_PANE,
@@ -57,7 +54,6 @@ import type {
   ConversationShareTurnPreflightResult,
   ImportedConversationShare,
 } from "@zcode/services";
-import { useCodingPlanBillingDiscountFromService } from "@/CodingPlanBillingDiscount.js";
 import { toast } from "@/components/ui/toast.js";
 import { cn } from "@/components/lib/utils.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
@@ -68,7 +64,6 @@ import { WORKSPACE_FILE_DRAG_MIME } from "@/lib/workspaceFileDrag.js";
 import { buildChatSessionScrollMemoryKey } from "@/lib/chatSessionScrollMemory.js";
 import type { MessageFileLinkTarget } from "@/components/ai-elements/message.js";
 import { useServices } from "@/hooks/useServices.js";
-import { browserGlobalNoticeStore } from "@/global-notice/globalNoticeStore.js";
 import {
   HIGHSPEED_SEND_WAIT_BUDGET_MS,
   prepareHighspeedSendContext,
@@ -81,9 +76,7 @@ import {
   calculateHighspeedSavedDurationFromMetrics,
   readHighspeedRegularTpsFromHealth,
 } from "@/highspeed/highspeedSavedTime.js";
-import { buildHighspeedShareNotice } from "@/highspeed/highspeedShare.js";
 import {
-  claimHighspeedCardAutoShare,
   claimHighspeedHealthyAttempt,
   completeHighspeedTurn,
   discardHighspeedTurn,
@@ -91,21 +84,15 @@ import {
   getHighspeedTurnVersion,
   hydrateHighspeedTurnsFromTranscript,
   listExpiredHighspeedCardsAwaitingTps,
-  listHighspeedCardAutoShareCandidates,
   listHighspeedTurnsAwaitingMetricsPersistence,
   listPendingHighspeedTurns,
-  markHighspeedCardAutoShared,
   markHighspeedTurnMetricsPersisted,
   recordHighspeedTurn,
-  resolveNextHighspeedAutoShareAt,
+  resolveNextHighspeedMetricsRefreshAt,
   setHighspeedCardTps,
   subscribeHighspeedTurns,
 } from "@/highspeed/highspeedTurnStore.js";
 import { claimHighspeedFallbackToast } from "@/highspeed/highspeedToastClaims.js";
-import {
-  collectHighspeedCardShareBlockers,
-  listHighspeedCardsAwaitingAutoShare,
-} from "@/highspeed/highspeedShareDiagnostics.js";
 import { useDynamicWorkflowAvailability } from "@/hooks/useDynamicWorkflowAvailability.js";
 import { resolveWorkflowResumeHandler } from "@/v4/workflowResumeGate.js";
 import {
@@ -273,7 +260,6 @@ import {
 } from "@/v4/chatLoadingVisibility.js";
 import type { ZCodeUiError } from "@/lib/zcodeUiError.js";
 import { isProviderNotReadyError } from "@/lib/chatPrepareError.js";
-import { useOptionalCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
 import { useOptionalTabStore } from "@/store/TabStoreProvider.js";
 import { useIsMobileTextInputViewport } from "@/lib/mobileTextInput.js";
@@ -1090,7 +1076,7 @@ export function SessionPane({
     getHighspeedTurnVersion,
     getHighspeedTurnVersion,
   );
-  const [highspeedAutoShareClock, refreshHighspeedAutoShareClock] = useState(0);
+  const [highspeedMetricsClock, refreshHighspeedMetricsClock] = useState(0);
   const dispatchCommandRef = useRef<
     | ((
         type: CommandType,
@@ -1198,7 +1184,7 @@ export function SessionPane({
     // 定时器停摆，唤醒后积压的 timeout 迟迟不触发，而 composer 倒计时是每秒读 Date.now()
     // 的 interval、唤醒即自愈——出现「倒计时已到 00:00:00 但输入框加速态不退出」的僵尸卡，
     // 只能等下一条消息的 prepareTurn 救活。回到窗口时按真实时钟重估：已过期立即清卡，
-    // 未过期重挂剩余时长（与下方分享时钟补偿同口径，spec §9.2/§9.3）。
+    // 未过期重挂剩余时长（与下方统计时钟补偿同口径）。
     const clearIfExpired = () => {
       if (Date.now() < expiresAt) return false;
       setActiveHighspeedCard((current) => (current?.cardId === cardId ? null : current));
@@ -1229,13 +1215,12 @@ export function SessionPane({
   }, [activeHighspeedCard]);
   useEffect(() => {
     if (!sessionId) return;
-    const nextAutoShareAt = resolveNextHighspeedAutoShareAt(sessionId);
-    if (nextAutoShareAt === null) return;
-    const delayMs = Math.max(0, nextAutoShareAt - Date.now()) + 20;
-    // Bug 根因：旧逻辑以 Turn 完成为分享时钟，第一轮结束就发布卡片；这里改由整张卡
-    // 的 expiresAt 唤醒聚合流程，卡到期时若仍有 Turn 运行，则等待其完成事件再次触发。
+    const nextMetricsRefreshAt = resolveNextHighspeedMetricsRefreshAt(sessionId);
+    if (nextMetricsRefreshAt === null) return;
+    const delayMs = Math.max(0, nextMetricsRefreshAt - Date.now()) + 20;
+    // Sample authoritative card TPS at expiry; an unfinished turn triggers one final retry.
     const timer = window.setTimeout(
-      () => refreshHighspeedAutoShareClock((revision) => revision + 1),
+      () => refreshHighspeedMetricsClock((revision) => revision + 1),
       delayMs,
     );
     return () => window.clearTimeout(timer);
@@ -1246,10 +1231,10 @@ export function SessionPane({
     // Chromium 冻结，定时器停摆，卡级 TPS 采样与完成态持久化停在原地，footer 查看按钮
     // 一直置灰，直到用户再发一条消息才被 store 版本号变化救活（违反 spec 9.3「到期边界
     // 由会话时间时钟触发重渲染，不要求用户再发送一条消息」）。回到窗口时立即补一次
-    // 时钟；聚合链路各入口均有 claim/幂等保护，重复触发无副作用。
+    // 时钟；统计查询和持久化保留防重保护，重复触发无副作用。
     const refreshFromWindowWake = () => {
       if (document.visibilityState === "hidden") return;
-      refreshHighspeedAutoShareClock((revision) => revision + 1);
+      refreshHighspeedMetricsClock((revision) => revision + 1);
     };
     document.addEventListener("visibilitychange", refreshFromWindowWake);
     window.addEventListener("focus", refreshFromWindowWake);
@@ -1257,7 +1242,7 @@ export function SessionPane({
       document.removeEventListener("visibilitychange", refreshFromWindowWake);
       window.removeEventListener("focus", refreshFromWindowWake);
     };
-  }, [refreshHighspeedAutoShareClock, sessionId]);
+  }, [refreshHighspeedMetricsClock, sessionId]);
   useEffect(() => {
     if (!sessionId || snapshot?.sessionId !== sessionId) return;
     const terminalStates = new Set(["completedSuccess", "completedInterrupted", "failed"]);
@@ -1279,7 +1264,7 @@ export function SessionPane({
       if (userRow?.kind === "userInput" && !userRow.highspeed) {
         // Bug 根因：Highspeed queue 在 admission ACK 时先登记统计；若真正提升时卡已过期，
         // CLI 会移除 Highspeed intent 并走原模型。以权威 user row 撤销预登记，避免普通
-        // 输出被错误计入 Highspeed 分享。
+        // 输出被错误计入 Highspeed 统计。
         discardHighspeedTurn(record.sourceCommandId);
         continue;
       }
@@ -1319,10 +1304,10 @@ export function SessionPane({
       });
     }
 
-    const autoShareNow = Date.now();
-    for (const card of listExpiredHighspeedCardsAwaitingTps(sessionId, autoShareNow)) {
+    const metricsNow = Date.now();
+    for (const card of listExpiredHighspeedCardsAwaitingTps(sessionId, metricsNow)) {
       if (!claimHighspeedHealthyAttempt(card.cardId, card.allTurnsCompleted)) {
-        // 诊断（debug）：每卡到期一次 + 完成后补查一次，机会用尽仍无 TPS 时分享链路必然停摆。
+        // 诊断（debug）：每卡到期一次 + 完成后补查一次，机会用尽仍无 TPS 时不再补造统计。
         logger.debug("[highspeed] 卡级 healthy 查询机会已用尽，仍无有效 TPS", {
           cardId: card.cardId,
           allTurnsCompleted: card.allTurnsCompleted,
@@ -1426,36 +1411,12 @@ export function SessionPane({
             // Bug 根因：持久化 ACK 触发的 store 更新可能先于 in-flight 清理被 React 消费，
             // 导致本轮重算被跳过；ACK 成功后显式唤醒一次，避免必须发送下一条 prompt。
             if (metricsPersisted) {
-              refreshHighspeedAutoShareClock((revision) => revision + 1);
+              refreshHighspeedMetricsClock((revision) => revision + 1);
             }
           });
       }
     }
-
-    for (const candidate of listHighspeedCardAutoShareCandidates(sessionId)) {
-      if (candidate.expiresAt > autoShareNow) continue;
-      // Bug 根因：失败后只清理 in-flight 会让后续 snapshot 重复触发自动分享，最终打到 429。
-      if (!claimHighspeedCardAutoShare(candidate.cardId, autoShareNow)) continue;
-      // 分享卡片改为客户端生成，不再请求后端 share 接口；到期后直接把本地统计发布到左下角。
-      browserGlobalNoticeStore?.publish(
-        buildHighspeedShareNotice({ cardId: candidate.cardId, metrics: candidate.metrics }),
-      );
-      markHighspeedCardAutoShared(candidate.cardId);
-    }
-
-    // 诊断（debug，随 snapshot 高频触发）：卡已到期、从未尝试分享、但也没进候选时，
-    // 直接输出阻塞原因。2026-08-31 左下角分享卡停留在旧卡 36 分钟无任何日志可查，
-    // 根因就是这些门禁此前全部静默跳过。
-    for (const cardId of listHighspeedCardsAwaitingAutoShare(sessionId, autoShareNow)) {
-      const blockers = collectHighspeedCardShareBlockers(cardId);
-      if (blockers.length > 0) {
-        logger.debug("[highspeed] 卡已到期但未进入自动分享，阻塞原因", {
-          cardId,
-          blockers,
-        });
-      }
-    }
-  }, [highspeedAutoShareClock, highspeedCardService, highspeedTurnVersion, sessionId, snapshot]);
+  }, [highspeedMetricsClock, highspeedCardService, highspeedTurnVersion, sessionId, snapshot]);
   const workspaceConfigOptions = useZCodeSessionStore(
     (store) => store.getWorkspaceState(workspacePath, workspaceIdentity).configOptions,
   );
@@ -1655,7 +1616,6 @@ export function SessionPane({
     // 回收并按最新选择事实重建，已显式选择和正式会话仍保持冻结。
     useZCodeSessionStore.getState().invalidateDraftRuntime(workspacePath, workspaceIdentity);
   }, [draftConfigRef, modelSelectionView?.revision, sessionId, workspaceIdentity, workspacePath]);
-  const recommendStartPlan = useStartPlanRecommendation(modelSelectionView);
   const createSubmissionFromComposer = useCallback(
     () => createComposerSubmissionConfig(draftConfigRef.current, modelSelectionView),
     [draftConfigRef, modelSelectionView],
@@ -1664,11 +1624,7 @@ export function SessionPane({
     () => createComposerSubmissionConfig(draftConfig, modelSelectionView) !== null,
     [draftConfig, modelSelectionView],
   );
-  const codingPlanUpgradeDialog = useOptionalCodingPlanUpgradeDialog();
   const openSettingsTab = useOptionalTabStore((state) => state.openSettingsTab);
-  const billingDiscount = useCodingPlanBillingDiscountFromService(
-    baseWorkspaceServices.codingPlanSubscriptionService,
-  );
   const promoteGroupedDraftTask = useZCodeSessionStore((state) => state.promoteGroupedDraftTask);
   const handleDraftSessionCreated = useCallback(
     (createdSessionId: string, groupedDraftTask: GroupedDraftTaskState | null | undefined) => {
@@ -2268,20 +2224,13 @@ export function SessionPane({
       if (!sessionId || !selectionSideChatKey || !onOpenSelectionSideChat) {
         throw new Error("selection side chat is unavailable");
       }
-      const inherited = resolveSelectionSideInheritedModel(
-        snapshotRef.current?.config,
-        modelSelectionView,
-      );
-      const chosen = inherited ? await recommendStartPlan(inherited) : undefined;
-      if (chosen === null) return false;
-      const modelSelection = chosen && chosen !== inherited ? chosen : undefined;
       // 参数命令每次都是新 child；同一条文本在 ACK 未回时重试仍复用 pending，
       // 不同文本则不能与 bare `/side` 或另一条 prompt 合并。
       const pendingKey = `${selectionSideChatKey}\u0000prompt\u0000${text}`;
       const childSessionId = await createSelectionSideChat(pendingKey, async () => {
         const ack = await dispatchCommand(
           "createSelectionSideSession",
-          { firstInput: { text, ...(modelSelection ? { modelSelection } : {}) } },
+          { firstInput: { text } },
           sessionId,
           undefined,
           undefined,
@@ -2306,7 +2255,6 @@ export function SessionPane({
     [
       dispatchCommand,
       modelSelectionView,
-      recommendStartPlan,
       onOpenSelectionSideChat,
       remoteSessionId,
       selectionSideChatKey,
@@ -2857,7 +2805,7 @@ export function SessionPane({
   );
   /**
    * 冻结本次发送起点（spec §9.2）。必须在触发发送的同步阶段调用：早于配置屏障、草稿模型就绪、
-   * Start 套餐推荐、空 session 创建等所有发送前 await，否则起点会被读成用户切换后的 Task。
+   * 配置屏障、空 session 创建等所有发送前 await，否则起点会被读成用户切换后的 Task。
    */
   const captureHighspeedPaneOrigin = useCallback(
     (): HighspeedPaneOrigin => ({
@@ -2997,7 +2945,6 @@ export function SessionPane({
       options: ConversationComposerSendOptions | undefined,
       highspeedOriginAtSend: HighspeedPaneOrigin,
     ) => {
-      let onAcceptedSelection: (() => void) | undefined;
       const prepareHighspeedTurn = prepareHighspeedTurnFrom(highspeedOriginAtSend);
       const dispatchSubmissionCommand = async (...args: Parameters<typeof dispatchCommand>) => {
         if (
@@ -3022,8 +2969,6 @@ export function SessionPane({
         }
         const ack = await dispatchCommand(...args);
         // 在原 accepted 边界写回推荐选择，早于新 Session 的草稿转移；失败不改用户意图。
-        if (ack.status === "accepted" && submissionConfigFromCommand(args[0], args[1]))
-          onAcceptedSelection?.();
         return ack;
       };
       // 进入 barrier 前已经冻结；等待配置/附件期间不再回读 Composer 或 Session。
@@ -3109,15 +3054,6 @@ export function SessionPane({
         // resumeGoal 等控制命令也不应被发送消息确认框截获。
         return "confirmationRequired" as const;
       }
-      if (slashCommand === null || slashCommand.kind === "sendGoalCommand") {
-        const original = submission.modelSelection;
-        const chosen = await recommendStartPlan(original);
-        if (!chosen) return "blocked" as const;
-        if (chosen !== original) {
-          onAcceptedSelection = captureAcceptedModelSelection(chosen, original);
-          submission = { ...submission, modelSelection: chosen };
-        }
-      }
       const prewarmTargetBeforeSend =
         sessionId === null ? prewarmBindingRef.current?.sessionId : null;
       if (prewarmTargetBeforeSend) {
@@ -3139,7 +3075,6 @@ export function SessionPane({
         );
         if (consumed === "confirmationRequired") return consumed;
         if (consumed) {
-          onAcceptedSelection?.();
           return;
         }
       }
@@ -3178,7 +3113,6 @@ export function SessionPane({
             );
             if (consumed === "confirmationRequired") return consumed;
             if (consumed) {
-              onAcceptedSelection?.();
               prewarm.promote();
               handleDraftSessionCreated(prewarm.sessionId, groupedDraftTaskAtSend);
               return;
@@ -3371,9 +3305,7 @@ export function SessionPane({
     },
     [
       dispatchCommand,
-      recommendStartPlan,
       baseWorkspaceServices,
-      captureAcceptedModelSelection,
       dispatchSlashCommand,
       ensureDraftModelReadyForSend,
       availableSelectionSideSlashCommandNames,
@@ -4525,22 +4457,6 @@ export function SessionPane({
     setPendingSettingsSectionIntent("modelProvider");
     openSettingsTab();
   }, [openSettingsTab]);
-  const handleOpenModelUpgrade = useCallback(() => {
-    if (!codingPlanUpgradeDialog) return;
-    const providerId =
-      sharedSettings?.providerFamilyDomain === "bigmodel"
-        ? BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan
-        : BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan;
-    codingPlanUpgradeDialog.openCodingPlanUpgrade({ providerId });
-  }, [codingPlanUpgradeDialog, sharedSettings?.providerFamilyDomain]);
-  const handleOpenQuotaUpgrade = useCallback(() => {
-    const providerId = quotaBanner.upgradeProviderId;
-    if (!providerId || !codingPlanUpgradeDialog) return;
-    codingPlanUpgradeDialog.openCodingPlanUpgrade({
-      providerId,
-    });
-  }, [codingPlanUpgradeDialog, quotaBanner.upgradeProviderId]);
-
   const handleConfirmShareDisclosure = useCallback(async () => {
     if (!sessionId || !shareDraft || sharePublishing) return;
     const productTurnIds = getConversationShareSelectedProductTurnIds(
@@ -4951,7 +4867,6 @@ export function SessionPane({
       error={composerError}
       onDismissError={handleDismissComposerError}
       onOpenModelSettings={handleOpenModelSettings}
-      onOpenModelUpgrade={handleOpenModelUpgrade}
       onOpenCodeViewer={onOpenCodeViewer}
       suppressGoalCommands={selectionSideChat}
       appSlashCommands={appSlashCommands}
@@ -5022,14 +4937,6 @@ export function SessionPane({
         <ConversationQuotaBanner
           state={quotaBanner.state}
           onShown={quotaBanner.markShown}
-          billingDiscountActive={billingDiscount.active}
-          billingDiscountConfig={billingDiscount.config}
-          upgradeActionLabelId={quotaBanner.upgradeActionLabelId}
-          onUpgrade={
-            quotaBanner.upgradeProviderId && codingPlanUpgradeDialog
-              ? handleOpenQuotaUpgrade
-              : undefined
-          }
           onDismiss={quotaBanner.dismiss}
         />
       ) : null}

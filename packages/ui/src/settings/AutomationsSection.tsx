@@ -10,7 +10,6 @@ import {
 import { CircleCheck, RotateCcw, TriangleAlert } from "lucide-react";
 import {
   AUTOMATION_CREATE_LIMIT,
-  BUILTIN_MODEL_PROVIDER_IDS,
   TID_AUTOMATION_ACTION_DELETE,
   TID_AUTOMATION_ACTION_TOGGLE,
   TID_AUTOMATION_CARD,
@@ -86,7 +85,6 @@ import {
   AutomationRunNowIcon,
   AutomationTrashIcon,
 } from "@/settings/AutomationDesignPrimitives.js";
-import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { SETTINGS_FRAME_CONTENT_CLASSNAME } from "@/settings/SettingsPageParts.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
 import { isWorkspaceTab } from "@/store/tabStore.js";
@@ -515,7 +513,6 @@ export function AutomationsSection({
   const platform = usePlatform();
   const { clientScenesService, offPeakTaskService, zcodeAgentService } = useServices();
   const confirmDialog = useConfirmDialog();
-  const { openCodingPlanUpgrade } = useCodingPlanUpgradeDialog();
   const providerSettingsRead = useProviderSettingsView();
   const providerSettingsView =
     providerSettingsRead.state.status === "ready" ? providerSettingsRead.state.view : null;
@@ -824,29 +821,15 @@ export function AutomationsSection({
         : current,
     );
   }, [currentWorkspaceIsRemote]);
-
-  const handleOpenCodingPlanUpgrade = useCallback(() => {
-    const providerId =
-      sharedSettings?.providerFamilyDomain === "bigmodel"
-        ? BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan
-        : BUILTIN_MODEL_PROVIDER_IDS.zaiIndividualCodingPlan;
-    openCodingPlanUpgrade({
-      providerId,
-      initialAudience: "personal",
-    });
-  }, [openCodingPlanUpgrade, sharedSettings?.providerFamilyDomain]);
-
   const showCodingPlanRequiredToast = useCallback(() => {
     toast(intl.formatMessage({ id: "offPeak.create.codingPlanToast" }), {
       durationMs: 8000,
       position: "top-center",
       variant: "info",
-      actionLabel: intl.formatMessage({ id: "settings.modelProvider.codingPlan.upgrade" }),
-      onAction: handleOpenCodingPlanUpgrade,
       dismissible: true,
       dismissLabel: intl.formatMessage({ id: "common.close" }),
     });
-  }, [handleOpenCodingPlanUpgrade, intl]);
+  }, [intl]);
 
   const showAutomationCreateLimitToast = useCallback(() => {
     toast(

@@ -100,22 +100,26 @@ const servicesMock = vi.hoisted(() => ({
   },
 }));
 
-// Start 套餐推荐是 sendText 在 prepare 之前的真实 await；用例据此把发送挂在 prepare 之前，
-// 模拟配置屏障 / 推荐 / 建会话期间用户切换 Task。桩必须是稳定引用（发送回调以其为依赖）。
-const startPlanRecommendation = vi.hoisted(() => {
-  const state = { hold: null as Promise<void> | null };
+// Hold the existing config barrier to exercise Task switches before prepare.
+const sendBarrier = vi.hoisted(() => ({ state: { hold: null as Promise<void> | null } }));
+
+vi.mock("@/v4/configCommandBarrier.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/v4/configCommandBarrier.js")>();
   return {
-    state,
-    recommend: vi.fn(async <T>(selection: T): Promise<T> => {
-      await state.hold;
-      return selection;
-    }),
+    ...actual,
+    createConfigCommandBarrier: () => {
+      const barrier = actual.createConfigCommandBarrier();
+      return {
+        ...barrier,
+        enqueue: <T>(command: () => Promise<T>) =>
+          barrier.enqueue(async () => {
+            await sendBarrier.state.hold;
+            return command();
+          }),
+      };
+    },
   };
 });
-
-vi.mock("@/hooks/useStartPlanRecommendation.js", () => ({
-  useStartPlanRecommendation: () => startPlanRecommendation.recommend,
-}));
 
 vi.mock("@/hooks/useSettingService.js", () => ({
   useSettings: () => ({
@@ -450,7 +454,7 @@ async function sendThroughEdit(): Promise<void> {
 }
 
 /**
- * 走 Composer sendText 路径，并让发送停在 prepare 之前的 Start 套餐推荐 await；
+ * 走 Composer sendText 路径，并让发送停在 prepare 之前的配置屏障；
  * 返回的 release 放行后才会进入 Highspeed prepare。
  */
 async function sendTextHeldBeforePrepare(): Promise<{
@@ -458,7 +462,7 @@ async function sendTextHeldBeforePrepare(): Promise<{
   sending: Promise<unknown>;
 }> {
   let release: () => void = () => {};
-  startPlanRecommendation.state.hold = new Promise<void>((resolve) => {
+  sendBarrier.state.hold = new Promise<void>((resolve) => {
     release = resolve;
   });
   let sending: Promise<unknown> = Promise.resolve();
@@ -473,7 +477,6 @@ async function sendTextHeldBeforePrepare(): Promise<{
       }) ?? Promise.reject(new Error("composer 未提供 onSendText"));
     await flushMicrotasks();
   });
-  expect(startPlanRecommendation.recommend).toHaveBeenCalledTimes(1);
   expect(servicesMock.highspeedCardService.prepareTurn).not.toHaveBeenCalled();
   return { release, sending };
 }
@@ -521,8 +524,7 @@ afterEach(() => {
     drawing: false,
   });
   servicesMock.highspeedCardService.prepareTurn.mockReset();
-  startPlanRecommendation.state.hold = null;
-  startPlanRecommendation.recommend.mockClear();
+  sendBarrier.state.hold = null;
   projectionState.current = null;
   delete (globalThis as { document?: unknown }).document;
   delete (globalThis as { window?: unknown }).window;
@@ -737,7 +739,7 @@ describe("SessionPane Highspeed 激活动效请求", () => {
   });
 
   it("prepare 开始前已切到其他 Task 时，旧 Task 的卡同样不呈现到当前 Task", async () => {
-    // 回归（CR-01）：发送起点曾在 prepare 入口才读取；配置屏障、套餐推荐、建会话等前置 await
+    // 回归（CR-01）：发送起点曾在 prepare 入口才读取；配置屏障、建会话等前置 await
     // 期间切到 B 后，起点已被读成 B，A 的卡会呈现到 B 的输入框并播放激活。
     const card = makeCard("card-pre-prepare", "session-a");
     const root = createRoot(installMinimalDom());

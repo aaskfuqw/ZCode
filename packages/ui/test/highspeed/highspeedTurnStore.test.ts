@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  aggregateHighspeedCardMetrics,
-  claimHighspeedCardAutoShare,
   claimHighspeedHealthyAttempt,
   completeHighspeedTurn,
   discardHighspeedTurn,
@@ -9,12 +7,11 @@ import {
   getHighspeedTurnVersion,
   hydrateHighspeedTurnsFromTranscript,
   listExpiredHighspeedCardsAwaitingTps,
-  listHighspeedCardAutoShareCandidates,
-  markHighspeedTurnMetricsPersisted,
-  markHighspeedCardAutoShared,
   recordHighspeedTurn,
-  resolveNextHighspeedAutoShareAt,
+  listHighspeedTurnsAwaitingMetricsPersistence,
+  resolveNextHighspeedMetricsRefreshAt,
   setHighspeedCardTps,
+  markHighspeedTurnMetricsPersisted,
 } from "@/highspeed/highspeedTurnStore.js";
 import { claimHighspeedFallbackToast } from "@/highspeed/highspeedToastClaims.js";
 
@@ -89,7 +86,7 @@ describe("highspeed turn store", () => {
   it("merges late authoritative metadata into an already registered turn", () => {
     // CR-04 回归：远控 Renderer 先按运行中的 user row 登记记录；桌面端随后完成 CLI 统计持久化并
     // 投影到 transcript。旧实现发现同 sourceCommandId 已存在就跳过，远端永远缺完成态，卡级 TPS、
-    // 节省时间与自动分享候选都无法收口。水合必须按 sourceCommandId 幂等合并权威字段。
+    // 节省时间无法收口。水合必须按 sourceCommandId 幂等合并权威字段。
     const sessionId = "session-late-merge";
     const sourceCommandId = "command-late-merge";
     const cardId = "hsc-late-merge";
@@ -108,8 +105,6 @@ describe("highspeed turn store", () => {
     };
     expect(hydrateHighspeedTurnsFromTranscript(sessionId, [runningRow])).toBe(1);
     expect(getHighspeedTurnByCommandId(sourceCommandId)?.metrics).toBeUndefined();
-    expect(listHighspeedCardAutoShareCandidates(sessionId)).toEqual([]);
-
     const versionBefore = getHighspeedTurnVersion();
     const completedRow = {
       ...runningRow,
@@ -140,13 +135,6 @@ describe("highspeed turn store", () => {
       },
     });
     expect(getHighspeedTurnByCommandId(sourceCommandId)?.metricsPersistedAt).toBeDefined();
-    expect(listHighspeedCardAutoShareCandidates(sessionId)).toHaveLength(1);
-    expect(listHighspeedCardAutoShareCandidates(sessionId)[0]?.metrics).toMatchObject({
-      outputTokens: 120,
-      highspeedTps: 120,
-      savedDurationMs: 500,
-    });
-
     // 完全相同的再次水合是幂等 no-op：不改记录、不通知。
     const versionAfter = getHighspeedTurnVersion();
     expect(hydrateHighspeedTurnsFromTranscript(sessionId, [completedRow])).toBe(0);
@@ -197,165 +185,44 @@ describe("highspeed turn store", () => {
     expect(discardHighspeedTurn("command-queued-expired")).toBe(true);
     expect(getHighspeedTurnByCommandId("command-queued-expired")).toBeNull();
   });
+});
 
-  it("aggregates output tokens and duration for all completed turns on the same card", () => {
-    recordHighspeedTurn({
-      sessionId: card.taskId,
-      sourceCommandId: "command-aggregate-1",
-      card,
-      createdAt: 1,
-    });
-    recordHighspeedTurn({
-      sessionId: card.taskId,
-      sourceCommandId: "command-aggregate-2",
-      card,
-      createdAt: 2,
-    });
-
-    completeHighspeedTurn({
-      sourceCommandId: "command-aggregate-1",
-      outputTokens: 120,
-      durationMs: 1_500,
-    });
-    completeHighspeedTurn({
-      sourceCommandId: "command-aggregate-2",
-      outputTokens: 80,
-      durationMs: 2_500,
-    });
-    setHighspeedCardTps(card.cardId, 100);
-
-    expect(aggregateHighspeedCardMetrics(card.cardId)).toEqual({
-      outputTokens: 200,
-      durationMs: 4_000,
+it("keeps factual turn metrics through expiry and persists them once without a sharing threshold", () => {
+  const sessionId = "session-metrics-without-promotion";
+  const sourceCommandId = "command-metrics-without-promotion";
+  const metricCard = {
+    ...card,
+    taskId: sessionId,
+    cardId: "card-metrics-without-promotion",
+    expiresAt: 100,
+  };
+  recordHighspeedTurn({ sessionId, sourceCommandId, card: metricCard, createdAt: 1 });
+  expect(resolveNextHighspeedMetricsRefreshAt(sessionId)).toBe(100);
+  expect(listExpiredHighspeedCardsAwaitingTps(sessionId, 99)).toEqual([]);
+  expect(listExpiredHighspeedCardsAwaitingTps(sessionId, 100)).toEqual([
+    { cardId: metricCard.cardId, allTurnsCompleted: false },
+  ]);
+  completeHighspeedTurn({ sourceCommandId, outputTokens: 40, durationMs: 1000 });
+  expect(listExpiredHighspeedCardsAwaitingTps(sessionId, 100)).toEqual([
+    { cardId: metricCard.cardId, allTurnsCompleted: true },
+  ]);
+  setHighspeedCardTps(metricCard.cardId, 60);
+  expect(resolveNextHighspeedMetricsRefreshAt(sessionId)).toBeNull();
+  expect(listHighspeedTurnsAwaitingMetricsPersistence(sessionId)).toHaveLength(1);
+  markHighspeedTurnMetricsPersisted(sourceCommandId, 0, 110);
+  expect(getHighspeedTurnByCommandId(sourceCommandId)).toMatchObject({
+    metricsPersistedAt: 110,
+    metrics: {
+      outputTokens: 40,
+      durationMs: 1000,
       regularTps: 75,
-      highspeedTps: 100,
-      savedDurationMs: 1_000,
-    });
+      highspeedTps: 60,
+      savedDurationMs: 0,
+    },
   });
-
-  it("waits for card expiry and every started turn before claiming one aggregated share", () => {
-    const expiringCard = {
-      ...card,
-      cardId: "hsc-auto-share-after-expiry",
-      taskId: "task-auto-share-after-expiry",
-      expiresAt: 100,
-    };
-    recordHighspeedTurn({
-      sessionId: expiringCard.taskId,
-      sourceCommandId: "command-auto-share-1",
-      card: expiringCard,
-      createdAt: 3,
-    });
-    recordHighspeedTurn({
-      sessionId: expiringCard.taskId,
-      sourceCommandId: "command-auto-share-2",
-      card: expiringCard,
-      createdAt: 4,
-    });
-    completeHighspeedTurn({
-      sourceCommandId: "command-auto-share-1",
-      outputTokens: 100,
-      durationMs: 1_000,
-    });
-
-    expect(listHighspeedCardAutoShareCandidates(expiringCard.taskId)).toEqual([]);
-    expect(claimHighspeedCardAutoShare(expiringCard.cardId, 100)).toBeNull();
-
-    completeHighspeedTurn({
-      sourceCommandId: "command-auto-share-2",
-      outputTokens: 50,
-      durationMs: 500,
-    });
-    expect(listExpiredHighspeedCardsAwaitingTps(expiringCard.taskId, 100)).toEqual([
-      { cardId: expiringCard.cardId, allTurnsCompleted: true },
-    ]);
-    setHighspeedCardTps(expiringCard.cardId, 100);
-    // 两轮各节省 400ms，合计 800ms / 总耗时 1500ms → 约 1.53x，超过 1.2x 发布门槛，
-    // 保证本用例验证的是「到期 + 全部完成 + claim 一次」机制，而不是被资格门禁挡下。
-    markHighspeedTurnMetricsPersisted("command-auto-share-1", 400);
-    markHighspeedTurnMetricsPersisted("command-auto-share-2", 400);
-
-    expect(resolveNextHighspeedAutoShareAt(expiringCard.taskId)).toBe(100);
-    expect(listHighspeedCardAutoShareCandidates(expiringCard.taskId)).toEqual([
-      {
-        cardId: expiringCard.cardId,
-        expiresAt: 100,
-        metrics: {
-          outputTokens: 150,
-          durationMs: 1_500,
-          regularTps: 75,
-          highspeedTps: 100,
-          savedDurationMs: 800,
-        },
-      },
-    ]);
-    expect(claimHighspeedCardAutoShare(expiringCard.cardId, 99)).toBeNull();
-    expect(claimHighspeedCardAutoShare(expiringCard.cardId, 100)).not.toBeNull();
-    expect(claimHighspeedCardAutoShare(expiringCard.cardId, 101)).toBeNull();
-    expect(getHighspeedTurnByCommandId("command-auto-share-1")).toMatchObject({
-      autoShareAttemptedAt: 100,
-    });
-    expect(getHighspeedTurnByCommandId("command-auto-share-2")).toMatchObject({
-      autoShareAttemptedAt: 100,
-    });
-
-    markHighspeedCardAutoShared(expiringCard.cardId, 110);
-    expect(getHighspeedTurnByCommandId("command-auto-share-1")).toMatchObject({
-      autoSharedAt: 110,
-    });
-    expect(getHighspeedTurnByCommandId("command-auto-share-2")).toMatchObject({
-      autoSharedAt: 110,
-    });
-  });
-
-  it("does not create an auto-share candidate when the overall speedup stays at or below 1.2x", () => {
-    const lowCard = {
-      ...card,
-      cardId: "hsc-below-speedup-auto-share",
-      taskId: "task-below-speedup-auto-share",
-      expiresAt: 100,
-    };
-    recordHighspeedTurn({
-      sessionId: lowCard.taskId,
-      sourceCommandId: "command-below-speedup",
-      card: lowCard,
-      createdAt: 1,
-    });
-    completeHighspeedTurn({
-      sourceCommandId: "command-below-speedup",
-      outputTokens: 120,
-      durationMs: 1_000,
-    });
-    setHighspeedCardTps(lowCard.cardId, 100);
-    // 节省 100ms / 1000ms → 约 1.1x，未达 1.2x 发布门槛：卡有输出、有 TPS、已持久化，
-    // 唯一被挡下的原因就是资格门禁，验证「未达标不弹左下角卡」（spec §9）。
-    markHighspeedTurnMetricsPersisted("command-below-speedup", 100);
-
-    expect(listHighspeedCardAutoShareCandidates(lowCard.taskId)).toEqual([]);
-  });
-
-  it("does not create an auto-share candidate when the entire card produced zero output", () => {
-    const emptyCard = {
-      ...card,
-      cardId: "hsc-empty-auto-share",
-      taskId: "task-empty-auto-share",
-      expiresAt: 100,
-    };
-    recordHighspeedTurn({
-      sessionId: emptyCard.taskId,
-      sourceCommandId: "command-empty-auto-share",
-      card: emptyCard,
-      createdAt: 1,
-    });
-    completeHighspeedTurn({
-      sourceCommandId: "command-empty-auto-share",
-      outputTokens: 0,
-      durationMs: 100,
-    });
-    setHighspeedCardTps(emptyCard.cardId, 100);
-    markHighspeedTurnMetricsPersisted("command-empty-auto-share", 0);
-
-    expect(listHighspeedCardAutoShareCandidates(emptyCard.taskId)).toEqual([]);
-    expect(claimHighspeedCardAutoShare(emptyCard.cardId, 100)).toBeNull();
-  });
+  const version = getHighspeedTurnVersion();
+  markHighspeedTurnMetricsPersisted(sourceCommandId, 500, 120);
+  expect(getHighspeedTurnVersion()).toBe(version);
+  expect(listHighspeedTurnsAwaitingMetricsPersistence(sessionId)).toEqual([]);
+  expect(getHighspeedTurnByCommandId(sourceCommandId)?.metrics?.savedDurationMs).toBe(0);
 });

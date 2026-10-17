@@ -331,7 +331,7 @@ describe("desktopOAuthDeepLink workspace open routing", () => {
 });
 
 describe("desktopOAuthDeepLink OAuth routing", () => {
-  it("归因-only 回调不消费 OAuth state 路由，真实授权码回调才消费", async () => {
+  it("无授权码回调不消费 OAuth state 路由，真实授权码回调才消费", async () => {
     vi.useFakeTimers();
     try {
       const targetWindow = createMockWindow(31);
@@ -343,12 +343,10 @@ describe("desktopOAuthDeepLink OAuth routing", () => {
 
       registerOAuthState(31, { state: "state-001", provider: "bigmodel" });
 
-      expect(
-        handleDeepLink("zcode://oauth/callback?state=state-001&utm_source=google", logger),
-      ).toBe(true);
+      expect(handleDeepLink("zcode://oauth/callback?state=state-001", logger)).toBe(true);
       expect(targetWindow.webContents.send).toHaveBeenCalledWith(
         PlatformChannels.OAuthCallback,
-        "zcode://oauth/callback?state=state-001&utm_source=google",
+        "zcode://oauth/callback?state=state-001",
       );
 
       targetWindow.webContents.send.mockClear();

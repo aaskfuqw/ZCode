@@ -11,9 +11,9 @@ import {
 } from "../../helpers/desktop-app.js";
 import { skipOccupationOnboardingIfPresent } from "../../helpers/occupation-onboarding.js";
 import {
-  waitForCodingPlanUpgradeMockRequest,
-  readCodingPlanUpgradeMockRequests,
-} from "../../helpers/coding-plan-upgrade-webview.js";
+  waitForAccountProviderMockRequest,
+  readAccountProviderMockRequests,
+} from "../../helpers/account-provider-mock-requests.js";
 
 // 复用已有账号 mock 数据；没有目标名称 Key，由真实 Host resolver 发起创建。
 describe("PAT-KEY-E2E: 账号就绪时创建 Coding Plan Key", () => {
@@ -75,7 +75,7 @@ describe("PAT-KEY-E2E: 账号就绪时创建 Coding Plan Key", () => {
 });
 
 async function assertCreation(authorization: string) {
-  await waitForCodingPlanUpgradeMockRequest(
+  await waitForAccountProviderMockRequest(
     (request) =>
       request.method === "POST" &&
       request.path.endsWith("/organization/org-e2e/projects/proj-e2e/api_keys") &&
@@ -88,13 +88,13 @@ async function assertCreation(authorization: string) {
 }
 
 async function assertTokenIssuance(authorization: string) {
-  await waitForCodingPlanUpgradeMockRequest(
+  await waitForAccountProviderMockRequest(
     (request) =>
       request.method === "POST" &&
       request.path.endsWith("/access_tokens") &&
       request.headers.authorization === authorization,
     "Host 未使用登录 JWT 换取 Project Token",
   );
-  const result = await readCodingPlanUpgradeMockRequests();
+  const result = await readAccountProviderMockRequests();
   expect(result.requests.some((request) => request.path.includes("/api_keys/copy/"))).toBe(false);
 }

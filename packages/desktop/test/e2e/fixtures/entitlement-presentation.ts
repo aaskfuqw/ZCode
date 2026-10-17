@@ -1,4 +1,3 @@
-import { BUILTIN_MODEL_PROVIDER_IDS } from "@zcode/shared";
 import { buildProviderResponsiveStartBalance } from "./provider-family-responsive.js";
 
 /** 专属展示夹具；不改变其他套餐 E2E 的默认响应。 */
@@ -10,57 +9,10 @@ export interface EntitlementPresentation {
 
 export function presentationResponse(path: string, state: EntitlementPresentation) {
   if (path === "/api/v1/client/configs") {
-    const provider = BUILTIN_MODEL_PROVIDER_IDS.bigmodelIndividualCodingPlan;
     return {
       code: 0,
       data: {
-        configs: {
-          startPlanPreview: {
-            planId: "e2e-start-preview",
-            name: "E2E_TRIAL_PROMO",
-            entitlements: [
-              {
-                grantUnits: 8000000,
-                meter: "model_usage",
-                period: "daily",
-                showName: "GLM-5.3",
-                unitType: "token",
-              },
-            ],
-          },
-          codingPlanBillingDiscount: {
-            "en-US": {
-              cardTitle: "150% quota",
-              cardBody: "Upgrade for 150% quota",
-              badgeBody: "150% quota",
-            },
-          },
-          codingPlanStaticProducts: {
-            [provider]: [
-              {
-                productId: "personal-coding",
-                productName: "Personal",
-                priceCurrency: "CNY",
-                priceUnit: "month",
-                payAmount: 118,
-              },
-            ],
-          },
-          codingPlanStaticTeamProducts: {
-            [provider]: [
-              {
-                productId: "product-team-a",
-                productName: "Team",
-                tier: "PRO",
-                subscribeMode: "CONTINUOUS",
-                subscribePeriod: "MONTHLY",
-                purchaseMethodName: "Monthly",
-                priceCurrency: "CNY",
-                payAmount: 598,
-              },
-            ],
-          },
-        },
+        configs: {},
       },
     };
   }
@@ -75,9 +27,6 @@ export function presentationResponse(path: string, state: EntitlementPresentatio
             tier: "PRO",
             subscribeMode: "CONTINUOUS",
             subscribePeriod: "MONTHLY",
-            purchaseMethodName: "Monthly",
-            priceCurrency: "CNY",
-            payAmount: 598,
             subscribed: true,
           },
         ],

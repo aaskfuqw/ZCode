@@ -1,6 +1,6 @@
 /* oxlint-disable eslint(max-lines) -- footer 聚合账户、主题、模式和快捷键菜单。 */
 import type { Locale, UserInfo } from "@zcode/shared";
-import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
   DesktopCommandIds,
   TID_LOGIN_MENU_ITEM,
@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import { toast } from "@/components/ui/toast.js";
-import { Badge } from "@/components/ui/badge.js";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +30,6 @@ import {
   Copy,
   PencilRuler,
   Globe,
-  Gift,
   Loader2,
   LogInIcon,
   LogOut,
@@ -43,7 +41,6 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { usePlatform } from "@/hooks/usePlatform.js";
-import { useOpenRewards } from "@/rewards/RewardsProvider.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
@@ -96,7 +93,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   onThemeChange,
   onSettingsButtonClick,
   onUsageClick,
-  onUpgradeClick,
+
   onLogin,
   onLogout,
   settingsButtonMode = "settings",
@@ -106,7 +103,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   workspaceRemoteSessionId,
   activeTaskId,
   isDesktop = false,
-  banner,
+
   className,
 }: {
   theme: Theme;
@@ -115,9 +112,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   onThemeChange: (value: string) => void;
   onSettingsButtonClick?: () => void;
   onUsageClick?: () => void;
-  onUpgradeClick?: Parameters<
-    typeof WorkspaceSidebarFooterUsageSummaryContent
-  >[0]["onUpgradeClick"];
   onLogin?: () => void;
   onLogout?: () => void;
   settingsButtonMode?: "settings" | "back";
@@ -127,12 +121,10 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   workspaceRemoteSessionId?: string;
   activeTaskId?: string | null;
   isDesktop?: boolean;
-  banner?: ReactNode;
   className?: string;
 }) {
   const { intl } = useZCodeIntl();
   const platform = usePlatform();
-  const openRewards = useOpenRewards();
   const interfaceMode = useZCodeStore((state) => state.interfaceMode);
   const setInterfaceMode = useZCodeStore((state) => state.setInterfaceMode);
   const zoomInShortcutLabel = useShortcutCommandLabel("zoomIn");
@@ -232,7 +224,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   return (
     // footer 被 Settings 复用，页面专属边距由调用方传入，避免修改共享默认样式。
     <footer className={cn("flex shrink-0 flex-col gap-2.5 px-4 pt-2 pb-4", className)}>
-      {banner}
       <div className="flex min-w-0 gap-2">
         <DropdownMenu open={profileMenuOpen} onOpenChange={setProfileMenuOpen}>
           <DropdownMenuTrigger asChild>
@@ -427,24 +418,8 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             ) : null}
-            {/* Bugfix: 升级入口状态不再以菜单开关为生命周期边界。 */}
-            <WorkspaceSidebarFooterUsageSummaryContent
-              state={usageSummaryState}
-              onUsageClick={usageButtonClick}
-              onUpgradeClick={onUpgradeClick}
-            />
-            {user ? (
-              <DropdownMenuItem onSelect={() => openRewards?.()} data-testid="rewards-menu-item">
-                <Gift className="size-4" />
-                {intl.formatMessage({ id: "rewards.menuTitle" })}
-                <Badge
-                  data-testid="rewards-reward-badge"
-                  className="-ml-0.5 h-auto border-0 px-1.5 py-0.5 text-ui-sm leading-none bg-[var(--color-plugin-paid-plan-badge)] text-[var(--color-plugin-paid-plan-badge-foreground)]"
-                >
-                  {intl.formatMessage({ id: "rewards.menuBadge" })}
-                </Badge>
-              </DropdownMenuItem>
-            ) : null}
+            <WorkspaceSidebarFooterUsageSummaryContent onUsageClick={usageButtonClick} />
+
             {onLogin && !user ? (
               <>
                 <DropdownMenuSeparator />

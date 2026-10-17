@@ -77,7 +77,6 @@ function Fixture() {
           loginActionPlacement="trailing"
           onLogin={() => setActions((x) => x + 1)}
           onRetry={state === "unavailable" ? () => setActions((x) => x + 1) : undefined}
-          startPlanPreviewVisible={false}
           planLevel="Start"
           subscriptionDetails={
             status === "purchased"

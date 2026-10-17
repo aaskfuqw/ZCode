@@ -26,8 +26,6 @@ import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { SSHDialog } from "@/SSHDialog.js";
 import { SettingsPage } from "@/SettingsPage.js";
-import { CodingPlanUpgradeDialogProvider } from "@/settings/CodingPlanUpgradeDialogProvider.js";
-import { RewardsProvider } from "@/rewards/RewardsProvider.js";
 import { WelcomeScreen, type LoginCompleteReason } from "@/WelcomeScreen.js";
 import { setDefaultFileDisplayBasePath } from "@/lib/fileDisplay.js";
 import { readRendererLaunchTimings, shouldReportLaunchToInput } from "@/lib/launchToInputReport.js";
@@ -89,7 +87,6 @@ import {
   markCodeCommentRemoved,
 } from "@/lib/codeCommentContext.js";
 import { useCodeCommentPreviewStore } from "@/store/codeCommentPreviewStore.js";
-import { MarketingTouchProvider } from "@/components/marketing-touch/MarketingTouchProvider.js";
 import { RootStartupLoading } from "@/root/RootStartupLoading.js";
 import { resolveProviderAvailabilityState } from "@/lib/modelProviderAvailability.js";
 import { useProviderAvailabilityLoginEntryGuard } from "@/root/useProviderAvailabilityLoginEntryGuard.js";
@@ -246,14 +243,8 @@ export function Root(props: RootProps) {
                     <AssistantCodeCommentFeatureProvider
                       enabled={props.assistantCodeCommentCardsEnabled}
                     >
-                      <CodingPlanUpgradeDialogProvider>
-                        <RewardsProvider desktop={props.isDesktop === true}>
-                          <RequestSecurityHost />
-                          <MarketingTouchProvider desktop={props.isDesktop === true}>
-                            <RootInner {...props} />
-                          </MarketingTouchProvider>
-                        </RewardsProvider>
-                      </CodingPlanUpgradeDialogProvider>
+                      <RequestSecurityHost />
+                      <RootInner {...props} />
                     </AssistantCodeCommentFeatureProvider>
                   </WebRemoteControlFeatureProvider>
                 </DiffsWorkerPoolProvider>

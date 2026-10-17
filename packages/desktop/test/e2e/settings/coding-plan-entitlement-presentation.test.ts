@@ -146,7 +146,7 @@ async function models(present: boolean) {
   await textVisible("Model list", present);
 }
 async function banners(present: boolean) {
-  // 描述只属于购买横幅，避免和连接方式菜单里的同名选项混淆。
+  // Retired sales descriptions must stay absent without confusing connection choices.
   await textVisible("dedicated Coding Plan quota", present);
   await textVisible("centralized billing", present);
   await textVisible("E2E_TRIAL_PROMO", false);
@@ -158,7 +158,7 @@ async function requests() {
   }>;
 }
 
-describe("套餐权益展示与购买入口", () => {
+describe("套餐权益与中性状态展示", () => {
   afterEach(async function () {
     if (this.currentTest?.state === "failed") {
       console.log("[entitlement-presentation] visible page:", await $("body").getText());
@@ -174,20 +174,20 @@ describe("套餐权益展示与购买入口", () => {
   after(async () => {
     await clearAppData();
   });
-  it("CTP-14: 未连接只显示个人和团队购买入口", async function () {
+  it("CTP-14: 未连接保留登录且无销售入口", async function () {
     this.timeout(120000);
     await prepare(empty, "personal", false);
     await textVisible("Not connected");
     await textVisible("Connect to BigModel");
     await models(false);
-    await banners(true);
+    await banners(false);
   });
-  it("CTP-15: 历史团队订阅不隐藏无权益账号的团队 banner", async function () {
+  it("CTP-15: 历史团队订阅不覆盖个人无权益状态", async function () {
     this.timeout(120000);
     await prepare({ ...empty, team: "expired" }, "personal");
-    await textVisible("Not subscribed, enabled after subscription");
+    await textVisible("No available plan");
     await models(false);
-    await banners(true);
+    await banners(false);
     const subscriptions = (await requests()).filter((r) => r.path === "/api/biz/subscription/list");
     expect(subscriptions.length).toBeGreaterThan(0);
     expect(subscriptions.some((r) => r.headers.authorization?.includes("personal-secret"))).toBe(
@@ -234,7 +234,7 @@ describe("套餐权益展示与购买入口", () => {
     await textVisible("Today's balance", false);
     await textVisible("E2E_EXPIRED_BALANCE", false);
     await models(false);
-    await banners(true);
+    await banners(false);
   });
   it("CTP-18: 同时存在过期和有效 Start，仅显示有效计划", async function () {
     this.timeout(120000);
@@ -244,8 +244,8 @@ describe("套餐权益展示与购买入口", () => {
     await textVisible("E2E_EXPIRED_PLAN", false);
     await textVisible("E2E_EXPIRED_BALANCE", false);
     await models(true);
-    await textVisible("Upgrade");
-    await textVisible("150%");
+    await textVisible("Upgrade", false);
+    await textVisible("150%", false);
   });
   for (const paid of ["personal", "team"] as const) {
     it(`CTP-19: 有效 ${paid} 权益隐藏 Start 购买及升级入口`, async function () {

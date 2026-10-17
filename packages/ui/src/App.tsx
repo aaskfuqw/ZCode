@@ -65,7 +65,6 @@ import { useTaskSidePaneMemoryBridge } from "@/app-shell/useTaskSidePaneMemoryBr
 import { resolveAppWorkspaceRpcTarget } from "@/app-shell/workspaceRpcTarget.js";
 import { useWorkspaceServicesResolution } from "@/hooks/useWorkspaceServices.js";
 import { useWorkspaceTerminalTaskNotifications } from "@/hooks/useTaskNotifications.js";
-import { useMarketingTaskCompletionRefresh } from "@/components/marketing-touch/useMarketingTaskCompletionRefresh.js";
 import { useOffPeakTaskNotifications } from "@/hooks/useOffPeakTaskNotifications.js";
 import type { AppProps, WorkspaceMainView } from "@/app-shell/types.js";
 import type {
@@ -277,12 +276,6 @@ export function App({
   });
   const workspaceKey = workspaceIdentity?.trim() || workspaceAbsPath;
   const notificationEnabled = useZCodeStore((s) => s.notificationEnabled);
-  useMarketingTaskCompletionRefresh({
-    workspacePath: workspaceAbsPath,
-    ...(workspaceIdentity ? { workspaceIdentity } : {}),
-    ...(workspaceRemoteSessionId ? { endpointKey: workspaceRemoteSessionId } : {}),
-    rpcReady: workspaceRpcReady,
-  });
   useWorkspaceTerminalTaskNotifications({
     workspacePath: workspaceAbsPath,
     ...(workspaceIdentity ? { workspaceIdentity } : {}),

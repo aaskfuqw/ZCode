@@ -115,7 +115,6 @@ import { WorkspaceFileTree } from "@/WorkspaceFileTree.js";
 import { WorkspaceArchivedTasksFlatSection } from "@/WorkspaceArchivedTasksFlatSection.js";
 import { WebRemoteControlTaskIndex } from "@/WebRemoteControlTaskIndex.js";
 import { WorkspaceSidebarFooter } from "@/WorkspaceSidebarFooter.js";
-import { SidebarBottomActivity } from "@/sidebar-activity/SidebarBottomActivity.js";
 import { WorkspacePinnedTasksSection } from "@/WorkspacePinnedTasksSection.js";
 import { WorkspaceTimelineTasksSection } from "@/WorkspaceTimelineTasksSection.js";
 import { WorkspaceGroupedTasksSection } from "@/WorkspaceGroupedTasksSection.js";
@@ -132,7 +131,6 @@ import {
 } from "@/WorkspaceSidebar/taskGroupTogglePresentation.js";
 import { WorkspacePurposeSection } from "@/WorkspaceSidebar/WorkspacePurposeSection.js";
 import { cn } from "@/components/lib/utils.js";
-import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import {
   resolveWorkspaceDragGlobalIndices,
   resolveWorkspaceDragExpanded,
@@ -346,7 +344,6 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
     },
     [onSelectTask],
   );
-  const { openCodingPlanUpgrade } = useCodingPlanUpgradeDialog();
   const webRemoteControlFeatureEnabled = useWebRemoteControlFeatureEnabled();
   const bumpTaskListVersion = useZCodeSessionStore((state) => state.bumpTaskListVersion);
   const workspaceIdentity = useTabStore((state) => {
@@ -867,14 +864,6 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
   const handleOpenAutomationsMain = useCallback(() => {
     onOpenAutomations?.();
   }, [onOpenAutomations]);
-  const handleOpenCodingPlanUpgrade = useCallback(
-    (providerId: string) => {
-      openCodingPlanUpgrade({
-        providerId,
-      });
-    },
-    [openCodingPlanUpgrade],
-  );
   const activeTaskId = useZCodeSessionStore(
     (state) =>
       // Web 远程控制从全局 task 入口进入远端 workspace 时，会先按
@@ -1442,8 +1431,6 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
   );
 
   // Bugfix：Footer 使用 memo，内联 JSX 会让无关的侧栏更新也穿透其稳定引用边界。
-  const sidebarBottomActivity = useMemo(() => <SidebarBottomActivity />, []);
-
   return (
     <aside
       data-testid={TID_SIDEBAR}
@@ -1900,14 +1887,12 @@ export const WorkspaceSidebar = memo(function WorkspaceSidebarComponent({
 
           <WorkspaceSidebarFooter
             className="pr-3"
-            banner={sidebarBottomActivity}
             theme={theme}
             localeMenuValue={localeMenuValue}
             onLocaleChange={handleLocaleChange}
             onThemeChange={handleThemeChange}
             onSettingsButtonClick={openSettingsTab}
             onUsageClick={openSettingsTab}
-            onUpgradeClick={handleOpenCodingPlanUpgrade}
             onLogin={onLogin}
             onLogout={onLogout}
             user={user}

@@ -9,10 +9,7 @@ const restoredOAuthCredentials = {
 };
 
 describe("desktop e2e startup credentials", () => {
-  it.each([
-    "coding-plan-upgrade-webview-refresh-provider.test.ts",
-    "marketing-touch-rewards.test.ts",
-  ])("%s 保留本地 Start 余额/请求鉴权所需 JWT", (spec) => {
+  it.each(["account-key-usage-scene.test.ts"])("%s 保留账户请求鉴权所需 JWT", (spec) => {
     expect(
       createE2EStartupCredentialSeed({
         specs: [spec],
@@ -97,19 +94,6 @@ describe("desktop e2e startup credentials", () => {
         specs: [
           "/repo/packages/desktop/test/e2e/manual-review/pending/jwt-401-auto-logout.test.ts",
         ],
-        legacyAuthToken: "fake-auth-token",
-        restoredOAuthCredentials,
-      }),
-    ).toEqual({
-      auth_token: "fake-auth-token",
-      ...restoredOAuthCredentials,
-    });
-  });
-
-  it("Start Plan 手动领取 spec 保留调用 claim API 所需的 zcode JWT", () => {
-    expect(
-      createE2EStartupCredentialSeed({
-        specs: ["/repo/packages/desktop/test/e2e/ui-shell/marketing-touch-entitlement.test.ts"],
         legacyAuthToken: "fake-auth-token",
         restoredOAuthCredentials,
       }),

@@ -90,13 +90,6 @@ export interface OAuthSessionCallbackResult {
   };
 }
 
-/** 只携带归因参数的 OAuth deep link 回调结果 */
-export interface OAuthAttributionCallbackResult {
-  kind: "attribution";
-  provider: OAuthProviderId;
-  attribution: OAuthLoginAttribution;
-}
-
 /** 同一登录已由 polling 完成后迟到的 deep link；调用方只需忽略。 */
 export interface OAuthDuplicateCallbackResult {
   kind: "duplicate";
@@ -104,10 +97,7 @@ export interface OAuthDuplicateCallbackResult {
 }
 
 /** OAuth 回调归一化结果 */
-export type OAuthCallbackResult =
-  | OAuthSessionCallbackResult
-  | OAuthAttributionCallbackResult
-  | OAuthDuplicateCallbackResult;
+export type OAuthCallbackResult = OAuthSessionCallbackResult | OAuthDuplicateCallbackResult;
 
 /** Main 进程路由 deep link 时使用的 state 上报结构 */
 export interface OAuthStateRegistration {
@@ -119,14 +109,6 @@ export interface OAuthStateRegistration {
 export interface OAuthCallbackParams {
   state: string;
   code: string;
-  attribution?: OAuthLoginAttribution;
-}
-
-/** OAuth 登录归因参数：来自官网中转页或投放链接 */
-export interface OAuthLoginAttribution {
-  channel_id?: string;
-  utm_source?: string;
-  utm_campaign?: string;
 }
 
 /** 归一化 token 结构 */

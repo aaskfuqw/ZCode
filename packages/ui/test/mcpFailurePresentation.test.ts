@@ -65,10 +65,13 @@ describe("MCP failure presentation", () => {
   });
 
   it.each([
-    ["zh-CN" as const, "当前账号没有 Coding Plan，请先购买或配置 Coding Plan。"],
+    [
+      "zh-CN" as const,
+      "当前账号没有此 MCP 服务所需的 Coding Plan 权益，请确认登录账号及套餐状态。",
+    ],
     [
       "en-US" as const,
-      "This account has no Coding Plan. Purchase or configure a Coding Plan to use this MCP server.",
+      "This account has no Coding Plan entitlement for this MCP server. Check the signed-in account and plan status.",
     ],
   ])("localizes the coding-plan diagnosis for %s", (locale, message) => {
     const html = renderToStaticMarkup(

@@ -1,11 +1,17 @@
 import { StrictMode, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { IUsageStatsService } from "@zcode/services";
+import type {
+  IUsageStatsService,
+  IProviderSettingsService,
+  ProviderSettingsView,
+} from "@zcode/services";
 import { BUILTIN_MODEL_PROVIDER_IDS, type UsageEntitlementSnapshot } from "@zcode/shared";
 import { ZCodeIntlProvider } from "@/i18n/IntlProvider.js";
 import { useUsageEntitlementWithService } from "@/hooks/useUsageEntitlement.js";
 import { useV4SessionQuotaBanner } from "@/v4/useV4SessionQuotaBanner.js";
 import { ConversationQuotaBanner } from "@/v4/ConversationQuotaBanner.js";
+import { connectProviderSettingsSnapshot } from "@/lib/providerSettingsSnapshot.js";
+import { buildStartPlanEntitlementOptions } from "@/lib/startPlanEntitlementOptions.js";
 import "@/styles.css";
 
 const query = new URLSearchParams(location.search);
@@ -13,6 +19,27 @@ const providerId = BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan;
 document.documentElement.className =
   query.get("theme") === "light" ? "light theme-zai-light" : "dark theme-zai-dark";
 const end = 4_102_444_800_000;
+const accountView = {
+  revision: 1,
+  providers: [
+    {
+      providerId,
+      effectiveConfig: {
+        access: {
+          type: "zhipu-account",
+          accountType: "bigmodel",
+          mode: "start-plan",
+          entitled: true,
+        },
+      },
+    },
+  ],
+} as unknown as ProviderSettingsView;
+const account = connectProviderSettingsSnapshot({
+  getView: async () => accountView,
+  onDidChange: () => ({ dispose() {} }),
+} as unknown as IProviderSettingsService);
+await account.ready;
 function snapshot(
   event: number,
   daily: number,
@@ -87,9 +114,6 @@ function Pane({ service, session }: { service: IUsageStatsService; session: stri
           state={banner.state}
           onShown={banner.markShown}
           onDismiss={banner.dismiss}
-          onUpgrade={() => {
-            document.body.dataset.upgraded = "true";
-          }}
         />
       ) : null}
     </section>
@@ -111,12 +135,7 @@ function Fixture() {
     [],
   );
   const entitlement = useUsageEntitlementWithService(service, {
-    preferredProviderId: providerId,
-    enabled: true,
-    includeSubscription: false,
-    allowDisabledPreferredProvider: true,
-    requirePreferredProvider: true,
-    allowEnvApiKey: false,
+    ...buildStartPlanEntitlementOptions(accountView, providerId),
     refreshOnMount: true,
   });
   async function refresh() {

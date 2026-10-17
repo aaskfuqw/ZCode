@@ -6,7 +6,7 @@ import {
   resolveModelProviderFamilyConnectionProviderId,
 } from "@/lib/modelProviderFamilyConnectionSelection.js";
 import { hasActiveUsageEntitlementSnapshot } from "@/lib/codingPlanProvider.js";
-import { getEnterprisePricingProducts } from "@/root/oauthTeamPricing.js";
+import { getTeamConnectionsProducts } from "@/root/oauthTeamPricing.js";
 import { logger } from "@/logger.js";
 
 /** 只计算建议，不替用户保存；闭包固定按钮展示的那个目标，点击时重新校验。 */
@@ -71,7 +71,7 @@ export async function prepareAccountConnectionSwitch(
   if (await isAvailable({ kind: "individual-coding-plan" }, view))
     selection = { kind: "individual-coding-plan" };
   if (!selection) {
-    const pricing = await getEnterprisePricingProducts(services, family);
+    const pricing = await getTeamConnectionsProducts(services, family);
     if (pricing.status === "success") {
       for (const product of pricing.productList) {
         const contexts = product.teamProjects?.length ? product.teamProjects : [product];

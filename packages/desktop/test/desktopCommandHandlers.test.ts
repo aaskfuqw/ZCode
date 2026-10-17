@@ -260,24 +260,6 @@ describe("desktopCommandHandlers resolveFeedbackUrl", () => {
 
     expect(onRelaunchApp).toHaveBeenCalledTimes(1);
   });
-
-  it("清理 Coding Plan webview 持久 partition，避免账号切换后复用旧凭据", async () => {
-    const { executeDesktopCommand } = await import("../src/main/desktopCommandHandlers.js");
-    const commandOptions = createCommandOptions();
-
-    await executeDesktopCommand({
-      ...commandOptions,
-      command: DesktopCommandIds.ClearCodingPlanWebviewStorage,
-    });
-
-    expect(sessionFromPartitionMock).toHaveBeenCalledWith("persist:zcode-coding-plan");
-    expect(sessionFromPartitionMock).toHaveBeenCalledWith("persist:zcode-rewards");
-    expect(codingPlanPartitionSession.clearStorageData).toHaveBeenCalledTimes(2);
-    expect(commandOptions.logger.info).toHaveBeenCalledWith(
-      "[coding-plan-webview] cleared persistent partition storage",
-    );
-  });
-
   it("非生产 endpoint 菜单命令能保存 test、自定义和 reset", async () => {
     const { executeDesktopCommand } = await import("../src/main/desktopCommandHandlers.js");
     const onZCodeEndpointChanged = vi.fn();

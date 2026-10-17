@@ -5,7 +5,6 @@ import {
   buildZCodeEndpointUrls,
   DEFAULT_ZCODE_ENDPOINT_ORIGIN,
   DesktopCommandIds,
-  REWARDS_PARTITION,
   TEST_ZCODE_ENDPOINT_ORIGIN,
   getCommunityUrlFromConfigs,
   getFeedbackUrlFromConfig,
@@ -19,7 +18,7 @@ import {
   type Locale,
 } from "@zcode/shared";
 import type { MessageBoxOptions } from "electron";
-import { app, BrowserWindow, dialog, session, shell } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { showAboutDialog } from "./about.js";
@@ -41,7 +40,6 @@ export const HELP_TOGGLE_DEV_TOOLS_MENU_ID = "help.toggle-dev-tools";
 export const HELP_TOGGLE_ZCODE_STDIO_TAP_MENU_ID = "help.toggle-zcode-stdio-tap";
 const ZCODE_ENDPOINT_PROMPT_WIDTH = 460;
 const ZCODE_ENDPOINT_PROMPT_HEIGHT = 210;
-const CODING_PLAN_WEBVIEW_PARTITION = "persist:zcode-coding-plan";
 
 function resolveTargetWindow(senderWindow?: BrowserWindow | null) {
   if (senderWindow && !senderWindow.isDestroyed()) {
@@ -128,26 +126,6 @@ async function clearAllDataAndRelaunch(options: {
 
   app.relaunch();
   app.exit(0);
-}
-
-export async function clearCodingPlanWebviewStorage(options: {
-  logger: {
-    info: (...args: unknown[]) => void;
-    warn: (...args: unknown[]) => void;
-  };
-}) {
-  try {
-    // Coding Plan webview 使用独立持久 partition，默认窗口 session.clearStorageData()
-    // 不会覆盖它；退出登录/清理数据时必须显式清除，避免旧账号 token 被下一次官网首屏读到。
-    await session.fromPartition(CODING_PLAN_WEBVIEW_PARTITION).clearStorageData();
-    await session.fromPartition(REWARDS_PARTITION).clearStorageData();
-    options.logger.info("[coding-plan-webview] cleared persistent partition storage");
-  } catch (error) {
-    options.logger.warn(
-      "[coding-plan-webview] failed to clear persistent partition storage:",
-      error,
-    );
-  }
 }
 
 async function fetchRemoteAppConfig(fetchRemoteConfig?: () => Promise<unknown>): Promise<unknown> {
@@ -667,14 +645,10 @@ export async function executeDesktopCommand(options: {
       });
       return;
     case DesktopCommandIds.ClearAllData:
-      await clearCodingPlanWebviewStorage({ logger: options.logger });
       await clearAllDataAndRelaunch({
         credentialsDir: options.credentialsDir,
         logger: options.logger,
       });
-      return;
-    case DesktopCommandIds.ClearCodingPlanWebviewStorage:
-      await clearCodingPlanWebviewStorage({ logger: options.logger });
       return;
     case DesktopCommandIds.GetCuaOsSupport:
       return resolveCuaOsSupport();

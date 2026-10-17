@@ -193,11 +193,6 @@ vi.mock("@/i18n/IntlProvider.js", () => ({
     locale: "zh-CN",
   }),
 }));
-
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useCodingPlanUpgradeDialog: () => ({ openCodingPlanUpgrade: vi.fn() }),
-}));
-
 vi.mock("@/settings/model-provider-section/useCodingPlanEntitlements.js", () => ({
   useCodingPlanEntitlements: () => ({
     entitlements: mocks.codingPlanEntitlements,

@@ -25,8 +25,6 @@ import {
   resolveConversationTurnWorkDurationMs,
   resolveConversationTurnWorkStatus,
 } from "@/v4/conversationTurnWorkSegments.js";
-import { markHighspeedOutputFooterUnits } from "@/highspeed/highspeedOutputFooter.js";
-
 export type { AssistantWorkRow, ConversationTurnFlowItem } from "@/v4/conversationTurnFlowItems.js";
 export type {
   ConversationTurnWorkSegment,
@@ -439,5 +437,5 @@ export function buildConversationTurnRenderUnits(
   const normalizedUnits = keptUnits.map((unit, index) =>
     normalizeRenderUnitPosition(unit, index, keptUnits.length, options),
   );
-  return markHighspeedOutputFooterUnits(normalizedUnits, options.nowMs ?? Date.now());
+  return normalizedUnits;
 }

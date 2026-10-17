@@ -110,7 +110,7 @@ vi.mock("@/hooks/useServices.js", () => ({
     zcodeSessionService: mocks.zcodeSessionService,
     zcodeTaskService: mocks.zcodeTaskService,
   }),
-  // SessionPane 渲染链里的 useStartPlanRecommendation 走可选服务降级，
+  // Optional service consumers use their normal no-context fallback;
   // 本用例只验证到期采样，无服务上下文按 null 处理即可（与其它 SessionPane 用例一致）。
   useOptionalServices: () => null,
 }));

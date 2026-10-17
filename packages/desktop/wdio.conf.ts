@@ -57,11 +57,11 @@ import { runE2EBeforeSessionSetup } from "./test/e2e/helpers/e2e-before-session.
 import { resolveAskUserQuestionClockScaleForWorker } from "./test/e2e/helpers/e2e-worker-environment.js";
 import {
   CODING_PLAN_TEAM_MOCK_BASE_URL_ENV,
-  CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV,
+  ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV,
   applyCodingPlanTeamMockEnv,
-  applyCodingPlanUpgradeMockEnv,
+  applyAccountProviderMockEnv,
   clearCodingPlanTeamMockEnv,
-  clearCodingPlanUpgradeMockEnv,
+  clearAccountProviderMockEnv,
   shouldPrepareCodingPlanTeamMock,
 } from "./test/e2e/helpers/coding-plan-mock-env.js";
 import {
@@ -103,12 +103,12 @@ import {
   type E2ENetworkCaptureProxy,
 } from "./test/e2e/helpers/network-capture-proxy.js";
 import {
-  resetCodingPlanUpgradeMockServer,
-  resolveCodingPlanUpgradeMockScenario,
-  shouldPrepareCodingPlanUpgradeMockForBuild,
-  startCodingPlanUpgradeMockServer,
-  type CodingPlanUpgradeMockServer,
-} from "./test/e2e/helpers/coding-plan-upgrade-mock-server.js";
+  resetAccountProviderMockServer,
+  resolveAccountProviderMockScenario,
+  shouldPrepareAccountProviderMockForBuild,
+  startAccountProviderMockServer,
+  type AccountProviderMockServer,
+} from "./test/e2e/helpers/account-provider-mock-server.js";
 import {
   hasRequiredSshE2EEnvironment,
   resolveEnvironmentGatedFormalSpecExcludes,
@@ -619,7 +619,7 @@ let upstreamReplayServer: UpstreamReplayServer | null = null;
 let codingPlanTeamMockServer: Server | null = null;
 let codingPlanTeamMockBaseUrl = "";
 let codingPlanDataPlaneProxy: E2ENetworkCaptureProxy | null = null;
-let codingPlanUpgradeMockServer: CodingPlanUpgradeMockServer | null = null;
+let accountProviderMockServer: AccountProviderMockServer | null = null;
 let modelContextBudgetConfigMockServer: ModelContextBudgetConfigMockServer | null = null;
 let dynamicWorkflowConfigMockServer: DynamicWorkflowConfigMockServer | null = null;
 let clientScenesMockServer: ClientScenesMockServer | null = null;
@@ -839,7 +839,7 @@ function readE2EProviderPresetName(): E2EProviderPresetName {
   );
 }
 
-function resolveActiveE2EProviderEnv(specs: string[] = configuredE2ESpecs) {
+function resolveActiveE2EProviderEnv() {
   return {
     providerId: e2eProviderPreset.providerId,
     providerName: e2eProviderPreset.providerName,
@@ -848,8 +848,8 @@ function resolveActiveE2EProviderEnv(specs: string[] = configuredE2ESpecs) {
   };
 }
 
-function applyE2EProviderEnv(specs: string[] = configuredE2ESpecs) {
-  const providerEnv = resolveActiveE2EProviderEnv(specs);
+function applyE2EProviderEnv() {
+  const providerEnv = resolveActiveE2EProviderEnv();
   process.env.E2E_PROVIDER_PRESET = e2eProviderPresetName;
   process.env.E2E_PROVIDER_ID = providerEnv.providerId;
   process.env.E2E_PROVIDER_NAME = providerEnv.providerName;
@@ -2308,36 +2308,34 @@ async function stopUpstreamE2EHttp() {
   }
 }
 
-async function startCodingPlanUpgradeE2EMock(
+async function startAccountProviderE2EMock(
   specs: string[] = [],
   options: { prepareForBuild?: boolean } = {},
 ) {
-  const resolvedScenario = resolveCodingPlanUpgradeMockScenario(specs);
+  const resolvedScenario = resolveAccountProviderMockScenario(specs);
   const scenario =
     resolvedScenario ??
-    (options.prepareForBuild && shouldPrepareCodingPlanUpgradeMockForBuild(specs)
-      ? "webview-refresh-provider"
+    (options.prepareForBuild && shouldPrepareAccountProviderMockForBuild(specs)
+      ? "account-key"
       : null);
   if (!scenario) {
-    await stopCodingPlanUpgradeE2EMock();
+    await stopAccountProviderE2EMock();
     return;
   }
-  const preparedBaseUrl = process.env[CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV]?.trim();
-  if (!codingPlanUpgradeMockServer && preparedBaseUrl) {
-    await resetCodingPlanUpgradeMockServer(preparedBaseUrl, scenario);
-    applyCodingPlanUpgradeMockEnv(process.env, preparedBaseUrl);
+  const preparedBaseUrl = process.env[ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV]?.trim();
+  if (!accountProviderMockServer && preparedBaseUrl) {
+    await resetAccountProviderMockServer(preparedBaseUrl, scenario);
+    applyAccountProviderMockEnv(process.env, preparedBaseUrl);
     return;
   }
-  if (codingPlanUpgradeMockServer) {
-    await resetCodingPlanUpgradeMockServer(codingPlanUpgradeMockServer.baseUrl, scenario);
-    applyCodingPlanUpgradeMockEnv(process.env, codingPlanUpgradeMockServer.baseUrl);
+  if (accountProviderMockServer) {
+    await resetAccountProviderMockServer(accountProviderMockServer.baseUrl, scenario);
+    applyAccountProviderMockEnv(process.env, accountProviderMockServer.baseUrl);
     return;
   }
-  codingPlanUpgradeMockServer = await startCodingPlanUpgradeMockServer(scenario, {
-    marketingTouch: specs.some((spec) => spec.includes("marketing-touch-")),
-  });
-  process.env[CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV] = codingPlanUpgradeMockServer.baseUrl;
-  applyCodingPlanUpgradeMockEnv(process.env, codingPlanUpgradeMockServer.baseUrl);
+  accountProviderMockServer = await startAccountProviderMockServer(scenario);
+  process.env[ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV] = accountProviderMockServer.baseUrl;
+  applyAccountProviderMockEnv(process.env, accountProviderMockServer.baseUrl);
 }
 
 // 闲时任务 E2E：off-peak spec 命中时开进程内 mock 网关（ZCODE_OFFPEAK_MOCK=1），
@@ -2438,21 +2436,21 @@ function configureHighspeedE2EMock(specs: string[] = []): void {
   }
 }
 
-async function stopCodingPlanUpgradeE2EMock() {
+async function stopAccountProviderE2EMock() {
   const ownedBaseUrl =
-    codingPlanUpgradeMockServer?.baseUrl ??
-    process.env[CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV]?.trim() ??
+    accountProviderMockServer?.baseUrl ??
+    process.env[ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV]?.trim() ??
     "";
-  if (!codingPlanUpgradeMockServer) {
+  if (!accountProviderMockServer) {
     if (ownedBaseUrl) {
-      clearCodingPlanUpgradeMockEnv(process.env, ownedBaseUrl);
+      clearAccountProviderMockEnv(process.env, ownedBaseUrl);
     }
     restoreE2EProviderEndpointEnv();
     return;
   }
-  await codingPlanUpgradeMockServer.stop();
-  codingPlanUpgradeMockServer = null;
-  clearCodingPlanUpgradeMockEnv(process.env, ownedBaseUrl);
+  await accountProviderMockServer.stop();
+  accountProviderMockServer = null;
+  clearAccountProviderMockEnv(process.env, ownedBaseUrl);
   restoreE2EProviderEndpointEnv();
 }
 
@@ -3010,7 +3008,7 @@ function forceFinalizeE2ERunnerFromGuard() {
     try {
       await stopUpstreamE2EHttp();
       await stopCodingPlanTeamMock();
-      await stopCodingPlanUpgradeE2EMock();
+      await stopAccountProviderE2EMock();
       await stopRequestSecurityFixture();
       await stopModelContextBudgetConfigE2EMock();
       await stopDynamicWorkflowConfigE2EMock();
@@ -3251,13 +3249,13 @@ function seedE2EStartupState(specs: string[] = []) {
   }
   const now = Date.now();
   const codingPlanTeamSpec = shouldUseCodingPlanTeamMock(specs);
-  const codingPlanUpgradeE2E = isCodingPlanUpgradeE2E(specs);
+  const accountProviderE2E = isAccountProviderE2E(specs);
   const oauthCredentialRecoverySpec = isOAuthCredentialRecoverySpec(specs);
   const jwtExpiryReauthenticationSpec = isJwtExpiryReauthenticationSpec(specs);
   const subagentLoginCatalogStaleSpec = isSubagentCodingPlanLoginCatalogStaleSpec(specs);
   const builtInSubagentModelOverridesSpec = isBuiltInSubagentModelSelectionOverridesSpec(specs);
   const providerReadinessColdStartFixture = usesProviderReadinessColdStartFixture(specs);
-  const shouldUseBigmodelAuth = codingPlanTeamSpec || codingPlanUpgradeE2E;
+  const shouldUseBigmodelAuth = codingPlanTeamSpec || accountProviderE2E;
   const authProviderId = shouldUseBigmodelAuth ? BIGMODEL_PROVIDER_ID : E2E_AUTH_PROVIDER_ID;
   writeFileSync(
     E2E_APP_SETTINGS_FILE,
@@ -3447,8 +3445,8 @@ function createExpiredJwtOAuthCredentialSeed(authProviderId: string): Record<str
   };
 }
 
-function isCodingPlanUpgradeE2E(specs: string[] = []) {
-  return resolveCodingPlanUpgradeMockScenario(specs) !== null;
+function isAccountProviderE2E(specs: string[] = []) {
+  return resolveAccountProviderMockScenario(specs) !== null;
 }
 
 function shouldSeedGuideInteractionBehavior(specs: string[] = []) {
@@ -4619,23 +4617,19 @@ export const config: WebdriverIO.Config = {
         }
         // Bugfix: Coding Plan webview origin 是 Vite 编译期常量；mock 必须先于
         // build 启动并注入 env，否则 renderer 会 baked 线上官网 origin。
-        await startCodingPlanUpgradeE2EMock(configuredE2ESpecs, {
+        await startAccountProviderE2EMock(configuredE2ESpecs, {
           prepareForBuild: true,
         });
-        const codingPlanUpgradeMockBaseUrl =
-          process.env[CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV]?.trim();
-        if (codingPlanUpgradeMockBaseUrl) {
+        const accountProviderMockBaseUrl = process.env[ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV]?.trim();
+        if (accountProviderMockBaseUrl) {
           // 正式 Rewards 用例使用自托管网页，不依赖开发者的 localhost:3000 服务。
-          if (configuredE2ESpecs.some((spec) => spec.includes("marketing-touch-rewards"))) {
-            process.env.VITE_REWARDS_WEBVIEW_ORIGIN = codingPlanUpgradeMockBaseUrl;
-          }
           if (!config.runnerEnv) {
             throw new Error(
               "wdio config 缺少 runnerEnv，coding plan upgrade mock 端口无法透传给 worker",
             );
           }
           Object.assign(config.runnerEnv, {
-            [CODING_PLAN_UPGRADE_MOCK_BASE_URL_ENV]: codingPlanUpgradeMockBaseUrl,
+            [ACCOUNT_PROVIDER_MOCK_BASE_URL_ENV]: accountProviderMockBaseUrl,
           });
         }
         const buildAndStage = async () => {
@@ -4678,7 +4672,7 @@ export const config: WebdriverIO.Config = {
     currentE2EWorkerSessionSpecs = specs;
     applyUpstreamE2EHttpModeForWorker(specs);
     applyAskUserQuestionClockScaleForWorker(specs);
-    applyE2EProviderEnv(specs);
+    applyE2EProviderEnv();
     configureHighspeedE2EMock(specs);
     currentE2EBeforeSessionError = null;
     applyE2EWorkerModelRetryEnv(process.env, specs, configuredModelRetryMaxRetries);
@@ -4744,7 +4738,7 @@ export const config: WebdriverIO.Config = {
           recordBeforeSession: e2eReporter.beforeSession,
           resetHome: resetE2EHome,
           startCodingPlanTeamMockIfNeeded,
-          startCodingPlanUpgradeMockIfNeeded: startCodingPlanUpgradeE2EMock,
+          startAccountProviderMockIfNeeded: startAccountProviderE2EMock,
           startUpstreamHttpIfNeeded: startUpstreamE2EHttp,
           startPluginCdnZipFixtureIfNeeded,
           startOffPeakMockIfNeeded: startOffPeakE2EMock,
@@ -4917,7 +4911,7 @@ export const config: WebdriverIO.Config = {
         try {
           await stopUpstreamE2EHttp();
           await stopCodingPlanTeamMock();
-          await stopCodingPlanUpgradeE2EMock();
+          await stopAccountProviderE2EMock();
           await stopRequestSecurityFixture();
           await stopModelContextBudgetConfigE2EMock();
           await stopDynamicWorkflowConfigE2EMock();

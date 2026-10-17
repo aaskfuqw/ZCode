@@ -307,11 +307,7 @@ export function useRootOAuthEffects({
         const result = await services.oauthService.handleCallback(url);
         // 取消或切换 flow 会使已接收的回调失效，正常空结果不能被当作登录异常。
         if (!result) {
-          logger.info("[Root] 已忽略失效 OAuth 回调");
-          return;
-        }
-        if (result.kind === "attribution") {
-          logger.info("[Root] OAuth 登录归因参数已缓存:", result.provider);
+          logger.info("[Root] OAuth 回调尚未完成或已失效");
           return;
         }
         if (result.kind === "duplicate") {

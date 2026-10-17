@@ -9,7 +9,6 @@ import {
 } from "@zcode/shared";
 import { readApiJson } from "../../providers/api/apiJson.js";
 import { createServiceLogger } from "../../logger/serviceLogger.js";
-import { parseOAuthLoginAttribution } from "../callbackAttribution.js";
 import type { OAuthProviderRuntimeConfig } from "../runtimeConfig.js";
 import type { OAuthProviderAdapter, OAuthProviderContext } from "./providerAdapter.js";
 
@@ -99,10 +98,7 @@ export class BigModelProviderAdapter implements OAuthProviderAdapter {
     if (!code || !state) {
       throw new Error("OAuth 回调缺少 authCode/code 或 state 参数");
     }
-
-    const attribution = parseOAuthLoginAttribution(parsed.searchParams);
-
-    return { code, state, ...(attribution ? { attribution } : {}) };
+    return { code, state };
   }
 
   buildAuthorizeUrl(context: OAuthProviderContext): string {

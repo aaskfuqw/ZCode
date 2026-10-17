@@ -472,37 +472,6 @@ describe("WorkspaceSidebarFooter web remote control tooltip", () => {
     expect(loginIndex).toBeGreaterThan(separatorBeforeAuthIndex);
     expect(logoutIndex).toBeGreaterThan(separatorBeforeAuthIndex);
   });
-
-  it("keeps the always-visible upgrade entry inside the footer summary", () => {
-    const footerSource = readFileSync(
-      resolve(process.cwd(), "packages/ui/src/WorkspaceSidebarFooter.tsx"),
-      "utf8",
-    );
-    const summarySource = readFileSync(
-      resolve(process.cwd(), "packages/ui/src/WorkspaceSidebarFooterUsageSummary.tsx"),
-      "utf8",
-    );
-    const usageIndex = footerSource.indexOf("<WorkspaceSidebarFooterUsageSummary");
-
-    // 偏好设置与用量之间由 summary 统一管理分隔线，账号操作组另有分隔线。
-    const preferencesIndex = footerSource.indexOf('id: "settings.locale"');
-    expect(footerSource.slice(preferencesIndex, usageIndex)).not.toContain(
-      "<DropdownMenuSeparator />",
-    );
-    expect(summarySource).toContain("<DropdownMenuSeparator />");
-    expect(summarySource.indexOf("sidebar.usage.plan.openStats")).toBeLessThan(
-      summarySource.indexOf("onUpgradeClick?.("),
-    );
-    expect(summarySource).toContain("setPendingSettingsUsageIntent();");
-    expect(summarySource).toContain("onUsageClick?.();");
-    expect(summarySource).toContain("upgradeTargetProviderId");
-    expect(summarySource).toContain("onUpgradeClick?.(");
-    expect(summarySource).not.toContain("if (!upgradeProviderId");
-    expect(summarySource).not.toContain("if (!upgradeTargetProviderId");
-    expect(summarySource).toContain("<DropdownMenuSeparator />");
-    expect(summarySource).not.toContain("<CodingPlanUsageRemainingPanel");
-  });
-
   it("keeps settings-page usage stats separate from the back button", () => {
     const footerSource = readFileSync(
       resolve(process.cwd(), "packages/ui/src/WorkspaceSidebarFooter.tsx"),
