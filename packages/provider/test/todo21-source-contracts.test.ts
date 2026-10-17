@@ -119,24 +119,24 @@ describe("Todo 21 source contracts", () => {
   it("智谱产品模式属于 Provider Access", () => {
     const providers = parseZCodeBuiltinProviderConfigMap([
       {
-        providerId: "offpeak",
+        providerId: "highspeed",
         config: {
           group: "zai-family",
           visibility: "hidden",
           access: {
             type: "zhipu-account",
             accountType: "zai",
-            mode: "off-peak",
+            mode: "highspeed",
           },
           api: { type: "anthropic-messages", baseUrl: "https://example.com" },
           builtinModelIds: ["model-a"],
         },
       },
     ]);
-    expect(providers.get("offpeak")?.access?.toJSON()).toEqual({
+    expect(providers.get("highspeed")?.access?.toJSON()).toEqual({
       type: "zhipu-account",
       accountType: "zai",
-      mode: "off-peak",
+      mode: "highspeed",
     });
   });
 

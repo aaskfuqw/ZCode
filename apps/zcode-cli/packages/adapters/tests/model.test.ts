@@ -684,9 +684,9 @@ describe("Model", () => {
   });
 
   it("applies execution-scoped request auth for highspeed models so the card id reaches the wire", async () => {
-    // 回归（highspeed 401）：加速卡与 off-peak 同为 Coding Plan 派生模式，本轮鉴权
+    // 回归（highspeed 401）：加速卡为 Coding Plan 派生模式，本轮鉴权
     // （zcode JWT + Coding Plan 双 JWT + X-Highspeed-Card-ID）经 execution 作用域 requestAuth 下发。
-    // 门禁一旦只认 off-peak，highspeed 的 requestAuth 会被整包丢弃，加速请求缺卡 ID 被网关判 401。
+    // 门禁必须识别 highspeed，否则 requestAuth 被丢弃，加速请求缺卡 ID 被网关判 401。
     const resolve = vi.fn().mockResolvedValue({
       apiKey: "zcode-jwt",
       headers: {

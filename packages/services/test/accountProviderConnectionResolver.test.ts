@@ -514,7 +514,7 @@ describe("createAccountProviderConnectionResolver", () => {
     ).resolves.toBeNull();
   });
 
-  it("只启用当前 Family 已连接 Coding Plan 对应的 Off-Peak Provider", async () => {
+  it("只启用当前 Family 已连接 Coding Plan 对应的 Highspeed Provider", async () => {
     const resolve = createAccountProviderConnectionResolver({
       readSettings: async () => ({
         providerFamilyDomain: "zai",
@@ -540,22 +540,22 @@ describe("createAccountProviderConnectionResolver", () => {
     });
     const providers = configuredProviders()
       .set(
-        "account:zai-offpeak-idle-plan",
+        "account:zai-highspeed-card",
         new ProviderConfig({
           group: "zai-family",
           access: new ZhipuAccountAccessConfig({
             accountType: "zai",
-            mode: "off-peak",
+            mode: "highspeed",
           }),
         }),
       )
       .set(
-        "account:bigmodel-offpeak-idle-plan",
+        "account:bigmodel-highspeed-card",
         new ProviderConfig({
           group: "bigmodel-family",
           access: new ZhipuAccountAccessConfig({
             accountType: "bigmodel",
-            mode: "off-peak",
+            mode: "highspeed",
           }),
         }),
       );
@@ -564,9 +564,9 @@ describe("createAccountProviderConnectionResolver", () => {
       resolve({ configRevision: "config-1", configuredProviders: providers }),
     ).resolves.toEqual(
       expect.arrayContaining([
-        { providerId: "account:zai-offpeak-idle-plan", status: "available" },
+        { providerId: "account:zai-highspeed-card", status: "available" },
         {
-          providerId: "account:bigmodel-offpeak-idle-plan",
+          providerId: "account:bigmodel-highspeed-card",
           status: "unavailable",
         },
       ]),

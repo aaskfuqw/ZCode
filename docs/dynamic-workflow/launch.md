@@ -2486,11 +2486,11 @@ provider's own 1 h envelope cache and `forceRefresh` serve the renderer's refres
 CLI gate. Remote Hosts over SSH, WSL and Docker evaluate the key themselves through their own
 `/client/configs` request, so a remote machine that cannot reach the server is disabled
 unless the override reaches it (below). The CLI never reads the key or the override;
-it only consumes what the Host sends, the way `offPeakToolEnabled` works. Old CLIs that do
+it only consumes what the Host sends. Old CLIs that do
 not know the policy method answer method-not-found, which the Host logs and ignores, and
 their `z.object` schemas drop the unknown session flag, so the pairing degrades to disabled.
 A workspace's live sessions keep the tool surface they started with; the flag is read on
-create and resume, never mid-session, matching the off-peak rule. On-demand activation is
+create and resume, never mid-session. On-demand activation is
 the one mid-session change, and it only adds: a session never loses the ten tools while it
 lives.
 

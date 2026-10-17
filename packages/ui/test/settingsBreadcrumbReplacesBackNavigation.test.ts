@@ -17,23 +17,18 @@ describe("Settings breadcrumb replaces detail back navigation", () => {
     expect(readSource(name)).not.toContain("SettingsBackButton");
   });
 
-  it.each(["AutomationEditView", "OffPeakEditView"])(
-    "moves %s back navigation into the breadcrumb",
+  it.each(["AutomationEditView"])("moves %s back navigation into the breadcrumb", (name) => {
+    const source = readSource(name);
+    expect(source).toContain("SettingsBreadcrumbReporter");
+    expect(source).not.toContain("AUTOMATION_BACK_TRIGGER_CLASSNAME");
+  });
+
+  it.each(["CommandsSection", "SubagentsSection", "McpSettingsSection", "HookForm"])(
+    "uses the xl UI token for the current form title in %s",
     (name) => {
       const source = readSource(name);
-      expect(source).toContain("SettingsBreadcrumbReporter");
-      expect(source).not.toContain("AUTOMATION_BACK_TRIGGER_CLASSNAME");
+      expect(source).toContain("text-ui-xl font-semibold text-foreground");
+      expect(source).not.toContain("text-xl");
     },
   );
-
-  it.each([
-    "CommandsSection",
-    "SubagentsSection",
-    "McpSettingsSection",
-    "HookForm",
-  ])("uses the xl UI token for the current form title in %s", (name) => {
-    const source = readSource(name);
-    expect(source).toContain("text-ui-xl font-semibold text-foreground");
-    expect(source).not.toContain("text-xl");
-  });
 });

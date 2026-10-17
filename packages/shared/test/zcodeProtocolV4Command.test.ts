@@ -173,53 +173,18 @@ describe("zcode-protocol-v4 command", () => {
     ).toBe(false);
   });
 
-  it("Off-Peak attribution is turn-scoped and mutually exclusive with automation", () => {
-    expect(
-      commandPayloadSchemas.sendText.parse({
-        text: "resume",
-        offPeakTaskId: "offpeak-1",
-        offPeakRunType: "resume",
-        toolDisallowlist: ["CronCreate"],
-        futureAdditiveField: "ignored-by-current-cli",
-      }),
-    ).toEqual({
-      text: "resume",
-      offPeakTaskId: "offpeak-1",
-      offPeakRunType: "resume",
-      toolDisallowlist: ["CronCreate"],
-    });
-    expect(() =>
-      commandPayloadSchemas.sendText.parse({
-        text: "invalid",
-        offPeakRunType: "init",
-      }),
-    ).toThrow();
-    expect(() =>
-      commandPayloadSchemas.sendText.parse({
-        text: "invalid",
-        automationId: "automation-1",
-        offPeakTaskId: "offpeak-1",
-      }),
-    ).toThrow();
-  });
-
   it("keeps execution-scoped model context narrow and drops the legacy runtime snapshot", () => {
     const payload = commandPayloadSchemas.sendText.parse({
       text: "run with an execution-scoped model",
       modelSelection: {
-        providerId: "account:zai-offpeak-idle-plan",
+        providerId: "account:zai-highspeed-card",
         modelId: "GLM-5.2",
       },
       modelExecution: {
-        memoryExtraction: "skip",
         selectionScope: "execution",
         requestAuth: {
           apiKey: "request-key",
-          headers: { "X-Off-Peak-Ticket-ID": "ticket-1" },
-        },
-        subagents: {
-          foregroundModel: "submission",
-          background: "deny",
+          headers: { "X-Highspeed-Card-ID": "ticket-1" },
         },
       },
       turnRuntimeModel: {
@@ -230,39 +195,32 @@ describe("zcode-protocol-v4 command", () => {
     expect(payload).toEqual({
       text: "run with an execution-scoped model",
       modelSelection: {
-        providerId: "account:zai-offpeak-idle-plan",
+        providerId: "account:zai-highspeed-card",
         modelId: "GLM-5.2",
       },
       modelExecution: {
-        memoryExtraction: "skip",
         selectionScope: "execution",
         requestAuth: {
           apiKey: "request-key",
-          headers: { "X-Off-Peak-Ticket-ID": "ticket-1" },
-        },
-        subagents: {
-          foregroundModel: "submission",
-          background: "deny",
+          headers: { "X-Highspeed-Card-ID": "ticket-1" },
         },
       },
     });
   });
 
-  it("only accepts the explicit per-turn Memory Extraction skip policy", () => {
-    expect(
-      commandPayloadSchemas.sendText.parse({
-        text: "do not extract this turn",
-        modelSelection: { providerId: "offpeak", modelId: "model" },
-        modelExecution: { memoryExtraction: "skip", selectionScope: "execution" },
-      }),
-    ).toMatchObject({ modelExecution: { memoryExtraction: "skip" } });
-    expect(
-      commandPayloadSchemas.sendText.safeParse({
-        text: "invalid Memory policy",
-        modelSelection: { providerId: "offpeak", modelId: "model" },
-        modelExecution: { memoryExtraction: "disabled", selectionScope: "execution" },
-      }).success,
-    ).toBe(false);
+  it("rejects removed per-turn task policies", () => {
+    for (const policy of [
+      { memoryExtraction: "skip" },
+      { subagents: { foregroundModel: "submission", background: "deny" } },
+    ]) {
+      expect(
+        commandPayloadSchemas.sendText.safeParse({
+          text: "ordinary execution",
+          modelSelection: { providerId: "execution", modelId: "model" },
+          modelExecution: { selectionScope: "execution", ...policy },
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("rejects static provider facts inside model execution context", () => {
@@ -270,7 +228,7 @@ describe("zcode-protocol-v4 command", () => {
       commandPayloadSchemas.sendText.safeParse({
         text: "invalid execution context",
         modelSelection: {
-          providerId: "account:zai-offpeak-idle-plan",
+          providerId: "account:zai-highspeed-card",
           modelId: "GLM-5.2",
         },
         modelExecution: {

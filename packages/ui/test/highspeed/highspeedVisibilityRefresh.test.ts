@@ -93,10 +93,6 @@ const projectionState = vi.hoisted(() => ({
   } | null,
 }));
 
-vi.mock("@/v4/OffPeakNewTaskEntry.js", () => ({
-  OffPeakNewTaskEntry: () => null,
-}));
-
 vi.mock("@/v4/ConversationDraftSuggestedPromptsContainer.js", () => ({
   ConversationDraftSuggestedPromptsContainer: () => null,
 }));

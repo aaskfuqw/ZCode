@@ -26,7 +26,6 @@ type FormatMessage = (descriptor: { id: string }, values?: Record<string, string
 const REASON_LABEL_KEY: Readonly<Record<string, string>> = {
   rate_limited: "throttle.reason.rateLimited",
   provider_overloaded: "throttle.reason.overloaded",
-  offpeak_queued: "throttle.reason.offpeak",
   server_error: "throttle.reason.transient",
   network_error: "throttle.reason.transient",
   timeout: "throttle.reason.transient",
@@ -157,7 +156,9 @@ export function workflowRunConcurrencyEventLine(
         );
       }
       const reason =
-        typeof payload.reason === "string" ? throttleReasonLabel(payload.reason, formatMessage) : "?";
+        typeof payload.reason === "string"
+          ? throttleReasonLabel(payload.reason, formatMessage)
+          : "?";
       const seconds =
         typeof payload.delayMs === "number"
           ? String(Math.ceil(payload.delayMs / MS_PER_SECOND))
@@ -175,7 +176,8 @@ export function workflowRunConcurrencyEventLine(
     case "concurrency-changed": {
       const previous = typeof payload.previous === "number" ? String(payload.previous) : "?";
       const next = typeof payload.next === "number" ? String(payload.next) : "?";
-      const key = typeof payload.key === "string" && payload.key.length > 0 ? payload.key : undefined;
+      const key =
+        typeof payload.key === "string" && payload.key.length > 0 ? payload.key : undefined;
       return withDetail(
         formatMessage({ id: `${EVENT_KEY_PREFIX}concurrencyChanged` }, { previous, next }),
         key,

@@ -130,7 +130,6 @@ export interface AgentToolResult {
 
 export const AgentErrorCode = {
   SUBAGENT_UNAVAILABLE: "agent_subagent_unavailable",
-  BACKGROUND_UNAVAILABLE: "agent_background_unavailable",
   UNKNOWN_AGENT_TYPE: "agent_unknown_type",
   CHILD_RUNTIME_FAILED: "agent_child_runtime_failed",
 } as const;

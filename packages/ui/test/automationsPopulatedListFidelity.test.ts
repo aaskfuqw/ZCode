@@ -38,31 +38,17 @@ describe("Automations populated-list Figma contract", () => {
     expect(automationsSectionSource).toMatch(/hasAnyTasks \? "mt-5" : "mt-8"/);
   });
 
-  it("keeps inactive tabs transparent and shows the scheduled create split action only on its tab", () => {
-    expect(automationsSectionSource).toContain(
-      '"text-foreground-subtle hover:bg-hover hover:text-foreground"',
-    );
-    expect(automationsSectionSource).not.toContain(
-      '"bg-surface text-foreground-subtle hover:bg-hover hover:text-foreground"',
-    );
-    expect(automationsSectionSource).toContain(
-      "<AutomationCreateDropdown\n                onViaChat={handleCreateViaChat}",
-    );
-    expect(automationsSectionSource).not.toContain("appearance={");
-  });
-
   it("keeps manual refresh immediately before the populated create action", () => {
     const refreshAction = automationsSectionSource.indexOf(
       'aria-label={intl.formatMessage({ id: "automations.refresh" })}',
     );
     const createAction = automationsSectionSource.indexOf(
-      "<AutomationCreateDropdown\n                onViaChat={handleCreateViaChat}",
+      "<AutomationCreateDropdown\n              onViaChat={handleCreateViaChat}",
     );
 
     expect(refreshAction).toBeGreaterThanOrEqual(0);
     expect(createAction).toBeGreaterThan(refreshAction);
     expect(automationsSectionSource).toContain("refresh(zcodeAgentService)");
-    expect(automationsSectionSource).toContain("offPeakRefresh(offPeakTaskService)");
     expect(automationsSectionSource).toMatch(
       /variant="outline"\s+size="icon"\s+aria-label=\{intl\.formatMessage\(\{ id: "automations\.refresh" \}\)\}/,
     );
@@ -79,12 +65,6 @@ describe("Automations populated-list Figma contract", () => {
     expect(zhCN["automations.resume"]).toBe("继续");
     expect(enUS["automations.pause"]).toBe("Pause");
     expect(enUS["automations.resume"]).toBe("Continue");
-  });
-
-  it("uses the dedicated idle-time delete confirmation action label", () => {
-    expect(automationsSectionSource).toMatch(
-      /id: "offPeak\.delete\.title"[\s\S]*?id: "offPeak\.delete\.description"[\s\S]*?id: "offPeak\.delete\.confirm"/,
-    );
   });
 
   it("dims paused schedule time and run count to 40 percent opacity", () => {

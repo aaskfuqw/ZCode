@@ -142,7 +142,7 @@ M90-01～08、F92-01～08 以 317 条相关单测和上述代表 Electron 联合
 - Red: the new shared-radius and business-override contract tests failed against the old styles.
 - Green: 22 targeted unit tests passed; `pnpm typecheck`, `pnpm --filter @zcode/desktop typecheck:e2e`, and `pnpm lint` passed (41 existing lint warnings, no errors).
 - macOS Electron: `settings-ui-polish.test.ts`, 3/3 passed, including computed menu shell/option radii. Run: `desktop-e2e-20260904075731227-p32863-d53541f289639947`.
-- Windows caption and automation/off-peak menu overrides were removed so these surfaces inherit shared radii. ContextMenu, Select, checkbox/radio items and submenus have contract coverage; their individual runtime paths and mobile/Windows/Linux visual checks were not run in this change.
+- Windows caption and automation menu overrides were removed so these surfaces inherit shared radii. ContextMenu, Select, checkbox/radio items and submenus have contract coverage; their individual runtime paths and mobile/Windows/Linux visual checks were not run in this change.
 
 ## macOS 根框架背景（2026-09-04）
 

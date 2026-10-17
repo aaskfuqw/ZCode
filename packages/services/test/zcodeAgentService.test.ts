@@ -1757,7 +1757,7 @@ describe("createZCodeAgentService", () => {
         modelId: "test-model",
         options: { reasoningLevel: "high" },
       },
-      modelExecution: { selectionScope: "execution", memoryExtraction: "skip" },
+      modelExecution: { selectionScope: "execution" },
     });
 
     const requests = readFileSync(logPath, "utf8")
@@ -1777,7 +1777,7 @@ describe("createZCodeAgentService", () => {
             modelId: "test-model",
             options: { reasoningLevel: "high" },
           },
-          modelExecution: { selectionScope: "execution", memoryExtraction: "skip" },
+          modelExecution: { selectionScope: "execution" },
         },
       },
     ]);

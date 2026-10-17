@@ -24,7 +24,7 @@ export interface AccountRequestAuthInput {
   accountAccess: ZCodeProviderAccountAccess | ZCodeAccountAccess;
   expectedAccountScope?: string;
   rejectedProjectTokenFingerprint?: string;
-  reason: RequestVerificationReason | "off-peak" | "usage";
+  reason: RequestVerificationReason | "highspeed" | "usage";
 }
 
 export interface AccountAccessIdentityInput {
@@ -103,7 +103,7 @@ class AccountProviderRequestAuthService implements AccountRequestAuthResolver {
             input.rejectedProjectTokenFingerprint,
           );
     if (scoped) {
-      // 换证 IO 前后校验原请求身份，避免 401 重试或闲时票据串用新账号/项目。
+      // 换证 IO 前后校验原请求身份，避免 401 重试或加速请求串用新账号/项目。
       const latest = await this.#resolveAccess(input.accountAccess);
       if (!latest || accountScope !== (await this.#scope(latest)))
         throw new Error("project_token_scope_invalidated");

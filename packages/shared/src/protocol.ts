@@ -290,7 +290,7 @@ export interface AppSettings {
   taskAutoArchiveOlderThanDays?: number;
   /** 桌面端关闭窗口时隐藏到托盘驻留（Windows/Linux） */
   closeToTrayOnWindows?: boolean;
-  /** 存在执行中的闲时任务时阻止系统闲置休眠（手动开关，防不了合盖）。 */
+  /** ZCode 运行会话时阻止系统闲置休眠（手动开关，防不了合盖）。 */
   keepAwakeWhileRunning?: boolean;
   /** Windows 关闭到托盘默认值是否已执行过一次性迁移；只用于设置迁移，不参与业务判断。 */
   closeToTrayOnWindowsMigrationInitialized?: boolean;

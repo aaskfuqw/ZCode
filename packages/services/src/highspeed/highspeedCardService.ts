@@ -224,7 +224,7 @@ export class HighspeedCardService implements IHighspeedCardService {
     }
 
     // draw body 的 provider 契约是服务端白名单里的 Coding Plan builtin 身份
-    // （builtin:zai-coding-plan / builtin:bigmodel-coding-plan）；Start/Off-Peak/API Key/
+    // （builtin:zai-coding-plan / builtin:bigmodel-coding-plan）；Start/API Key/
     // 自定义 Provider 解析不出白名单值，直接降级，不打必被服务端拒绝的请求。
     // 回归约束：禁止把会话选择的完整 providerId（如 account:bigmodel-team-coding-plan）
     // 或账号 Family（bigmodel）透传进 body，两者都会被白名单以 3001 参数错误拒绝。

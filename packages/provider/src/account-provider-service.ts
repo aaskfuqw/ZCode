@@ -165,7 +165,7 @@ export class AccountProviderService implements ProviderSource<AccountProviderCon
         });
         // Account Snapshot 已经表达 Overlay 的来源，目标与字段边界由注入的
         // Resolver 和 Account Schema 负责。再按 Built-in access.type 做门禁，会错误拒绝
-        // 账号层为闲时 Provider 发布的 entitled-only Overlay，导致整个 Registry 无法启动。
+        // 账号层为隐藏 Provider 发布的 entitled-only Overlay，导致整个 Registry 无法启动。
         this.#assertNotDisposed();
         // 查询可跨越 Built-in/凭据更新；过期轮只能丢弃，不能短暂发布后再修正。
         const currentConfig = await this.#configSource.read();

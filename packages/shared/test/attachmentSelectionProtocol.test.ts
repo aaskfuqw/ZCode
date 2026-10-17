@@ -4,15 +4,13 @@ import { commandPayloadSchemas } from "../src/zcode-protocol-v4/command.js";
 
 describe("附件与文本发送的模型合同", () => {
   const modelSelection = {
-    providerId: "account:offpeak",
+    providerId: "account:execution",
     modelId: "model",
     options: { reasoningLevel: "high" },
   };
   const modelExecution = {
     selectionScope: "execution",
-    memoryExtraction: "skip",
     requestAuth: { headers: { "x-test-ticket": "fixture-only" } },
-    subagents: { foregroundModel: "submission", background: "deny" },
   };
   it("两种发送保留相同 Selection 与执行约束", () => {
     const legacy = zcodeSessionSendParamsSchema.parse({

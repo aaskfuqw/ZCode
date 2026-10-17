@@ -55,9 +55,6 @@ describe("Account preset membership", () => {
           "GLM-5.2",
           "GLM-5-Turbo",
         ]);
-        expect(
-          snapshot.providers.get(`account:${family}-offpeak-idle-plan`)?.builtinModelIds,
-        ).toContain("GLM-5.3-Flash");
       }
       const raw = JSON.parse(await readFile(bundledFilePath, "utf8"));
       expect(

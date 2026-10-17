@@ -57,7 +57,7 @@ export function resolveAccountProviderInspectionAccess(
   )
     return null;
   const parsed = zcodeProviderAccountAccessSchema.safeParse(provider.effectiveConfig.access);
-  if (!parsed.success || parsed.data.mode === "off-peak") return null;
+  if (!parsed.success) return null;
   if (!provider.accountState && parsed.data.entitled !== true) return null;
   return { providerId, access: parsed.data };
 }

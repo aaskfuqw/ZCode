@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": 31,
+  "revision": 32,
   "config": {
     "providerConfigRules": {
       "templateRules": [
@@ -568,10 +568,7 @@
               "type": "openai-responses",
               "baseUrl": "https://opencode.ai/zen/go/v1"
             },
-            "builtinModelIds": [
-              "gpt-5.6-luna",
-              "grok-4.6"
-            ],
+            "builtinModelIds": ["gpt-5.6-luna", "grok-4.6"],
             "logo": {
               "type": "builtin",
               "key": "opencode"
@@ -815,50 +812,6 @@
             "logo": {
               "type": "builtin",
               "key": "start-plan"
-            }
-          }
-        },
-        {
-          "providerId": "account:zai-offpeak-idle-plan",
-          "providerName": "Z.AI Idle plan",
-          "config": {
-            "group": "zai-family",
-            "builtinModelIds": ["GLM-5.3", "GLM-5.3-Flash"],
-            "visibility": "hidden",
-            "access": {
-              "type": "zhipu-account",
-              "mode": "off-peak",
-              "accountType": "zai"
-            },
-            "api": {
-              "type": "anthropic-messages",
-              "baseUrl": "https://zcode.z.ai/api/v1/off-peak/anthropic"
-            },
-            "logo": {
-              "type": "builtin",
-              "key": "zai"
-            }
-          }
-        },
-        {
-          "providerId": "account:bigmodel-offpeak-idle-plan",
-          "providerName": "BigModel Idle plan",
-          "config": {
-            "group": "bigmodel-family",
-            "builtinModelIds": ["GLM-5.3", "GLM-5.3-Flash"],
-            "visibility": "hidden",
-            "access": {
-              "type": "zhipu-account",
-              "mode": "off-peak",
-              "accountType": "bigmodel"
-            },
-            "api": {
-              "type": "anthropic-messages",
-              "baseUrl": "https://zcode.z.ai/api/v1/off-peak/anthropic"
-            },
-            "logo": {
-              "type": "builtin",
-              "key": "bigmodel"
             }
           }
         },
@@ -3351,11 +3304,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "high",
-                  "max"
-                ],
+                "values": ["low", "high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3384,11 +3333,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "high",
-                  "max"
-                ],
+                "values": ["low", "high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3417,10 +3362,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "high",
-                  "max"
-                ],
+                "values": ["high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3449,9 +3391,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3480,9 +3420,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "max"
-                ],
+                "values": ["max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3511,9 +3449,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3542,9 +3478,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3573,11 +3507,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "high",
-                  "max"
-                ],
+                "values": ["low", "high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3606,10 +3536,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "high",
-                  "max"
-                ],
+                "values": ["high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3638,11 +3565,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "high",
-                  "max"
-                ],
+                "values": ["low", "high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3671,11 +3594,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "high",
-                  "max"
-                ],
+                "values": ["low", "high", "max"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3704,9 +3623,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3735,9 +3652,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3766,10 +3681,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "none",
-                  "high"
-                ],
+                "values": ["none", "high"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3798,11 +3710,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "none",
-                  "low",
-                  "high"
-                ],
+                "values": ["none", "low", "high"],
                 "map": "{\"reasoning_effort\": reasoningLevel}"
               },
               "maxOutputTokens": {
@@ -3831,10 +3739,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "disabled",
-                  "enabled"
-                ],
+                "values": ["disabled", "enabled"],
                 "map": "{\n  \"thinking\": {\n    \"type\": reasoningLevel == \"disabled\" ? \"disabled\" : \"adaptive\"\n  }\n}"
               },
               "maxOutputTokens": {
@@ -3862,9 +3767,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3892,9 +3795,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "enabled"
-                ],
+                "values": ["enabled"],
                 "map": "{}"
               },
               "maxOutputTokens": {
@@ -3922,11 +3823,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "medium",
-                  "xhigh"
-                ]
+                "values": ["low", "medium", "xhigh"]
               },
               "maxOutputTokens": {
                 "max": 131072
@@ -3953,11 +3850,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "medium",
-                  "xhigh"
-                ]
+                "values": ["low", "medium", "xhigh"]
               },
               "maxOutputTokens": {
                 "max": 131072
@@ -3984,10 +3877,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "disabled",
-                  "enabled"
-                ]
+                "values": ["disabled", "enabled"]
               },
               "maxOutputTokens": {
                 "max": 65536
@@ -4014,10 +3904,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "disabled",
-                  "enabled"
-                ]
+                "values": ["disabled", "enabled"]
               },
               "maxOutputTokens": {
                 "max": 65536
@@ -4044,10 +3931,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "disabled",
-                  "enabled"
-                ]
+                "values": ["disabled", "enabled"]
               },
               "maxOutputTokens": {
                 "max": 65536
@@ -4074,14 +3958,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "none",
-                  "low",
-                  "medium",
-                  "high",
-                  "xhigh",
-                  "max"
-                ],
+                "values": ["none", "low", "medium", "high", "xhigh", "max"],
                 "map": "{\n  \"reasoning\": {\n    \"effort\": reasoningLevel\n  }\n}"
               },
               "maxOutputTokens": {
@@ -4109,12 +3986,7 @@
             },
             "optionSpecs": {
               "reasoningLevel": {
-                "values": [
-                  "low",
-                  "medium",
-                  "high",
-                  "xhigh"
-                ],
+                "values": ["low", "medium", "high", "xhigh"],
                 "map": "{\n  \"reasoning\": {\n    \"effort\": reasoningLevel\n  }\n}"
               },
               "maxOutputTokens": {
@@ -4255,17 +4127,6 @@
           "config": {
             "properties": {
               "supportsNativeWebSearch": true,
-              "supportsMidConversationSystem": true
-            }
-          }
-        },
-        {
-          "modelMatch": ".*",
-          "apiTypeMatch": "anthropic-messages",
-          "baseUrlMatch": "https://zcode\\.z\\.ai/api/v1/off-peak/anthropic/?",
-          "config": {
-            "properties": {
-              "supportsNativeWebSearch": false,
               "supportsMidConversationSystem": true
             }
           }
@@ -6325,34 +6186,6 @@
         {
           "providerId": "account:bigmodel-start-plan",
           "modelId": "GLM-5-Turbo",
-          "config": {
-            "enabled": true
-          }
-        },
-        {
-          "providerId": "account:zai-offpeak-idle-plan",
-          "modelId": "GLM-5.3-Flash",
-          "config": {
-            "enabled": true
-          }
-        },
-        {
-          "providerId": "account:zai-offpeak-idle-plan",
-          "modelId": "GLM-5.3",
-          "config": {
-            "enabled": true
-          }
-        },
-        {
-          "providerId": "account:bigmodel-offpeak-idle-plan",
-          "modelId": "GLM-5.3-Flash",
-          "config": {
-            "enabled": true
-          }
-        },
-        {
-          "providerId": "account:bigmodel-offpeak-idle-plan",
-          "modelId": "GLM-5.3",
           "config": {
             "enabled": true
           }

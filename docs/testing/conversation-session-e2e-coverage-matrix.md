@@ -40,16 +40,6 @@ compact/fork/rewind 与可替换 definitions 的组合通过 Core focused tests 
 
 2026-09-10 Todo104 / I13：pending spec 增加首发前后工具栏完整 title 的 Provider 名称断言，覆盖真实配置 → Registry → Selection View → Composer；继续保留原 currentValue、模型请求、回复与 idle 断言。Pro 新 Desktop/Agent `desktop-e2e-20260910-062834-748`：1/1通过，显式 max 参数及 common+case-local replay。只增强既有用例，不新增请求或自动晋级；不表示手机/SSH 实机已验证。
 
-## Todo103 闲时工具测试前置
-
-OffPeakCreate 新建/冷恢复、闲时 Subagent 继承和失效 Ticket 的隔离回放，必须同时准备账号控制面与闲时网关。仅启用 `ZCODE_OFFPEAK_MOCK` 不会创建当前 Account Provider 权益；应复用现有 Coding Plan mock 并播种具体个人套餐连接，使普通 Registry 和隐藏 Off-Peak Selection View 来自正常解析。原用例的单模型白名单 GLM-5.2 通过 case-local Built-in 的 `builtinModelIds` 提供，不再从退役 client-config 字段提供；产品配置不变。不得在生产代码里绕过权益或直接塞候选来让测试通过。四类用例仍为 pending；录像依赖安装在隔离工具目录，不更改用户应用数据。
-
-OP10 下一普通轮的默认 DeepSeek 选择必须包含 preset 的思考档位。新建闲时 Session 不继承尚未提交的 Composer 草稿；不完整的 configuredDefault 不能证明普通轮应使用 DeepSeek。仍须检查普通请求不携带闲时 Ticket、不请求闲时网关。
-
-OP-CHAT-02 在冷恢复创建、编辑回显之后继续等待真实 scheduler 派发：已有 Session 的 `runtime/model_selection` 在创建前与闲时执行后保持一致；闲时任务的 conversationId 仍等于绑定的 Session，取票网关捕获到任务保存的闲时模型。不能用表单新建 Session 的 OP10 代替该绑定分支。
-
-该绑定用例复用网关 foreground-subagents 场景中 `E2E_OFFPEAK_SUBAGENT_CHILD_INHERIT` 的固定文本响应，不创建子任务；marker 仅供离线 fixture 匹配。不能使用会继续代理真实上游的 capture 模式来伪装纯离线验收。
-
 ## Todo95C 关闭档位改名
 
 R95C-01（accepted，pending 未晋级）：`conversation-session-model-provider-effective-selection.test.ts` 验证 GLM-5.2 旧 nothink 草稿冷启动显示 disabled、正文编辑不写回、发送后保存及实际关闭请求。Pro `desktop-e2e-20260909-121842-573` 通过；同组 SR87-01、SR87-06/SM96 套餐对应与后台任务回归 3/3 通过。历史记录在 pagehide 注入，避免旧页退出保存覆盖测试前置。
@@ -372,12 +362,6 @@ staging 的 BG45 历史 focused replay artifact 为 `desktop-e2e-20260903-111126
 | `AMG`  | `packages/desktop/test/e2e/automations-create-manage.test.ts`                                                                                                                                                                                                                                                                      |
 | `AYS`  | `packages/desktop/test/e2e/automations-custom-yearly-schedule.test.ts`                                                                                                                                                                                                                                                             |
 | `AML`  | `packages/desktop/test/e2e/automations-custom-monthly-interval.test.ts`                                                                                                                                                                                                                                                            |
-| `OPF`  | `packages/desktop/test/e2e/conversation-session/conversation-session-offpeak-full-flow.test.ts`（planned）                                                                                                                                                                                                                         |
-| `OPA`  | `packages/desktop/test/e2e/conversation-session/conversation-session-offpeak-approval.test.ts`（planned）                                                                                                                                                                                                                          |
-| `OPP`  | `packages/desktop/test/e2e/off-peak-create-manage.test.ts`（已编写：创建→回显→Pause→Continue→删除；进程内 mock 网关驱动，待 E2E 环境执行验证）                                                                                                                                                                                     |
-| `OPR`  | `packages/desktop/test/e2e/conversation-session/conversation-session-offpeak-restart-resume.test.ts`（planned）                                                                                                                                                                                                                    |
-| `OPS`  | `packages/desktop/test/e2e/conversation-session/manual-review/pending/conversation-session-offpeak-subagent-model-inheritance.test.ts`                                                                                                                                                                                             |
-| `OPB`  | `packages/desktop/test/e2e/conversation-session/conversation-session-offpeak-provider-boundary.test.ts`（planned）                                                                                                                                                                                                                 |
 | `OI`   | `packages/desktop/test/e2e/conversation-session/manual-review/pending/conversation-session-oversized-inline-image-attachment.test.ts`                                                                                                                                                                                              |
 | `VA`   | `packages/desktop/test/e2e/conversation-session/conversation-session-v4-attachment.test.ts`                                                                                                                                                                                                                                        |
 | `TU`   | `packages/ui/test/zcodeSessionProjection.test.ts`、`packages/ui/test/v4ConversationTurnRenderUnits.test.ts`、`packages/ui/test/v4ConversationTurnGroup.test.ts`、`packages/ui/test/v4ConversationRowViewTimelineMarker.test.ts`、`packages/shared/test/zcodeSessionVisibleContent.test.ts`、`packages/ui/test/chatLoading.test.ts` |
@@ -541,7 +525,7 @@ PV4-01/02/06 专项覆盖。
 
 ## Session Title Generation 与定时任务覆盖口径
 
-`AMG` 覆盖 UI 手动 automation 的创建、编辑、暂停、恢复和删除；`AYS` 覆盖自定义年度计划的保存复原；`AML` 覆盖“每 29 个月”的合法兼容 cron 与权威 `scheduleRule` 落库复原，不重复断言卡片文案，也不覆盖 scheduler 的真实派发时间窗；`AUT` 覆盖编辑态当前表单先保存再立即派发、执行会话稳定标题、manual run 完成后 Card 累计次数加一且不展示分母，并核对真实 provider 请求只暴露 CronList；`CRC` 覆盖会话内 CronCreate 的真实工具执行、整轮完成后的回复末尾成功卡片、按 `automationId` 直达详情、不可回显 cron 从“自定义”删除后改用 UI 调度并保存，同时以“每 31 小时的第 49 分”验证 interval carrier 的真实卡片文案、合法兼容 cron 与 `scheduleRule` 回显；`CRR` 覆盖会话内 CronCreate 的相对时间一次性任务，验证 `delayMinutes` 不被回显为重复频率、活跃卡仍展示“下次运行”、累计次数不展示有限次数分母，以及详情未改动返回不弹保存确认；`NCC` 的 focused case 覆盖 automation 执行会话禁止嵌套创建定时任务；`CRU` 已由 focused tests 覆盖普通会话通过 CronUpdate 原地修改任务定义、保持身份与历史并展示更新后卡片，pending replay 以“每 200 天 10:30”验证 update carrier 的原地更新、合法候选 cron、真实 `scheduleRule` 和详情回显，待人工 review 后转正。分钟 / 周 / 月 / 年以及其它合法 / 非法边界由 contract、protocol、service 和 focused UI 测试覆盖，不在 Electron E2E 与 Create × Update 交叉重复。上述代表都属于桌面本地 `desktop-continuous` 链路，不据此推断手机 `web-remote-replayable`、SSH/WSL/Docker 或真实时钟 cron tick 的语义。有限次数计划不会被 manual run 消耗由 services 调度状态机集成测试覆盖；闲时任务与其它功能按本轮用户范围 ignored；模型 metadata preview 失败由 focused UI/integration test 覆盖，不扩成 Electron E2E。
+`AMG` 覆盖 UI 手动 automation 的创建、编辑、暂停、恢复和删除；`AYS` 覆盖自定义年度计划的保存复原；`AML` 覆盖“每 29 个月”的合法兼容 cron 与权威 `scheduleRule` 落库复原，不重复断言卡片文案，也不覆盖 scheduler 的真实派发时间窗；`AUT` 覆盖编辑态当前表单先保存再立即派发、执行会话稳定标题、manual run 完成后 Card 累计次数加一且不展示分母，并核对真实 provider 请求只暴露 CronList；`CRC` 覆盖会话内 CronCreate 的真实工具执行、整轮完成后的回复末尾成功卡片、按 `automationId` 直达详情、不可回显 cron 从“自定义”删除后改用 UI 调度并保存，同时以“每 31 小时的第 49 分”验证 interval carrier 的真实卡片文案、合法兼容 cron 与 `scheduleRule` 回显；`CRR` 覆盖会话内 CronCreate 的相对时间一次性任务，验证 `delayMinutes` 不被回显为重复频率、活跃卡仍展示“下次运行”、累计次数不展示有限次数分母，以及详情未改动返回不弹保存确认；`NCC` 的 focused case 覆盖 automation 执行会话禁止嵌套创建定时任务；`CRU` 已由 focused tests 覆盖普通会话通过 CronUpdate 原地修改任务定义、保持身份与历史并展示更新后卡片，pending replay 以“每 200 天 10:30”验证 update carrier 的原地更新、合法候选 cron、真实 `scheduleRule` 和详情回显，待人工 review 后转正。分钟 / 周 / 月 / 年以及其它合法 / 非法边界由 contract、protocol、service 和 focused UI 测试覆盖，不在 Electron E2E 与 Create × Update 交叉重复。上述代表都属于桌面本地 `desktop-continuous` 链路，不据此推断手机 `web-remote-replayable`、SSH/WSL/Docker 或真实时钟 cron tick 的语义。有限次数计划不会被 manual run 消耗由 services 调度状态机集成测试覆盖；其它功能按本轮用户范围 ignored；模型 metadata preview 失败由 focused UI/integration test 覆盖，不扩成 Electron E2E。
 
 | Catalog ID | 覆盖状态     | 自动化   | 备注                                                                                                                                                                                                                                                                                                                                |
 | ---------- | ------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -553,25 +537,6 @@ PV4-01/02/06 专项覆盖。
 | V03        | covered      | CRC      | 会话内 CronCreate 真执行、卡片与详情闭环保持 covered；同一正式 replay 使用 `intervalUnit=hourly`、`interval=31` 和合法候选 `49 * * * *`，断言卡片 / 详情不把真实 31 小时频率退化为每小时，同时在 provider request 边界断言 CronCreate description 与 prompt schema 都要求直接描述最终工作并禁止二阶调度                             |
 | V04        | partial-unit | AUT、NCC | focused tests 覆盖 create/resume、active/busy queue denylist、三个 mutation handler 硬拒绝与 automation-port 创建兜底；AUT 的真实 Run now 请求只证明未绑定新会话的 provider tools 包含 CronList 且不含三个写工具。active/routing busy Electron 组合仍未覆盖                                                                         |
 | V05        | pending      | CRU      | focused tests 已覆盖严格 patch、`maxRuns: null`、workspace 归属、同 ID/绑定会话/运行历史保留、执行轮写工具隔离与成功卡片；pending replay case 覆盖 UI 既有任务 → CronList → `intervalUnit=daily, interval=200` 的 CronUpdate → 用户批准 → 无 `text` 伪文件块 → 更新卡片 / 详情显示真实频率 → 同一任务详情闭环，待人工 review 后转正 |
-
-## 闲时任务（Off-Peak）覆盖口径
-
-case 语义见 catalog `OP` 组。E2E 全部由进程内 mock 网关驱动（`ZCODE_OFFPEAK_MOCK=1`），桌面 `desktop-continuous` 链路。自动化范围经用户 2026-07-15 剪枝确认为 5 条核心，2026-08-03 增补 execution-scoped foreground subagent 继承回归 OP10；
-
-服务层机制已由 `packages/services/test/offPeakE2eIntegration.test.ts` 端到端集成测试覆盖（mock 网关 + server client + 编排服务 + repo 全链路真跑：取号→轮询晋级 ready→准入固定响应→settle 核销 / 400/3001 续跑重取号 / Pause-ready 过期-Continue 重取号）——OP02/OP04/OP07 的服务层机制在此为 covered；WDIO GUI 层（OPF/OPA/OPP/OPR/OPB）仍 planned，依赖桌面构建与真实 renderer 交互。mock 网关 resolveUpstream 返回 null 时回固定 Anthropic 响应，E2E 无需真实模型 key。
-
-| Catalog ID | 覆盖状态 | 自动化 | 备注                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---------- | -------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OP01       | planned  | OPF    | 作为 OPF 的 setup 断言（取号成功、位次徽章、3103 失败提示不落库）；focused tests 覆盖首页模板/Automations 模板/直接创建 source snapshot、成功失败 exactly-once、必填空 key、无 `event_value` 与隐私 allowlist                                                                                                                                                                                                        |
-| OP02       | planned  | OPF    | 全链路：ready→派发→429 退避→admitted→completed 卡片+通知+files_changed；focused protocol/supervisor tests 覆盖自动轮无 `send_btn`、completion/step 同一 Off-Peak 归因、实际模型事实与 usage/terminal 去重                                                                                                                                                                                                            |
-| OP03       | planned  | OPA    | 普通 Session 展示敏感操作阻塞交互；批准、拒绝或跳过后，同一个自动 Turn 继续命中 idle Provider，并沿用当前 Request Auth/Ticket；Off-Peak 聚合状态保持 running，不新增 awaiting_approval，也不发生 Provider handoff                                                                                                                                                                                                    |
-| OP04       | planned  | OPP    | 表单创建→回显→Pause(菜单翻转 Continue)→Continue→删除已编写为 `off-peak-create-manage.test.ts`（mock 网关驱动，取号即 ready）；ready-过期-Continue-重取号的时序仍由 `offPeakE2eIntegration` 集成测试覆盖。GUI spec 待 E2E 环境执行                                                                                                                                                                                    |
-| OP05       | planned  | OPR    | 杀 app→重启回收→resume 同 session 续跑完成，transcript 连续；3102 与重启共用 resume attribution 分支，focused tests 断言新 `message_id` + 同一 `off_peak_task_id`                                                                                                                                                                                                                                                    |
-| OP06       | planned  | OPB    | run 轮经 mock 网关、busy 插话与终态后聊天不经网关且不继承归因；首派发失败重试新 talk 的 focused test 断言同一 `off_peak_task_id` 支持 1:N talk                                                                                                                                                                                                                                                                       |
-| OP07       | pruned   | —      | resume 机制由 OP05 证明；`400/3001` 分类与自动重取号走 adapter/service 单测 + `offPeakE2eIntegration` 集成测试                                                                                                                                                                                                                                                                                                       |
-| OP08       | pruned   | —      | 灰度门控组件级/单测（getOffPeakClientConfig 判据 + 入口渲染分支）                                                                                                                                                                                                                                                                                                                                                    |
-| OP09       | pruned   | —      | abort 贯穿与核销幂等走单测；取消主路径并入 OPF/OPP 断言                                                                                                                                                                                                                                                                                                                                                              |
-| OP10       | pending  | OPS    | 同一 idle plan turn 由 mock gateway 合成 Explore、general-purpose、自定义显式模型、自定义继承模型四类 foreground Agent；真实 child 请求全部命中 `offpeak-idle-plan` 并携带同一票据临时头。`run_in_background=true` 与 `profile.background=true` 均在 child 请求前拒绝；完成后普通 prompt 回到用户 provider。nested child、provider family、remote workspace、delivery kind、主题、语言和失败/取消排列按 catalog 剪枝 |
 
 ## 当前统计
 
@@ -655,7 +620,7 @@ artifact 后人工观察”的软通过口径。
 | N13        | planned      |                                                                                                                                                               | guard 期间新选模型、切 task 或另一端改 config；旧 selection token 不得迟到覆盖最新 session/revision                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | N14        | planned      |                                                                                                                                                               | auto compact 已运行且目标上下文不足；不重复 compact，等待 fresh usage 后才决定切换                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | N15        | partial      | IS + bootstrap unit                                                                                                                                           | unknown GLM 在 OpenAI Chat 下统一 fail-closed，包括 suffixed variant；其他协议保留一般 `GLM-5.2-*` / `GLM-5.3-*` 的既有 unknown 语义，但归一化后最终模型段精确为大小写不敏感的 `glm-5.2-highspeed` / `glm-5.3-highspeed` 时也 fail-closed，`-highspeed-plus` 等更长后缀不命中。canonical GLM 仅在 `anthropic-messages` 且原有官方 providerId 或 provider-side media URL 判断通过时放行。IS 复用既有 provider-visible strip 断言，bootstrap unit 覆盖精确后缀与 transport/官方身份决策矩阵；精确 provider-visible 组合尚无独立 E2E |
-| N16        | pending      | MU                                                                                                                                                            | 普通主对话 controlled stream 已进入 provider 后切到 secondary；断言实际请求仍是 primary，完成后按 session 查询 `model_usage`，token 与模型身份都归 primary。2026-08-05 已稳定得到修复前失败、修复后严格 replay 通过的对照结果；当前等待人工 review。只覆盖 desktop continuous 主链路；compact、闲时任务、stop/queue、remote/mobile 与失败请求按不变量剪枝，不做笛卡尔积                                                                                                                                                           |
+| N16        | pending      | MU                                                                                                                                                            | 普通主对话 controlled stream 已进入 provider 后切到 secondary；断言实际请求仍是 primary，完成后按 session 查询 `model_usage`，token 与模型身份都归 primary。2026-08-05 已稳定得到修复前失败、修复后严格 replay 通过的对照结果；当前等待人工 review。只覆盖 desktop continuous 主链路；compact、stop/queue、remote/mobile 与失败请求按不变量剪枝，不做笛卡尔积                                                                                                                                                                     |
 
 ### 后续复现矩阵：Running Queue 立即引导
 
@@ -1034,11 +999,6 @@ BTA01/BTA02/BTA05/BTA08 的 Desktop manual-review 证据。无状态迁移后的
 
 | Catalog ID | 覆盖状态 | 自动化 | 备注                                                                                                                                                                                                                                                                    |
 | ---------- | -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| O01        | covered  | TX     | 每个强叉乘工具名完成后发 `/compact`，断言 V4 `manual/success` marker、compact 请求含工具历史；普通工具展开 history 后 tool block 仍可见，隐藏的 `EnterPlanMode` 以 provider-visible tool call id 为证据                                                                 |
-| O02        | covered  | TX     | 每个强叉乘工具名完成后 fork assistant，断言派生 session 保留用户 prompt、assistant token 和对应 tool block；`EnterPlanMode`/空结果 `TodoRead` 用 child probe request 中成对的 `tool_use/tool_result` 证明复制，且接受 stable fork 重映射 tool call id                   |
-| O03        | covered  | TX     | 强叉乘工具完成且当前非 Plan 时发 `/goal`，断言目标内容更新且已完成工具历史不被重写；目标可处于 active 或快速收口为 complete/completed/verified；`EnterPlanMode` setup 先切回 Full access，Plan 内组合归 PG01                                                            |
-| O04        | partial  | TS、TX | TS 覆盖 Read 工具窗口中继续输入；TX 先覆盖 completed tool 后续动作，未把每个工具都放进 running queue 窗口                                                                                                                                                               |
-| O05        | covered  | TX     | `Write`、`Edit` 和工具 fixture 文件统一在专用目录，after/afterEach 清理                                                                                                                                                                                                 |
 | O06        | covered  | TX     | 条件/未注册/别名工具也进入 spec helper；断言 UI 稳定，不把快速失败冒充工具业务成功                                                                                                                                                                                      |
 | O07        | probe    | RS     | replay-backed：只覆盖本地 desktop continuous 中 `ReadSessionContext` 内部 lite 抽取超过 45 秒仍不断开；不覆盖 mobile replayable、queue、compact/fork/goal 组合                                                                                                          |
 | O08        | covered  | BR     | replay-backed：覆盖本地 desktop continuous 中 `Bash cat` 产生 read-state、后续 `Edit` 不报未读、formatter/fixer Bash 产生 provider-visible stale hint                                                                                                                   |
@@ -1810,7 +1770,6 @@ Todo96 新增前置（待复跑）：SR87-06 / SM96-02、05 在当前 Team 下�
 | SR87-06          | covered / pending E2E   | 同一 SR87 spec 从列表直接 Run now；Air SQLite 长期 Individual、本次 run Team/high，实际请求一致；重试不重解析由 Host 单测证明                                     |
 | SR87-07          | covered / mixed         | Bot pending `bot-effective-selection.test.ts` 是受控服务集成（非真实模型请求）                                                                                    |
 | SR87-08/09       | invariant review / unit | 已固定 run/Submission 不重解析；没有增加发送同步。显式 Subagent 自动对应由用户明确排除，继承型路径不改                                                            |
-| SR87-13/14       | covered / mixed         | OffPeak 服务单测证明切域只读不清库/不换票及切回恢复；Air `off-peak-create-manage.test.ts` 2/2 是管理与普通会话模型隔离，不冒充跨域续票证明                        |
 
 新交互用例先走 pending，不自动转正式。
 
@@ -2390,7 +2349,7 @@ delivery/workspace 边界由 focused tests 覆盖，不展开 provider、主题�
 - 候选：`manual-review/pending/conversation-session-active-model-context.test.ts`。
 - 断言：同一 Session 三个同名模型 Provider 连续 A → B → C → A，切换后第一条请求的 URL、system
   模型身份、UI 当前选择和切换标记一致。不以回复自称哪个模型代替请求证据。
-- Core 的 Guide、Off-Peak、Subagent 和冻结 Submission 测试补充执行边界，不替代这条桌面用例。
+- Core 的 Guide、Subagent 和冻结 Submission 测试补充执行边界，不替代这条桌面用例。
 
 ## Todo 70：未绑定历史恢复
 
@@ -2401,7 +2360,7 @@ delivery/workspace 边界由 focused tests 覆盖，不展开 provider、主题�
   `desktop-e2e-20260910150113615-p79512-7b913cccfacc70a8` 通过；首次发送前置失败保留在账本 E 节。
   不将存储单测等同于桌面/手机全端通过。
 
-- Todo104 B1c：当前选择的磁盘 fixture 改为 `session_entry.data.modelSelection`；逻辑 SessionStore port 不变。OffPeak 已有会话用例的原始 SQL reader 同步读取新成员。仅更新持久化合同，不改变 accepted 语义，也不据此把 pending 提升为已实机通过。
+- Todo104 B1c：当前选择的磁盘 fixture 改为 `session_entry.data.modelSelection`；逻辑 SessionStore port 不变。仅更新持久化合同，不改变 accepted 语义，也不据此把 pending 提升为已实机通过。
 
 - Todo 88 复审：fixture 模拟的是尚无 Composer 持久化意图的历史会话，因此改坏 Session Selection 前必须移除该 Session 的 Composer scope（仅测试隔离存储）。否则新版 Composer 已保存的有效 max 按权威规则覆盖历史初始化种子，不能把该结果误报为“历史自动补档”。保留其他 scope；已有 Composer 选择不被 Session 覆盖由 Todo 71 用例验证。
 
@@ -2638,18 +2597,17 @@ SendMessage 工具的 summary schema 是必填且至少一字符；无 summary �
 
 ## SCB：3.12.2 配置等待隔离
 
-用户已确认：取消闲时注册灰度、预算固定 preflight；不调整 draft 重复创建和 MCP。
+The model context budget is fixed to preflight; draft creation and MCP behavior remain unchanged.
 
 | ID    | Setup / action                                             | 必须断言                                                                         | 状态 / 证据                                       |
 | ----- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------- |
-| SCB01 | 冷 draft，配置网关保持 pending；真实 Enter 发普通消息      | 配置未返回前完成接纳、页面绑定、provider dispatch；工具含 OffPeakCreate/List     | accepted / pending E2E，UI + 网络 + Host/CLI 日志 |
+| SCB01 | 冷 draft，配置网关保持 pending；真实 Enter 发普通消息      | 配置未返回前完成接纳、页面绑定、provider dispatch                                | accepted / pending E2E，UI + 网络 + Host/CLI 日志 |
 | SCB02 | SCB01 后在已有会话继续发送；重启后侧栏冷恢复再发送         | 两种入口都不依赖配置返回，保持同一会话历史                                       | accepted / pending E2E                            |
-| SCB03 | 灰度关闭/失败时模型调用 OffPeakCreate                      | 稳定失败，无 createTask/取号副作用；正常配置仍可创建                             | accepted / Host 集成测试 + 既有闲时 E2E           |
 | SCB04 | 兼容 legacy、配置缺失/失败/永不返回                        | budget 无 IO；Runtime、日志、子 Agent 为 preflight-v1；128K/64K 的 threshold=94K | accepted / 单测 + OTB 回归                        |
-| SCB05 | desktop continuous 与 mobile replayable / remote workspace | shared-host、identity 与 scope 不变；remote 不注册闲时工具，预算不联网           | accepted / 协议与 remote Host 单测                |
+| SCB05 | desktop continuous 与 mobile replayable / remote workspace | shared-host、identity 与 scope 不变；预算不联网                                  | accepted / 协议与 remote Host 单测                |
 
 新 case：`conversation-session-config-independent-startup.test.ts` 位于 manual-review/pending；
-provider fixture 使用同名 canonical formal target。配置网关不能启用 ZCODE_OFFPEAK_MOCK 绕过真实读取。
+provider fixture 使用同名 canonical formal target。
 不做跨版本旧运行进程热切换；网络慢与永久失败用 pending 屏障代表，不做延迟参数全排列。
 
 ## GLOBALDB：主界面前数据库准备（2026-09-14，已实现，GUI 待验收）

@@ -219,7 +219,7 @@ describe("Todo104 规则集合读写与应用", () => {
       true,
     );
     for (const baseUrl of [
-      "https://open.bigmodel.cn/api/off-peak/anthropic",
+      "https://open.bigmodel.cn/api/unsupported/anthropic",
       "https://api.z.ai/api/anthropic-extra",
       "https://attacker.test/api/anthropic",
     ]) {

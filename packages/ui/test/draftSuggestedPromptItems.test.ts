@@ -130,7 +130,7 @@ describe("draft suggested prompt Client Scenes mapping", () => {
         id: "open-automations",
         label: navigationPrompt.labels,
         prompt: navigationPrompt.contents,
-        actions: ["NAVIGATE:AUTOMATIONS", "NAVIGATE:AUTOMATIONS:OFFPEAK"],
+        actions: ["NAVIGATE:AUTOMATIONS"],
       },
     ]);
   });

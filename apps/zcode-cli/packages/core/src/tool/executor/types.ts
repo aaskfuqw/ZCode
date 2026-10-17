@@ -15,7 +15,6 @@ import type {
   Logger,
   Model,
   ModelCatalogPort,
-  OffPeakPort,
   TopicResourcePort,
   PdfDocumentPort,
   PermissionBrokerPort,
@@ -25,7 +24,6 @@ import type {
   SessionStorePort,
   SkillPort,
   SubagentPort,
-  SubagentRunOptions,
   ToolArtifactStorePort,
   TraceContext,
   TurnId,
@@ -102,7 +100,6 @@ export interface ToolExecutorOptions {
   workflowEscalatePort?: WorkflowEscalatePort;
   artifactStore?: ToolArtifactStorePort;
   automationPort?: AutomationPort;
-  offPeakPort?: OffPeakPort;
   topicResourcePort?: TopicResourcePort;
   sessionStore?: SessionStorePort;
   sessionModePort?: SessionModePort;
@@ -172,10 +169,8 @@ export interface ToolExecutor {
 
 export interface ToolExecuteOptions {
   automationTurn?: boolean;
-  offPeakTurn?: boolean;
   signal?: AbortSignal;
   traceContext?: TraceContext;
-  subagentModelOverride?: SubagentRunOptions["modelOverride"];
   model?: Model;
 }
 
@@ -214,7 +209,6 @@ export interface ToolExecutorDeps {
   workflowEscalatePort?: WorkflowEscalatePort;
   artifactStore?: ToolArtifactStorePort;
   automationPort?: AutomationPort;
-  offPeakPort?: OffPeakPort;
   topicResourcePort?: TopicResourcePort;
   sessionStore?: SessionStorePort;
   sessionModePort?: SessionModePort;

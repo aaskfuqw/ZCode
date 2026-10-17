@@ -25,12 +25,12 @@ function readReplayFixture(relativePath: string): ReplayFixtureFile {
 }
 
 describe("model provider E2E replay contract", () => {
-  it.each([
-    "conversation-session-model-provider-effective-selection.test.ts",
-    "off-peak-create-manage.test.ts",
-  ])("isolates account control-plane for %s", (spec) => {
-    expect(shouldPrepareCodingPlanTeamMock([`./test/e2e/${spec}`])).toBe(true);
-  });
+  it.each(["conversation-session-model-provider-effective-selection.test.ts"])(
+    "isolates account control-plane for %s",
+    (spec) => {
+      expect(shouldPrepareCodingPlanTeamMock([`./test/e2e/${spec}`])).toBe(true);
+    },
+  );
   it("starts the Coding Plan mock for both split Turbo specs", () => {
     // Bug 根因：Coding Plan spec 判定已从 wdio.conf.ts 抽到独立 helper，继续扫描入口
     // 源码会在行为仍正确时误报。直接验证 matcher 才能约束实际的 mock 启动契约。

@@ -101,7 +101,7 @@ describe("toast", () => {
       createElement(ToastMessageView, {
         item: {
           id: 3,
-          message: "Idle-time tasks are available for Coding Plan subscribers only.",
+          message: "This feature requires a Coding Plan subscription.",
           durationMs: 8000,
           position: "top-right",
           variant: "info",
@@ -114,7 +114,7 @@ describe("toast", () => {
       }),
     );
 
-    expect(html).toContain("Coding Plan subscribers only");
+    expect(html).toContain("This feature requires a Coding Plan subscription.");
     expect(html).toContain("Upgrade");
     expect(html).toContain('aria-label="Close"');
     expect(html).toContain("w-[min(536px,calc(100vw-2rem))]");
@@ -156,7 +156,7 @@ describe("toast", () => {
   it("moves top-right toasts from right to left with reduced-motion fallback", () => {
     const item = {
       id: 5,
-      message: "Idle-time tasks are available for Coding Plan subscribers only.",
+      message: "This feature requires a Coding Plan subscription.",
       durationMs: 8000,
       position: "top-right" as const,
       variant: "info" as const,

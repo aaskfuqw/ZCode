@@ -20,7 +20,7 @@ The user confirmed the complete design and authorized implementation on 2026-10-
 - Preserve neutral plan names, expiry information, balances, usage, refresh operations, and truthful usage conditions. Keep low-balance, exhausted-quota, rate-limit, concurrency, MCP, and unavailable-feature explanations; remove their upgrade, renewal, and discount actions. Existing model-settings and manual model-selection recovery paths remain available.
 - Preserve user-initiated external management links for existing subscriptions, gated by existing subscription state. These links already use `IPlatformService.openExternal` independently of checkout. The provider controls the external page and may show sales content there; the application does not introduce an automatic redirect or another purchase entry point. Managing an existing subscription does not require that its current entitlement permit model execution.
 - Preserve Highspeed inference and its required card operations, along with quota-reset opportunity requests and use of existing reset cards. These are operational entitlement interactions.
-- Preserve runtime configuration consumed by OffPeak, dynamic workflows, and request verification, even where the current subscription service also exposes sales methods.
+- Preserve runtime configuration consumed by dynamic workflows and request verification. OffPeak was preserved when this ADR was accepted; its later removal is recorded in [ADR 0004](0004-remove-off-peak-tasks.md).
 - Preserve documentation, official community, issue feedback, product suggestions, vulnerability reporting, explicit log export, Resource Manager, About, and manually opened changelogs.
 
 ## Relationship to earlier decisions
@@ -80,7 +80,7 @@ flowchart LR
 - Signed-out users can still configure a model or sign in. Signed-in users can still use valid individual, team, and already-granted Start entitlements, switch accounts and teams, refresh usage, and recover connections. No new Start claim or pre-send Start recommendation occurs.
 - Low balance, exhaustion, rate limits, concurrency limits, and missing entitlements produce truthful feedback without purchase actions, silent model changes, or entitlement bypasses. Existing-subscription management opens only through an explicit user action.
 - Highspeed acceleration and required card operations work; reset-card requests and consumption work; conversation performance information remains correct. Promotional share cards and copying are absent, and normal conversation sharing still works.
-- OffPeak, dynamic workflows, request verification, and discovery of existing team/project connections retain their required configuration and authentication. Business device identity remains stable.
+- Dynamic workflows, request verification, and discovery of existing team/project connections retain their required configuration and authentication. OffPeak is retired by ADR 0004. Business device identity remains stable.
 - Retained help and support actions remain reachable. Desktop and mobile Web layouts, themes, and remaining overlay window controls remain usable after marketing surfaces are removed.
 - Run root typecheck, lint, and architecture checks, affected package tests and build checks, and relevant Desktop/Web/mobile interaction checks during implementation. Choose additional commands from current package scripts and report actual failures and environment limitations. Remove obsolete marketing-only tests and preserve meaningful evidence for retained business behavior.
 

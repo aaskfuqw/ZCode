@@ -111,8 +111,8 @@ describe("真实 ZCode Built-in Config 到 Active Model", () => {
   });
 
   it("隐藏 Request Auth Provider 仍由普通 Registry 精确创建 Model", () => {
-    const providerId = "account:zai-offpeak-idle-plan";
-    const modelId = "GLM-5.2";
+    const providerId = "account:zai-highspeed-card";
+    const modelId = "GLM-5.3";
     const registry = resolveOneBuiltinProvider(providerId, {
       accountProviders: new ProviderConfigMap([
         [
@@ -135,7 +135,7 @@ describe("真实 ZCode Built-in Config 到 Active Model", () => {
       providerId,
       config: {
         visibility: "hidden",
-        access: { type: "zhipu-account", accountType: "zai", mode: "off-peak" },
+        access: { type: "zhipu-account", accountType: "zai", mode: "highspeed" },
       },
     });
     expect(capture.created[0]?.requestDependencies?.requestAuth?.source).toBe(requestAuthSource);

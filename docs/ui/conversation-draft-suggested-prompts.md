@@ -23,9 +23,6 @@
 - prompt item 的 `on_finish` 按英文逗号拆分、trim 并去重，再由显式 `switch` 白名单映射行为。
   当前支持以下导航行为，命中后均终止本次 Composer 预填：
   - `NAVIGATE:AUTOMATIONS`：复用 workspace 主导航打开 Automations。
-  - `NAVIGATE:AUTOMATIONS:OFFPEAK`：打开 Automations；待定时任务/闲时任务数据就绪后，仅当
-    `Idle-time` tab 实际存在时自动选中该 tab，否则保持 Automations 的默认 tab。若同一 item 同时声明
-    两种 Automations action，以更具体的 `NAVIGATE:AUTOMATIONS:OFFPEAK` 为准且只导航一次。
     未知或空 action 不改变普通 prompt 的预填语义。
 - 手机 `/remote` 不承载 Automations；当页面没有 Automations 导航能力时，必须过滤声明了
   任一 Automations 导航 action 的推荐项，不得展示一个无效入口或绕过既有端侧边界。
@@ -67,13 +64,6 @@
         -> 使更早的异步 Plugin 查询失效
         -> 复用 onOpenAutomationsMain
         -> 写入 workspace 导航历史并打开 Automations
-        -> 结束，不改写 Composer
-     -> 命中 NAVIGATE:AUTOMATIONS:OFFPEAK
-        -> 使更早的异步 Plugin 查询失效
-        -> 将 automationTab=idle 写入 renderer-local workspace 导航历史
-        -> 打开 Automations，等待 scheduled / idle tab 数据就绪
-        -> visibleTabs 包含 idle ------> 切换到 Idle-time 并消费 intent
-        -> visibleTabs 不包含 idle ---> 保持默认 tab 并消费 intent
         -> 结束，不改写 Composer
      -> 没有受支持 action
         -> 继续 prompt 预填链路
@@ -174,7 +164,7 @@ operation A active
 `defaults` 缺失、option key 不存在、item id 不存在或 Plugin stable ID 为空时，该推荐项按无 Plugin 处理。
 当前 `DraftSuggestedPromptItem` 只支持一个 Plugin，因此存在多个有效 defaults 引用时按服务端声明顺序取第一个。
 
-Client Scenes 通过共享 `useClientScenesResource()` 获取：与同一 Service authority 下的 scheduled / off-peak
+Client Scenes 通过共享 `useClientScenesResource()` 获取：与同一 Service authority 下的 scheduled
 模板并发挂载时只发出一次请求。冷缓存加载期间展示空列表；已有缓存时立即映射并展示旧目录，后台重验
 不得清空列表。接口首次失败、响应 `code !== 0`、缺少 `draft-suggestion` scene 或缺少
 `options.prompts` 时展示空列表，不回退到本地静态推荐；已有缓存的重验失败保留 last-known-good 推荐项。
@@ -199,8 +189,6 @@ Service/cache authority 的多个推荐项或模板消费方不得重复请求�
 | DSP11 | Plugin 首次可信解析期间用户修改 Composer        | revision 变化后静默放弃延迟写入和 Popover，当前草稿不被覆盖                                                                                                                                                              | focused unit |
 | DSP12 | `on_finish` 含逗号、空白、重复或未知 action     | 只保留去重后的受支持 action                                                                                                                                                                                              | focused unit |
 | DSP13 | 点击 `NAVIGATE:AUTOMATIONS` 推荐项              | 打开 Automations，不预填、不自动发送                                                                                                                                                                                     | focused unit |
-| DSP14 | 点击 `NAVIGATE:AUTOMATIONS:OFFPEAK` 推荐项      | 打开 Automations；Idle tab 存在时自动选中                                                                                                                                                                                | focused unit |
-| DSP15 | OFFPEAK intent 数据就绪后无 Idle tab            | 保持默认 tab，并消费一次性 intent                                                                                                                                                                                        | focused unit |
 | DSP16 | 手机 `/remote` 无 Automations 导航能力          | 过滤两种导航型推荐项，普通 prompt 保持可用                                                                                                                                                                               | focused unit |
 
 - 可信解析 loading、remote waiting、RPC error 都归入“当前不可验证”，用 DSP04 代表，不展开错误类型笛卡尔积。
@@ -214,17 +202,17 @@ Service/cache authority 的多个推荐项或模板消费方不得重复请求�
 
 ## Impact Brief
 
-| 字段           | 结论                                                                                                                                                                                                                    |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Change layers  | `option-source`、`presentation`、`draft-default`、`validation`、`commit-effect`                                                                                                                                         |
-| UI surface     | New Task 草稿页 `ConversationDraftSuggestedPrompts`                                                                                                                                                                     |
-| Draft owner    | renderer-local Composer draft / workspace-scoped insert request                                                                                                                                                         |
-| Option source  | `clientScenesService.list()` → `draft-suggestion.options.prompts.items`                                                                                                                                                 |
-| Validation     | Client Scenes 映射边界 + 目标 Host `plugins/resolveSuggestedReference` 可信解析                                                                                                                                         |
-| Commit sink    | `requestComposerTextInsert`；不调用 `onSendText`                                                                                                                                                                        |
-| Persistence    | 既有 V4 Composer draft persistence                                                                                                                                                                                      |
-| Invariants     | 普通 prompt 替换且不自动发送；导航 action 不预填；OFFPEAK 只在现有 Idle tab 间切换；Plugin 不可用时纯 prompt；workspaceIdentity 隔离；手机 `/remote` 不新增 Automations 入口；操作携带 clientMode/deliveryKind 且可取消 |
-| Graph evidence | `capability.plugin-reference` + 新增 suggested-prompts surface；当前环境无 codegraph，使用 feature graph seeds 与 depth-2 精确调用点核对                                                                                |
+| 字段           | 结论                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change layers  | `option-source`、`presentation`、`draft-default`、`validation`、`commit-effect`                                                                                                       |
+| UI surface     | New Task 草稿页 `ConversationDraftSuggestedPrompts`                                                                                                                                   |
+| Draft owner    | renderer-local Composer draft / workspace-scoped insert request                                                                                                                       |
+| Option source  | `clientScenesService.list()` → `draft-suggestion.options.prompts.items`                                                                                                               |
+| Validation     | Client Scenes 映射边界 + 目标 Host `plugins/resolveSuggestedReference` 可信解析                                                                                                       |
+| Commit sink    | `requestComposerTextInsert`；不调用 `onSendText`                                                                                                                                      |
+| Persistence    | 既有 V4 Composer draft persistence                                                                                                                                                    |
+| Invariants     | 普通 prompt 替换且不自动发送；导航 action 不预填；Plugin 不可用时纯 prompt；workspaceIdentity 隔离；手机 `/remote` 不新增 Automations 入口；操作携带 clientMode/deliveryKind 且可取消 |
+| Graph evidence | `capability.plugin-reference` + 新增 suggested-prompts surface；当前环境无 codegraph，使用 feature graph seeds 与 depth-2 精确调用点核对                                              |
 
 组件继续作为纯展示和点击入口；服务端配置只提供候选与 capability hint，UI 只消费目标 Host 的可信解析结果，
 不再读取 workspace catalog，并保持单行标题、隐藏 Plugin 引用、替换草稿且不自动发送的既有契约。

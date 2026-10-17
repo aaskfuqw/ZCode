@@ -1152,34 +1152,6 @@ describe("bashHandler", () => {
     ).rejects.toThrow("resize aborted");
   });
 
-  it("rejects background execution and disables auto-background in idle-time turns", async () => {
-    const runBashWithBackgroundLifecycle = vi.fn();
-    const run = vi.fn(async () => executionResult({ status: "completed", exitCode: 0 }));
-    const executionPort: BashBackgroundLifecycleExecutionPort = {
-      run,
-      runBashWithBackgroundLifecycle,
-    };
-
-    await expect(
-      bashHandler(
-        { command: "long-running command", run_in_background: true } satisfies BashInput,
-        contextWith(executionPort, { offPeakTurn: true }),
-      ),
-    ).rejects.toMatchObject({
-      type: CoreErrorType.ToolExecutionFailed,
-      recoverable: true,
-    });
-    expect(runBashWithBackgroundLifecycle).not.toHaveBeenCalled();
-
-    const output = (await bashHandler(
-      { command: "long-running command" } satisfies BashInput,
-      contextWith(executionPort, { offPeakTurn: true }),
-    )) as BashOutput;
-    expect(runBashWithBackgroundLifecycle).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(output.status).toBe("completed");
-  });
-
   it("starts background execution when requested", async () => {
     let capturedRequest: ExecutionRequest | undefined;
     let capturedMode: string | undefined;
@@ -2563,7 +2535,6 @@ function contextWith(
     emitEvent?: ToolExecutionContext["emitEvent"];
     fileSystemPort?: FileSystemPort;
     imageProcessorPort?: ImageProcessorPort;
-    offPeakTurn?: boolean;
     readFileState?: ReadFileStateMap;
     runtimeScope?: ToolExecutionContext["runtimeScope"];
     setWorkingDirectory?: ToolExecutionContext["setWorkingDirectory"];
@@ -2582,7 +2553,6 @@ function contextWith(
     executionPort,
     fileSystemPort: options.fileSystemPort,
     imageProcessorPort: options.imageProcessorPort,
-    offPeakTurn: options.offPeakTurn,
     readFileState: options.readFileState,
     runtimeScope: options.runtimeScope,
     setWorkingDirectory: options.setWorkingDirectory,

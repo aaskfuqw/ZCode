@@ -20,7 +20,7 @@ describe("Settings breadcrumb coverage", () => {
   });
 
   it("projects automation edit navigation from the views that own dirty-state back handling", () => {
-    for (const section of ["AutomationEditView", "OffPeakEditView"]) {
+    for (const section of ["AutomationEditView"]) {
       const source = readSettingsSection(section);
       expect(source).toContain("SettingsBreadcrumbReporter");
       expect(source).toContain("onSectionSelect");

@@ -973,7 +973,7 @@ describe("AiSdkModelAdapter", () => {
         authorization: "[redacted]",
         "x-coding-plan-api-key": "[redacted]",
         "x-diagnostic-request": "visible",
-        "x-off-peak-ticket-id": "[redacted]",
+        "x-service-token": "[redacted]",
       });
       expect(record.response.body).toEqual({
         id: "provider-response",
@@ -982,7 +982,7 @@ describe("AiSdkModelAdapter", () => {
       expect(record.response.headers.authorization).toBe("[redacted]");
       expect(record.response.headers["x-request-id"]).toBe("req_1");
       expect(record.response.reasoningText).toBe("inspect request\nthen answer\n\nverify result");
-      expect(content).not.toContain("offpeak-jwt-secret");
+      expect(content).not.toContain("execution-jwt-secret");
       expect(content).not.toContain("coding-plan-secret");
       expect(content).not.toContain("ticket-secret");
       expect(content).not.toContain("Bearer secret");
@@ -1208,7 +1208,7 @@ describe("AiSdkModelAdapter", () => {
         authorization: "[redacted]",
         "x-coding-plan-api-key": "[redacted]",
         "x-diagnostic-request": "visible",
-        "x-off-peak-ticket-id": "[redacted]",
+        "x-service-token": "[redacted]",
       });
       expect(record.response.body).toEqual({
         id: "provider-response",
@@ -1218,7 +1218,7 @@ describe("AiSdkModelAdapter", () => {
       expect(record.response.reasoningText).toBe("inspect stream\n\nverify stream");
       expect(record.response.headers.authorization).toBe("[redacted]");
       expect(record.response.headers["x-request-id"]).toBe("req_1");
-      expect(content).not.toContain("offpeak-jwt-secret");
+      expect(content).not.toContain("execution-jwt-secret");
       expect(content).not.toContain("coding-plan-secret");
       expect(content).not.toContain("ticket-secret");
       expect(content).not.toContain("Bearer secret");
@@ -7131,10 +7131,10 @@ function modelIODebugRegistry(): TestProviderConfigFixture {
         kind: "custom",
         createLanguageModel: (modelId) => ({ modelId }) as never,
         headers: {
-          Authorization: "Bearer offpeak-jwt-secret",
+          Authorization: "Bearer execution-jwt-secret",
           "X-Coding-Plan-Api-Key": "coding-plan-secret",
           "X-Diagnostic-Request": "visible",
-          "X-Off-Peak-Ticket-ID": "ticket-secret",
+          "X-Service-Token": "ticket-secret",
         },
       },
     },

@@ -136,11 +136,9 @@ vi.mock("@/i18n/IntlProvider.js", () => ({
 const plainPrompt = "检查当前工作区近 7 天的 Git commit，概括主要改动并指出潜在风险。";
 const pluginPrompt = "根据当前工作区内容制作一份 PDF 文档。";
 const automationsPrompt = "打开自动化面板。";
-const offPeakPrompt = "打开闲时任务面板。";
 const plainLabel = "检查 commit";
 const pluginLabel = "制作 PDF";
 const automationsLabel = "自动化";
-const offPeakLabel = "闲时任务";
 
 async function applyPendingComposerTextInsert(workspacePath: string, workspaceIdentity?: string) {
   const request = await waitFor(() => {
@@ -206,19 +204,6 @@ const clientScenesResponse = {
               descs: { cn: "", en: "" },
               labels: { cn: automationsLabel, en: "Automations" },
               on_finish: "UNKNOWN:ACTION, NAVIGATE:AUTOMATIONS",
-              img: null,
-              share_urls: {},
-            },
-            {
-              id: "open-offpeak",
-              type: "prompt",
-              contents: {
-                cn: offPeakPrompt,
-                en: "Open Idle-time automations.",
-              },
-              descs: { cn: "", en: "" },
-              labels: { cn: offPeakLabel, en: "Idle-time" },
-              on_finish: "NAVIGATE:AUTOMATIONS, NAVIGATE:AUTOMATIONS:OFFPEAK",
               img: null,
               share_urls: {},
             },
@@ -389,7 +374,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
 
     await screen.findByRole("button", { name: plainLabel });
     expect(screen.queryByRole("button", { name: automationsLabel })).toBeNull();
-    expect(screen.queryByRole("button", { name: offPeakLabel })).toBeNull();
   });
 
   it("opens Automations without prefilling or sending", async () => {
@@ -405,26 +389,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
     fireEvent.click(await screen.findByRole("button", { name: automationsLabel }));
 
     expect(onOpenAutomations).toHaveBeenCalledOnce();
-    expect(
-      useZCodeSessionStore.getState().getWorkspaceState(workspacePath).composerTextInsertRequest,
-    ).toBeNull();
-    expect(getPluginReferenceCatalog).not.toHaveBeenCalled();
-  });
-
-  it("opens the Idle-time Automations tab without prefilling or navigating twice", async () => {
-    const workspacePath = "/tmp/suggested-prompt-offpeak";
-    const onOpenAutomations = vi.fn();
-    render(
-      createElement(ConversationDraftSuggestedPromptsContainer, {
-        workspacePath,
-        onOpenAutomations,
-      }),
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: offPeakLabel }));
-
-    expect(onOpenAutomations).toHaveBeenCalledOnce();
-    expect(onOpenAutomations).toHaveBeenCalledWith("idle");
     expect(
       useZCodeSessionStore.getState().getWorkspaceState(workspacePath).composerTextInsertRequest,
     ).toBeNull();

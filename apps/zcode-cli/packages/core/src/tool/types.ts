@@ -22,7 +22,6 @@ import type {
   ModelContentProtection,
   ModelMessageContent,
   ModelToolSideEffectScope,
-  OffPeakPort,
   TopicResourcePort,
   PdfDocumentPort,
   PermissionBrokerReasonSource,
@@ -38,7 +37,6 @@ import type {
   SessionStorePort,
   SkillPort,
   SubagentPort,
-  SubagentRunOptions,
   ToolArtifactStorePort,
   ToolCancellationPolicy,
   ToolContractDeclaration,
@@ -134,8 +132,6 @@ export interface ToolExecutionContext {
   toolCallId: string;
   /** 当前工具调用是否属于 automation 派发轮；写工具 handler 用它做最终权限校验。 */
   automationTurn?: boolean;
-  /** 当前工具调用是否属于闲时任务派发轮；OffPeakCreate handler 用它做最终拒绝。 */
-  offPeakTurn?: boolean;
   traceContext?: TraceContext;
   traceId: TraceId;
   spanId?: string;
@@ -154,7 +150,6 @@ export interface ToolExecutionContext {
   pdfDocumentPort?: PdfDocumentPort;
   model?: Model;
   /** Core Server 对前台 child 的 Selection override。 */
-  subagentModelOverride?: SubagentRunOptions["modelOverride"];
   skillPort?: SkillPort;
   subagentPort?: SubagentPort;
   coordinatorResponsePort?: CoordinatorResponsePort;
@@ -164,7 +159,6 @@ export interface ToolExecutionContext {
   workflowEscalatePort?: WorkflowEscalatePort;
   artifactStore?: ToolArtifactStorePort;
   automationPort?: AutomationPort;
-  offPeakPort?: OffPeakPort;
   topicResourcePort?: TopicResourcePort;
   sessionStore?: SessionStorePort;
   sessionModePort?: SessionModePort;

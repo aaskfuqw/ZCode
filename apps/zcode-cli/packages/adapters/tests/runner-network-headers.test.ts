@@ -7,7 +7,7 @@ describe("sanitizeModelNetworkHeaders", () => {
       sanitizeModelNetworkHeaders({
         Authorization: "Bearer secret",
         "x-api-key": "api-secret",
-        "x-off-peak-ticket-id": "ticket-secret",
+        "x-service-token": "ticket-secret",
         "x-provider-token": "provider-secret",
         Cookie: "sid=secret",
         "content-type": "application/json",
@@ -15,7 +15,7 @@ describe("sanitizeModelNetworkHeaders", () => {
     ).toEqual({
       authorization: "[redacted]",
       "x-api-key": "[redacted]",
-      "x-off-peak-ticket-id": "[redacted]",
+      "x-service-token": "[redacted]",
       "x-provider-token": "[redacted]",
       cookie: "[redacted]",
       "content-type": "application/json",

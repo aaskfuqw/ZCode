@@ -353,7 +353,6 @@ export async function executeToolCall(
       const context: ToolExecutionContext = {
         toolCallId: canonicalToolCall.id,
         automationTurn: options?.automationTurn,
-        offPeakTurn: options?.offPeakTurn,
         traceContext,
         traceId,
         spanId: traceContext.spanId,
@@ -373,7 +372,6 @@ export async function executeToolCall(
           model,
           createToolModelStatusSink({ emitEvent, sessionId: deps.sessionId, turnId, traceId }),
         ),
-        subagentModelOverride: options?.subagentModelOverride,
         embeddedSearch: {
           ...(deps.embeddedSearchBackend ? { backend: deps.embeddedSearchBackend } : {}),
           enabled: embeddedSearchDecision?.useEmbeddedSearchBranch ?? false,
@@ -386,7 +384,6 @@ export async function executeToolCall(
         workflowEscalatePort: deps.workflowEscalatePort,
         artifactStore: deps.artifactStore,
         automationPort: deps.automationPort,
-        offPeakPort: deps.offPeakPort,
         topicResourcePort: deps.topicResourcePort,
         sessionStore: deps.sessionStore,
         sessionModePort: deps.sessionModePort,

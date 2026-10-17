@@ -273,8 +273,8 @@ export async function executeTurnCommand(
       phaseStartedAt = startTurnPhase("session_persistence");
       await this.ensureSessionPersisted(displayInput, turnTraceContext);
       await ensureGroupTaskPermissionScope(this.sessionStore, this.sessionId, options?.intent);
-      // execution-scoped 临时 Provider（例如闲时任务）拥有本轮自己的模型，不改写
-      // Session Selection；普通 Submission 才在真正开跑时应用其原子选择。
+      // Execution-scoped model overrides do not rewrite Session Selection; ordinary submissions
+      // apply their atomic selection at turn start.
       const submissionModel = await applySubmissionExecutionState(
         this,
         options?.intent,
@@ -303,14 +303,7 @@ export async function executeTurnCommand(
           input: displayInput,
           messageId: userMessageId,
           inputId: options?.inputId,
-          ...(options?.automationId
-            ? { automationId: options.automationId }
-            : options?.offPeakTaskId
-              ? {
-                  offPeakTaskId: options.offPeakTaskId,
-                  ...(options.offPeakRunType ? { offPeakRunType: options.offPeakRunType } : {}),
-                }
-              : {}),
+          ...(options?.automationId ? { automationId: options.automationId } : {}),
           foregroundExecutionId: this.activeForegroundExecution?.foregroundExecutionId,
           queryId,
           inputSource: options?.inputSource,
@@ -582,8 +575,6 @@ export async function executeTurnCommand(
         loopState = {
           activeTurn,
           ...(options?.automationId ? { automationId: options.automationId } : {}),
-          // 闲时派发轮的身份进入 loop state，供工具执行边界 deny OffPeakCreate。
-          ...(options?.offPeakTaskId ? { offPeakTaskId: options.offPeakTaskId } : {}),
           anomalyWarningsInjected: 0,
           completedRealToolResultBatch: false,
           currentUserMessageId: userMessageId,
@@ -598,15 +589,6 @@ export async function executeTurnCommand(
           // 加速卡在工具执行期间过期时，本轮不整体失败，改为退回 Session Selection 跑完。
           ...(options?.modelExecution?.selectionFallback
             ? { selectionFallback: options.modelExecution.selectionFallback }
-            : {}),
-          ...(options?.modelExecution?.subagents && options.intent?.modelSelection
-            ? {
-                subagentModelOverride: {
-                  selection: options.intent.modelSelection,
-                  requestDependencies: options.modelExecution.requestDependencies,
-                  background: options.modelExecution.subagents.background,
-                },
-              }
             : {}),
           modelStepCount: 0,
           historyRoundCount: 0,
@@ -716,13 +698,10 @@ export async function executeTurnCommand(
           status: "completed",
           toolCallCount: loopState.toolCallCount,
         });
-        // 单轮执行策略只抑制本次成功 Turn 的后台提取，不修改 Session Memory 配置。
-        if (options?.modelExecution?.memoryExtraction !== "skip") {
-          scheduleProjectMemoryExtraction(this, {
-            model: loopState.model,
-            traceContext: turnTraceContext,
-          });
-        }
+        scheduleProjectMemoryExtraction(this, {
+          model: loopState.model,
+          traceContext: turnTraceContext,
+        });
 
         const result: TurnResult = {
           response: loopState.modelResponse,

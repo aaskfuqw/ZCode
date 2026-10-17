@@ -205,7 +205,7 @@ describe("官方 Server MCP 额度汇总", () => {
               targetType: "TEAM" as const,
             },
             providerFamily: "zai" as const,
-            // 与 Off-Peak 保持一致：wire 不发送 Team identity。
+            // wire 不发送 Team identity。
             wireScope: null,
           },
         })),

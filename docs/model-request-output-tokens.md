@@ -50,7 +50,7 @@ Rule。
 
 ```text
 必要本地 Settings + 固定 preflight-v1 -> runtime preferences -> Runtime -> 子 Agent
-client/configs -> 套餐/页面/实际闲时工具创建（不参与预算或聊天启动）
+client/configs -> 套餐/页面（不参与预算或聊天启动）
 ```
 
 原因：旧实现为可回退算法在每次 Runtime 创建时等待远端最多 5 秒，重复创建会串行放大等待。

@@ -1,14 +1,3 @@
-/* OMCP-005/006/009/021/023/024/026/027 —— 官方 MCP 凭证解析与身份头构造（spec §6.1 / §6.2.1 / §6.3.3）。
- *
- * OMCP-025（Off-Peak 零回归，验证 §6.1.1 的隔离）不是本文件的用例，而是一条回归动作：
- *   npx vitest run packages/services/test/offPeakRuntimeModel.test.ts \
- *     packages/services/test/offPeakServerClient.test.ts \
- *     packages/services/test/offPeakTaskService.test.ts \
- *     packages/services/test/offPeakE2eIntegration.test.ts \
- *     packages/services/test/offPeakClientConfig.test.ts \
- *     packages/services/test/offPeakTaskRepo.test.ts
- * 本次实现后为 6 files / 77 tests 全绿，且未修改 offPeakRuntimeModel.ts 的任何导出。
- */
 import { describe, expect, it, vi } from "vitest";
 import { BUILTIN_MODEL_PROVIDER_IDS, type ZCodeAccountAccess } from "@zcode/shared";
 import type { ModelSelectionView } from "@zcode/provider";
@@ -256,7 +245,7 @@ describe("official mcp credential resolver", () => {
     });
   });
 
-  it("OMCP-021: keeps zai-team consistent with Off-Peak by omitting Target-Type entirely", async () => {
+  it("OMCP-021: omits Target-Type entirely for zai-team", async () => {
     const outcome = await resolveOfficialMcpCredentials(
       createDeps({
         activeProvider: "zai",
@@ -504,9 +493,8 @@ describe("official mcp credential resolver", () => {
   });
 
   it("OMCP-024: has no mock credential branch at all", async () => {
-    // Off-Peak 的 ZCODE_OFFPEAK_MOCK 占位凭证分支不得在官方 MCP 路径复现。
-    const previous = process.env["ZCODE_OFFPEAK_MOCK"];
-    process.env["ZCODE_OFFPEAK_MOCK"] = "1";
+    const previous = process.env["UNRELATED_TEST_FLAG"];
+    process.env["UNRELATED_TEST_FLAG"] = "1";
     try {
       const outcome = await resolveOfficialMcpCredentials(createDeps({ jwt: "" }));
       expect(outcome).toEqual({ ok: false, reason: "official_auth_unavailable" });
@@ -516,8 +504,8 @@ describe("official mcp credential resolver", () => {
       expect(ok.snapshot.jwt).toBe(JWT);
       expect(ok.snapshot.codingPlanAuthorization).toBe(MAAS_JWT);
     } finally {
-      if (previous === undefined) delete process.env["ZCODE_OFFPEAK_MOCK"];
-      else process.env["ZCODE_OFFPEAK_MOCK"] = previous;
+      if (previous === undefined) delete process.env["UNRELATED_TEST_FLAG"];
+      else process.env["UNRELATED_TEST_FLAG"] = previous;
     }
   });
 
@@ -571,17 +559,17 @@ describe("official mcp credential resolver", () => {
 describe("official mcp credential resolved log", () => {
   it("OMCP-LOG-01: dedup key buckets expiry by hour and separates family/scope", () => {
     const personal = { providerFamily: "bigmodel", planTargetType: "PERSONAL" } as const;
-    expect(
-      createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: 3600 }),
-    ).toBe("bigmodel|PERSONAL|t1");
+    expect(createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: 3600 })).toBe(
+      "bigmodel|PERSONAL|t1",
+    );
     // 桶边界：3599 落在 t0，跨过 3600 进入 t1
-    expect(
-      createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: 3599 }),
-    ).toBe("bigmodel|PERSONAL|t0");
+    expect(createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: 3599 })).toBe(
+      "bigmodel|PERSONAL|t0",
+    );
     // 过期（≤0）与解析失败（undefined）是独立桶：跨过零点、token 形态变化必落新键
-    expect(
-      createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: -5 }),
-    ).toBe("bigmodel|PERSONAL|expired");
+    expect(createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: -5 })).toBe(
+      "bigmodel|PERSONAL|expired",
+    );
     expect(
       createCredentialResolvedLogKey({ ...personal, maasJwtExpiresInSeconds: undefined }),
     ).toBe("bigmodel|PERSONAL|unparsable");

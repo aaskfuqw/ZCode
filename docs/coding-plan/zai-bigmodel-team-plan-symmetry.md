@@ -158,7 +158,7 @@ zai 新代码统一用新 family-aware helper，不引入新 literal。
 
 ### Phase 4 — consumer 对齐
 
-14+ `parse/matches/create` 调用点（model selection groups、usage sources、off-peak、
+14+ `parse/matches/create` 调用点（model selection groups、usage sources、
 composer、services layer）逐个改 family-aware。多数已在 `createTeamPlanConnectionKey` dispatcher 内，
 只需下游 matcher/parse 也走 family-aware 版本。literal `startsWith("team-plan:...")` 检查点逐个评估。
 
@@ -213,13 +213,11 @@ zai token 用 `Bearer` header（区别于 bigmodel 裸 token）。
 
 - `plan-identity.ts`：`TEAM_PLAN_CONNECTION_KEY_PREFIX_BY_FAMILY` + family-aware `create/parse/matches/resolveFamily`
 - `coding-plan-subscription.ts`：`EnterpriseCodingPlanPricingRequest.family?`
-- `off-peak-types.ts`：`OffPeakCodingPlanKind` 新增 `zai-team`
 
 **services**
 
 - `coding-plan-subscription/`：新建 `zaiCodingPlanSubscriptionProvider`（继承 bigmodel，override host/token/header/providerId）；`codingPlanSubscriptionService` 按 `request.family` 路由
 - `model-provider/codingPlanProviderAvailability.ts`：`validateSelectedTeamPlanAvailability(family, ...)` 泛化，zai 也走 customerInfo 校验；`validateZaiCodingPlanPairAvailability` 加 team project 校验
-- `session/offPeakRuntimeModel.ts`：去掉 `providerFamily === "bigmodel"` 守卫，zai team plan 可走 off-peak
 
 **UI lib**
 
@@ -243,7 +241,6 @@ zai token 用 `Bearer` header（区别于 bigmodel 裸 token）。
 **UI 其它**
 
 - `v4/composer/V4ComposerToolbar.tsx`：`resolveContextTeamUsageSourceFromEntitlementSnapshot` 按 snapshot.provider.id 判断 family
-- `store/offPeakTaskStore.ts`：`hasAnyOffPeakCodingPlanProvider` team 识别 family-aware
 
 ### 显式保留为 bigmodel 专用的路径
 

@@ -1309,7 +1309,7 @@ primary request started ── SSE running ────────────�
 
 - 唯一 `main` synthetic fixture 使用 `controlled-stream`，原因是线上模型速度不足以稳定制造切模窗口。
 - 不发送 queued prompt；后续请求读取 secondary 的语义已由 `N02/MQ` 覆盖。
-- compact 与闲时任务有各自 execution model 快照，不与本普通主对话代表 case 叉乘。
+- compact 有自己的 execution model 快照，不与本普通主对话代表 case 叉乘。
 - stop/cancel/error 没有正数 usage 的场景由 focused core tests 覆盖；remote/mobile 只改变 delivery/recovery，
   不改变 `usage.model === request.executionModel` 不变量。
 - spec 保留在 `manual-review/pending`；fixture manifest 的 `spec` 指向 canonical formal target。

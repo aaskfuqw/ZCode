@@ -142,12 +142,12 @@ export const featureSuggestedPrompts: FeatureRecommendedPrompt[] = [
     iconUrl: `${ASSETS}/zcode-cua/icon.png`,
     iconStyle: "plugin",
     label: {
-      cn: "帮我设置一个闲时任务，体验网站的完整用户旅程",
+      cn: "帮我体验网站的完整用户旅程",
       en: "Review a website’s complete first-time user journey",
     },
     prompt: {
-      cn: "帮我设置一个闲时任务，使用 [@电脑控制](plugin://computer-use@zcode-plugins-official) 打开 [目标网站]，像第一次来的用户一样实际操作。请选出这个网站最核心的一条公开用户旅程，从首页走到完成任务前的最后一步，记录每一步的页面、困惑点和无法继续的地方，并附关键截图。最后给我一份详细的用户体验报告，按影响程度列出问题、依据和具体改进建议。不要注册、付款或提交真实信息；遇到登录限制就说明未覆盖的步骤。如果还没有选择本地项目，先让我选择一个用于保存报告。",
-      en: "Set up an idle-time task using [@Computer Use](plugin://computer-use@zcode-plugins-official) to open [target website] and act like a first-time user. Follow its main public journey from the home page to the step before final submission, documenting each step, confusion, blockers, and key screenshots. Produce a detailed UX report with evidence and prioritized improvements. Do not register, pay, or submit real information. If no local project is selected, ask me to choose one for the report.",
+      cn: "帮我使用 [@电脑控制](plugin://computer-use@zcode-plugins-official) 打开 [目标网站]，像第一次来的用户一样实际操作。请选出这个网站最核心的一条公开用户旅程，从首页走到完成任务前的最后一步，记录每一步的页面、困惑点和无法继续的地方，并附关键截图。最后给我一份详细的用户体验报告，按影响程度列出问题、依据和具体改进建议。不要注册、付款或提交真实信息；遇到登录限制就说明未覆盖的步骤。如果还没有选择本地项目，先让我选择一个用于保存报告。",
+      en: "Use [@Computer Use](plugin://computer-use@zcode-plugins-official) to open [target website] and act like a first-time user. Follow its main public journey from the home page to the step before final submission, documenting each step, confusion, blockers, and key screenshots. Produce a detailed UX report with evidence and prioritized improvements. Do not register, pay, or submit real information. If no local project is selected, ask me to choose one for the report.",
     },
     plugin: {
       stableId: "computer-use@zcode-plugins-official",
@@ -464,12 +464,12 @@ export const featureSuggestedPrompts: FeatureRecommendedPrompt[] = [
     iconUrl: `${ASSETS}/github/icon.png`,
     iconStyle: "plugin",
     label: {
-      cn: "帮我设置一个闲时任务，全面验证仓库的测试覆盖",
+      cn: "帮我全面验证仓库的测试覆盖",
       en: "Run a thorough test coverage review of a repository",
     },
     prompt: {
-      cn: "帮我设置一个闲时任务，以 [目标仓库] 这个本地仓库为任务项目，全面检查关键功能的测试覆盖。运行当前环境支持的单元测试、集成测试和端到端测试，补齐重要缺口并复跑。最后给我一份详尽报告，列出覆盖范围、通过和失败项、无法运行的项目、证据及剩余风险。不要把未运行的测试写成通过；如果仓库未作为本地项目打开，先让我选择它。",
-      en: "Set up an idle-time task for the local [target repository]. Review coverage of important features, run unit, integration, and end-to-end tests that the environment supports, add tests for important gaps, and rerun them. Deliver a detailed report of coverage, passes, failures, tests that could not run, evidence, and remaining risks. Never call an unrun test a pass. Ask me to select the repository if it is not open.",
+      cn: "帮我以 [目标仓库] 这个本地仓库为任务项目，全面检查关键功能的测试覆盖。运行当前环境支持的单元测试、集成测试和端到端测试，补齐重要缺口并复跑。最后给我一份详尽报告，列出覆盖范围、通过和失败项、无法运行的项目、证据及剩余风险。不要把未运行的测试写成通过；如果仓库未作为本地项目打开，先让我选择它。",
+      en: "For the local [target repository], review coverage of important features, run unit, integration, and end-to-end tests that the environment supports, add tests for important gaps, and rerun them. Deliver a detailed report of coverage, passes, failures, tests that could not run, evidence, and remaining risks. Never call an unrun test a pass. Ask me to select the repository if it is not open.",
     },
   },
   {
@@ -478,12 +478,12 @@ export const featureSuggestedPrompts: FeatureRecommendedPrompt[] = [
     iconUrl: `${ASSETS}/github/icon.png`,
     iconStyle: "plugin",
     label: {
-      cn: "帮我设置一个闲时任务，读透仓库并画出功能地图",
+      cn: "帮我读透仓库并画出功能地图",
       en: "Read a repository deeply and map its features",
     },
     prompt: {
-      cn: "帮我设置一个闲时任务，以 [目标仓库] 这个本地仓库为任务项目，系统梳理主要功能、模块职责、关键数据流和入口到结果的调用链。阅读必要的代码与文档，标出重要依赖、容易误解的边界和当前文档缺口，最后交付一份附文件位置的仓库导览和功能地图。没有代码依据的判断请标为推测；如果仓库未作为本地项目打开，先让我选择它。",
-      en: "Set up an idle-time task for the local [target repository]. Map the main features, module responsibilities, data flows, and paths from entry point to result. Read the relevant code and docs, identify dependencies and confusing boundaries, and deliver a repository guide with file references. Label claims without code evidence as inference. Ask me to select the repository if it is not open.",
+      cn: "帮我以 [目标仓库] 这个本地仓库为任务项目，系统梳理主要功能、模块职责、关键数据流和入口到结果的调用链。阅读必要的代码与文档，标出重要依赖、容易误解的边界和当前文档缺口，最后交付一份附文件位置的仓库导览和功能地图。没有代码依据的判断请标为推测；如果仓库未作为本地项目打开，先让我选择它。",
+      en: "For the local [target repository], map the main features, module responsibilities, data flows, and paths from entry point to result. Read the relevant code and docs, identify dependencies and confusing boundaries, and deliver a repository guide with file references. Label claims without code evidence as inference. Ask me to select the repository if it is not open.",
     },
   },
   {
@@ -492,12 +492,12 @@ export const featureSuggestedPrompts: FeatureRecommendedPrompt[] = [
     iconUrl: `${ASSETS}/github/icon.png`,
     iconStyle: "plugin",
     label: {
-      cn: "帮我设置一个闲时任务，深查仓库潜在问题",
+      cn: "帮我深查仓库潜在问题",
       en: "Find significant issues across a repository",
     },
     prompt: {
-      cn: "帮我设置一个闲时任务，以 [目标仓库] 这个本地仓库为任务项目，全面检查关键用户流程和跨模块调用，找出可能导致功能错误、兼容性问题或数据丢失的缺陷。对高风险问题尽量复现并核对相关测试，最后按严重程度给我一份详尽报告，包含触发条件、代码位置、证据、修复建议及未验证假设。先不要大范围修改代码；如果仓库未作为本地项目打开，先让我选择它。",
-      en: "Set up an idle-time task for the local [target repository]. Review important user journeys and cross-module calls for functional, compatibility, or data-loss issues. Reproduce high-risk findings where possible, check relevant tests, and deliver a detailed severity-ranked report with triggers, code locations, evidence, suggested fixes, and unverified hypotheses. Avoid broad code changes. Ask me to select the repository if it is not open.",
+      cn: "帮我以 [目标仓库] 这个本地仓库为任务项目，全面检查关键用户流程和跨模块调用，找出可能导致功能错误、兼容性问题或数据丢失的缺陷。对高风险问题尽量复现并核对相关测试，最后按严重程度给我一份详尽报告，包含触发条件、代码位置、证据、修复建议及未验证假设。先不要大范围修改代码；如果仓库未作为本地项目打开，先让我选择它。",
+      en: "For the local [target repository], review important user journeys and cross-module calls for functional, compatibility, or data-loss issues. Reproduce high-risk findings where possible, check relevant tests, and deliver a detailed severity-ranked report with triggers, code locations, evidence, suggested fixes, and unverified hypotheses. Avoid broad code changes. Ask me to select the repository if it is not open.",
     },
   },
   {
@@ -547,17 +547,17 @@ export const featureSuggestedPrompts: FeatureRecommendedPrompt[] = [
     },
   },
   {
-    id: "feature-coding-idle-external-failures",
+    id: "feature-coding-external-failures",
     mode: "coding",
     iconUrl: `${ASSETS}/github/icon.png`,
     iconStyle: "plugin",
     label: {
-      cn: "帮我设置闲时任务，深查外部服务失败路径",
-      en: "Deeply review external-service failure paths in idle time",
+      cn: "帮我深查外部服务失败路径",
+      en: "Deeply review external-service failure paths",
     },
     prompt: {
-      cn: "帮我设置一个闲时任务，以当前打开的本地仓库为项目，系统检查它调用的外部 API、数据库和第三方服务在超时、断连、限流与返回错误时会怎样影响关键用户流程。追到调用方和用户可见结果，尽量复现高风险缺口，最后按严重程度给我一份附代码位置、运行证据和修复建议的报告。不要把没有实际验证的风险写成已发生的故障，也先不要大范围修改代码；如果没有打开本地仓库，先让我选择一个。",
-      en: "Set up an idle-time task for the open local repository. Trace how timeouts, disconnections, rate limits, and errors from external APIs, databases, and third-party services affect important user flows. Follow each path to the caller and user-visible result, reproduce high-risk gaps where feasible, and deliver a severity-ranked report with code locations, runtime evidence, and fixes. Do not present unverified risks as incidents or make broad code changes. Ask me to select a local repository if none is open.",
+      cn: "帮我以当前打开的本地仓库为项目，系统检查它调用的外部 API、数据库和第三方服务在超时、断连、限流与返回错误时会怎样影响关键用户流程。追到调用方和用户可见结果，尽量复现高风险缺口，最后按严重程度给我一份附代码位置、运行证据和修复建议的报告。不要把没有实际验证的风险写成已发生的故障，也先不要大范围修改代码；如果没有打开本地仓库，先让我选择一个。",
+      en: "For the open local repository, trace how timeouts, disconnections, rate limits, and errors from external APIs, databases, and third-party services affect important user flows. Follow each path to the caller and user-visible result, reproduce high-risk gaps where feasible, and deliver a severity-ranked report with code locations, runtime evidence, and fixes. Do not present unverified risks as incidents or make broad code changes. Ask me to select a local repository if none is open.",
     },
   },
 ];

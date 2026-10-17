@@ -19,7 +19,7 @@ export type DynamicWorkflowMode = (typeof DYNAMIC_WORKFLOW_MODES)[number];
  */
 export const ZCODE_DYNAMIC_WORKFLOW_MODE_ENV = "ZCODE_DYNAMIC_WORKFLOW_MODE";
 
-/** 服务端缺省、格式非法或请求失败时的取值：fail-closed，与闲时任务灰度一致。 */
+/** 服务端缺省、格式非法或请求失败时的取值：fail-closed。 */
 export const DEFAULT_DYNAMIC_WORKFLOW_MODE: DynamicWorkflowMode = "disabled";
 
 export function normalizeDynamicWorkflowMode(value: unknown): DynamicWorkflowMode | undefined {

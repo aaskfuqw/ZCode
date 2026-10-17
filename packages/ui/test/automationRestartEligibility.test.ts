@@ -7,11 +7,7 @@ import {
   getAutomationCreateErrorToastId,
   getAutomationRunNowToastId,
   resolveAutomationDetailNavigation,
-  resolveAutomationTabNavigation,
   resolveAutomationDetailTarget,
-  resolveAutomationTemplateVisibility,
-  resolveAutomationTabAfterOffPeakChange,
-  resolveVisibleAutomationTabs,
 } from "@/settings/AutomationsSection.js";
 
 const automationsSectionSource = readFileSync(
@@ -40,16 +36,12 @@ describe("canRestartAutomation", () => {
 
   it("重复立即运行会映射到正在运行提示", () => {
     expect(getAutomationRunNowToastId("queued")).toBe("automations.runNowQueued");
-    expect(getAutomationRunNowToastId("duplicate")).toBe(
-      "automations.runNowAlreadyRunning",
-    );
+    expect(getAutomationRunNowToastId("duplicate")).toBe("automations.runNowAlreadyRunning");
     expect(getAutomationRunNowToastId("failed")).toBe("automations.runNowFailed");
   });
 
   it("立即运行入口只跟随当前请求的瞬时 busy 状态", () => {
-    const menuStart = automationsSectionSource.indexOf(
-      "function AutomationActionsMenu",
-    );
+    const menuStart = automationsSectionSource.indexOf("function AutomationActionsMenu");
     const menuEnd = automationsSectionSource.indexOf(
       "export function AutomationsSection",
       menuStart,
@@ -59,9 +51,7 @@ describe("canRestartAutomation", () => {
     expect(menuStart).toBeGreaterThanOrEqual(0);
     expect(menuSource).toContain("disabled={busy}");
     expect(menuSource).not.toContain("runNowDisabled");
-    expect(automationsSectionSource).not.toContain(
-      "runNowBlockedAutomationIds",
-    );
+    expect(automationsSectionSource).not.toContain("runNowBlockedAutomationIds");
     expect(automationEditViewSource).not.toContain("runNowDisabled");
   });
 
@@ -72,13 +62,9 @@ describe("canRestartAutomation", () => {
     expect(getAutomationActionErrorToastId("restart")).toBe("automations.error.restart");
     expect(getAutomationActionErrorToastId("delete")).toBe("automations.error.delete");
     expect(
-      getAutomationCreateErrorToastId(
-        "[AUTOMATION_CREATE_LIMIT_REACHED] automation limit reached",
-      ),
+      getAutomationCreateErrorToastId("[AUTOMATION_CREATE_LIMIT_REACHED] automation limit reached"),
     ).toBe("automations.error.createLimit");
-    expect(getAutomationCreateErrorToastId("rpc unavailable")).toBe(
-      "automations.error.create",
-    );
+    expect(getAutomationCreateErrorToastId("rpc unavailable")).toBe("automations.error.create");
   });
 
   it("会话创建卡片按 automationId 定位对应详情", () => {
@@ -102,116 +88,6 @@ describe("canRestartAutomation", () => {
     });
     expect(resolveAutomationDetailNavigation([], "automation-target", true)).toEqual({
       status: "missing",
-    });
-  });
-
-  it("后台关闭闲时灰度后只保留 Scheduled tab", () => {
-    expect(
-      resolveVisibleAutomationTabs({
-        hasAnyTasks: true,
-        offPeakVisible: false,
-      }),
-    ).toEqual(["scheduled"]);
-  });
-
-  it("仅在闲时灰度可见或有闲时存量时展示 Idle tab", () => {
-    expect(
-      resolveVisibleAutomationTabs({
-        hasAnyTasks: true,
-        offPeakVisible: true,
-      }),
-    ).toEqual(["scheduled", "idle"]);
-    expect(
-      resolveVisibleAutomationTabs({
-        hasAnyTasks: false,
-        offPeakVisible: true,
-      }),
-    ).toEqual([]);
-  });
-
-  it("灰度关闭时将已选中的 Idle tab 收敛回 Scheduled", () => {
-    expect(resolveAutomationTabAfterOffPeakChange("idle", false)).toBe("scheduled");
-    expect(resolveAutomationTabAfterOffPeakChange("scheduled", false)).toBe("scheduled");
-    expect(resolveAutomationTabAfterOffPeakChange("idle", true)).toBe("idle");
-  });
-
-  it("仅在 tabs 数据就绪且 Idle tab 可见时应用 OFFPEAK 导航", () => {
-    expect(
-      resolveAutomationTabNavigation({
-        requestedTab: "idle",
-        tabsReady: false,
-        visibleTabs: [],
-      }),
-    ).toEqual({ status: "pending" });
-    expect(
-      resolveAutomationTabNavigation({
-        requestedTab: "idle",
-        tabsReady: true,
-        visibleTabs: ["scheduled", "idle"],
-      }),
-    ).toEqual({ status: "settled", tab: "idle" });
-    expect(
-      resolveAutomationTabNavigation({
-        requestedTab: "idle",
-        tabsReady: true,
-        visibleTabs: ["scheduled"],
-      }),
-    ).toEqual({ status: "settled", tab: "scheduled" });
-  });
-
-  it("无任务时同时展示可用的闲时模板和定时任务模板", () => {
-    expect(
-      resolveAutomationTemplateVisibility({
-        hasAnyTasks: false,
-        offPeakCreationEnabled: true,
-        tab: "scheduled",
-      }),
-    ).toEqual({
-      showOffPeakTemplates: true,
-      showScheduledTemplates: true,
-    });
-    expect(
-      resolveAutomationTemplateVisibility({
-        hasAnyTasks: false,
-        offPeakCreationEnabled: true,
-        tab: "idle",
-      }),
-    ).toEqual({
-      showOffPeakTemplates: true,
-      showScheduledTemplates: true,
-    });
-    expect(
-      resolveAutomationTemplateVisibility({
-        hasAnyTasks: false,
-        offPeakCreationEnabled: false,
-        tab: "scheduled",
-      }),
-    ).toEqual({
-      showOffPeakTemplates: false,
-      showScheduledTemplates: true,
-    });
-  });
-
-  it("有任务时继续按 Scheduled 和 Idle tab 分流模板", () => {
-    expect(
-      resolveAutomationTemplateVisibility({
-        hasAnyTasks: true,
-        offPeakCreationEnabled: true,
-        tab: "scheduled",
-      }),
-    ).toEqual({
-      showOffPeakTemplates: false,
-      showScheduledTemplates: true,
-    });
-    expect(
-      resolveAutomationTemplateVisibility({
-        hasAnyTasks: true,
-        offPeakCreationEnabled: true,
-        tab: "idle",
-      }),
-    ).toEqual({
-      showOffPeakTemplates: true,
-      showScheduledTemplates: false,
     });
   });
 });

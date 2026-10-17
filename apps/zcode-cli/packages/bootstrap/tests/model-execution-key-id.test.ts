@@ -12,7 +12,7 @@ describe("请求期 Key ID 执行上下文", () => {
     );
     const value = await execution.requestDependencies?.requestAuth?.source?.resolve({
       attempt: 1,
-      providerId: "account:bigmodel-off-peak",
+      providerId: "account:bigmodel-individual-coding-plan",
       modelId: "glm",
     });
     expect(value).toEqual(requestAuth);

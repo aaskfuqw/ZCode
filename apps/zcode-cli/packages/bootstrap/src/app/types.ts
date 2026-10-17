@@ -35,7 +35,6 @@ import type {
   ModelSelection,
   ModelToolCall,
   ModelUsage,
-  OffPeakPort,
   TopicResourcePort,
   PdfDocumentPort,
   PermissionBrokerPort,
@@ -196,7 +195,6 @@ export interface ZCodeAppOptions {
   uiLocale?: UiLocale;
   onWorkflowEvent?: (event: WorkflowEvent) => void | Promise<void>;
   automationPort?: AutomationPort;
-  offPeakPort?: OffPeakPort;
   topicResourcePort?: TopicResourcePort;
   /** 首次真实用户执行或 cold-resume fallback 时解析一次，之后由 app 生命周期缓存。 */
   resolveInitialBashShellSelection?: () => Promise<ExecutionShellSelection | undefined>;
@@ -708,7 +706,7 @@ export interface ZCodeApp {
     modelId: string | ModelSelection,
     options?: {
       /**
-       * per-turn（off-peak idle plan）：true = 仅切运行态——不写磁盘模型选择、
+       * per-turn：true = 仅切运行态——不写磁盘模型选择、
        * 不产出 modelChange 聊天通知。用于 turn 级临时切换（应用/还原成对出现）。
        */
       transient?: boolean;

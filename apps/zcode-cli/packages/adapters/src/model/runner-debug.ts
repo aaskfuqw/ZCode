@@ -473,7 +473,7 @@ function writeModelIODebugRecord(
 ): void {
   try {
     // model-I/O 诊断直接持久化 AI SDK 的 request/response headers，
-    // 闲时 Provider 的 JWT、Coding Plan Key 与 ticket 因此会写入按 session 命名的文件。
+    // Provider 凭据必须在按 session 命名的诊断文件中脱敏。
     // 在统一落盘边界复用网络诊断脱敏，保证 generate/stream 及后续调用方都不会漏掉。
     const sanitizedRecord = sanitizeModelIODebugRecord(record);
     const development = isDev ?? false;

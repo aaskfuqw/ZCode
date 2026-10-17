@@ -288,8 +288,6 @@ describe("v4 原生 sendText", () => {
 
     await facade.sendInput("hi", {
       inputId: "cmd-1",
-      offPeakTaskId: "off-peak-task-1",
-      offPeakRunType: "init",
       modelExecution,
     });
 
@@ -298,8 +296,6 @@ describe("v4 原生 sendText", () => {
       "hi",
       undefined,
       expect.objectContaining({
-        offPeakTaskId: "off-peak-task-1",
-        offPeakRunType: "init",
         modelExecution,
       }),
     );
@@ -650,7 +646,7 @@ describe("v4 原生 sendText", () => {
         return {
           completion: turnGate,
           kind: "started_turn",
-          turnId: "turn-offpeak",
+          turnId: "turn-execution",
         };
       }),
     });
@@ -666,18 +662,13 @@ describe("v4 原生 sendText", () => {
 
     await new V4CommandExecutor(host).execute(
       envelope("sendText", {
-        text: "run in idle pool",
-        modelSelection: { providerId: "account:zai-offpeak-idle-plan", modelId: "GLM-5.2" },
+        text: "run with temporary selection",
+        modelSelection: { providerId: "account:zai-highspeed-card", modelId: "GLM-5.2" },
         modelExecution: {
-          memoryExtraction: "skip",
           selectionScope: "execution",
           requestAuth: {
             apiKey: "request-key",
-            headers: { "X-Off-Peak-Ticket-ID": "ticket-1" },
-          },
-          subagents: {
-            foregroundModel: "submission",
-            background: "deny",
+            headers: { "X-Highspeed-Ticket-ID": "ticket-1" },
           },
         },
       }),
@@ -690,19 +681,17 @@ describe("v4 原生 sendText", () => {
     expect(order).toEqual(["send:user-provider/user-model", "ready:user-provider/user-model"]);
     expect(host.ensureModelReady).not.toHaveBeenCalled();
     expect(capturedOptions?.intent?.modelSelection).toEqual({
-      providerId: "account:zai-offpeak-idle-plan",
+      providerId: "account:zai-highspeed-card",
       modelId: "GLM-5.2",
     });
     expect(capturedOptions?.modelExecution).toMatchObject({
-      memoryExtraction: "skip",
       selectionScope: "execution",
-      subagents: { foregroundModel: "submission", background: "deny" },
     });
     await expect(
       capturedOptions?.modelExecution?.requestDependencies?.requestAuth?.source?.resolve({}),
     ).resolves.toEqual({
       apiKey: "request-key",
-      headers: { "X-Off-Peak-Ticket-ID": "ticket-1" },
+      headers: { "X-Highspeed-Ticket-ID": "ticket-1" },
     });
     expect(record.activeAbortController).toBeUndefined();
   });
@@ -721,8 +710,8 @@ describe("v4 原生 sendText", () => {
     await expect(
       new V4CommandExecutor(host).execute(
         envelope("sendText", {
-          text: "run in idle pool",
-          modelSelection: { providerId: "account:zai-offpeak-idle-plan", modelId: "GLM-5.2" },
+          text: "run with temporary selection",
+          modelSelection: { providerId: "account:zai-highspeed-card", modelId: "GLM-5.2" },
           modelExecution: {
             selectionScope: "execution",
             requestAuth: { apiKey: "request-key" },
@@ -775,7 +764,7 @@ describe("v4 原生 sendText", () => {
       await new V4CommandExecutor(host).execute(
         envelope("sendText", {
           text: "idle prompt",
-          modelSelection: { providerId: "account:zai-offpeak-idle-plan", modelId: "GLM-5.2" },
+          modelSelection: { providerId: "account:zai-highspeed-card", modelId: "GLM-5.2" },
           modelExecution: {
             selectionScope: "execution",
             requestAuth: { apiKey: `ticket-${outcome}` },
@@ -907,40 +896,6 @@ describe("v4 原生 sendText", () => {
     releaseTurn();
     await settle();
     expect(record.activeBotDeliveryTarget).toBeUndefined();
-  });
-
-  it("off-peak sendText 保留本轮归因与独立创建限制，普通后续轮不继承", async () => {
-    const app = makeApp();
-    const record = makeRecord({ app });
-    const host = makeHost(record);
-
-    await new V4CommandExecutor(host).execute(
-      envelope("sendText", {
-        text: "off-peak prompt",
-        offPeakTaskId: "off-peak-task-1",
-        offPeakRunType: "resume",
-      }),
-    );
-    await settle();
-    await new V4CommandExecutor(host).execute(envelope("sendText", { text: "manual follow-up" }));
-    await settle();
-
-    expect(app.sendInput.mock.calls[0]?.[1]).toEqual(
-      expect.objectContaining({
-        offPeakTaskId: "off-peak-task-1",
-        offPeakRunType: "resume",
-      }),
-    );
-    // D49 新增闲时自建限制、D52 追加 SendMessage/Workflow；不混入 automation 写工具集，
-    // Host 的额外 denylist 另行合并。
-    expect(app.sendInput.mock.calls[0]?.[1].toolDisallowlist).toEqual([
-      "OffPeakCreate",
-      "SendMessage",
-      "Workflow",
-    ]);
-    expect(app.sendInput.mock.calls[1]?.[1]).not.toHaveProperty("offPeakTaskId");
-    expect(app.sendInput.mock.calls[1]?.[1]).not.toHaveProperty("offPeakRunType");
-    expect(app.sendInput.mock.calls[1]?.[1]).not.toHaveProperty("toolDisallowlist");
   });
 
   it("automation runId inputId 漏传 automationId 时也隐藏全部写工具", async () => {

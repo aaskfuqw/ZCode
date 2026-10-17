@@ -20,11 +20,7 @@ import { mcpToolPartMetadata } from "./tool-part-metadata.js";
 import { drainInlineGuideForNextRequest } from "./turn-guide-drain.js";
 import { handleToolCallAnomalyWarnings } from "./turn-tool-warnings.js";
 import type { RegularTurnLoopState } from "./turn-loop-state.js";
-import {
-  isAutomationMutationRestrictedTurn,
-  isOffPeakCreateRestrictedTurn,
-  recordCompletedToolBatch,
-} from "./turn-loop-state.js";
+import { isAutomationMutationRestrictedTurn, recordCompletedToolBatch } from "./turn-loop-state.js";
 import { settleToolResults, type ToolResultPart } from "./tool-result-settlement.js";
 
 export async function executeToolCallsForModelStep(
@@ -157,10 +153,8 @@ export async function executeToolCallsForModelStep(
     });
     const execution = await this.executeTools(pendingToolCalls, pendingSchedule, {
       automationTurn: isAutomationMutationRestrictedTurn(state),
-      offPeakTurn: isOffPeakCreateRestrictedTurn(state),
       signal: state.turnAbortSignal,
       traceContext: options.modelTraceContext,
-      subagentModelOverride: state.subagentModelOverride,
       model: state.model,
       onBatchStart: async (toolCallIds) => {
         // 已取消的 batch 仍由 executor 返回 cancelled results，但不能把从未进入
@@ -229,7 +223,6 @@ export async function executeToolCallsForModelStep(
     streamedResultsById,
   });
 
-
   const stopTurnResult = results.find((result) => result.turnControl?.stopTurnAfterResult === true);
   if (stopTurnResult) {
     await persistToolModelStepFinish(this, state, options);
@@ -288,4 +281,3 @@ export async function executeToolCallsForModelStep(
   });
   return "continue";
 }
-

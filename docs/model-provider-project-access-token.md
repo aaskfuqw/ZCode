@@ -60,8 +60,6 @@ Token 不写 Provider Config、Registry、Session、UI 快照、日志或 creden
 
 ## 长任务与业务登录凭据刷新
 
-闲时模型每个物理 HTTP attempt 必须通过现有 Provider Runtime Headers 私有通道向 Host 换取当前 PAT。派发时仅冻结票据和账号作用域约束，不把派发时 PAT 当作整轮有效凭据。`requestAuth.accountScope` 是 Host 生成的不可逆作用域校验值（登录生命周期、family、个人/团队、组织/项目/产品），不作为账号身份、不包含短期 PAT、不持久化或写日志。后续请求带 `expectedAccountScope`；账号/套餐变化或换证期间作用域变化立即失败，不把原票据套到新账号。Mock 无真实 PAT，原静态注入保持。
-
 ```text
 派发 → Host 账号 owner 生成作用域校验值 + 原票据
 每次模型 attempt → 私有 runtime headers 通道（携带预期作用域）
@@ -93,7 +91,7 @@ Standalone 的 PAT、Key ID 定位与 Z.AI 业务 JWT 单飞请求由 resolver/c
 会话 B ─ 独立等待 ─────────────────┘                       → 缓存结果 → B
 ```
 
-普通模型 HTTP 401 允许一次 PAT 恢复：仅个人/团队套餐及闲时的 OAuth PAT 请求生效，手填 Key、Start Plan 和加速卡不参与。模型调用持有一次恢复预算，复用现有 `auth_refresh` 重试状态与物理请求循环；重新签发失败或再次 401 立即失败，不回退 Key。401 是尝试恢复的触发条件，不被当作已确认的 Token 过期原因。`VERIFY_APIKEY_EXPIRED` / `VERIFY_SIGNATURE_INVALID` 属于官方版本请求安全校验自身的错误恢复，保持原有独立处理。
+普通模型 HTTP 401 允许一次 PAT 恢复：仅个人/团队套餐的 OAuth PAT 请求生效，手填 Key、Start Plan 和加速卡不参与。模型调用持有一次恢复预算，复用现有 `auth_refresh` 重试状态与物理请求循环；重新签发失败或再次 401 立即失败，不回退 Key。401 是尝试恢复的触发条件，不被当作已确认的 Token 过期原因。`VERIFY_APIKEY_EXPIRED` / `VERIFY_SIGNATURE_INVALID` 属于官方版本请求安全校验自身的错误恢复，保持原有独立处理。
 
 ```text
 模型 HTTP 401（未提交输出）→ 私有请求携带原账号作用域 + 失败 PAT 的 SHA-256 指纹
@@ -103,7 +101,7 @@ Standalone 的 PAT、Key ID 定位与 Z.AI 业务 JWT 单飞请求由 resolver/c
 
 所有 OAuth 模型请求返回账号作用域约束；重试换证前后均校验，切账号/项目不得串用。迟到的旧 401 不能清除已更新的 PAT；指纹不进入持久化，不传到模型上游，也不记录凭据原文。SSE 已输出文本、思考或工具调用后不重放；compact 保留原 response-body 边界。取消不触发恢复。桌面 continuous 与手机 replayable 的状态 owner、会话路由和回放规则不变，SSH 仍通过原私有 Runtime Headers 通道换证。
 
-验收：闲时同一轮跨 TTL 后新请求使用新 PAT且票据不变；切账号/项目和换证中途变化失败；无 owner 时不能沿用过期快照；Z.ai 业务 JWT 跨 TTL 与并发刷新、单次 401 恢复、403/网络不重试、退出竞态均覆盖。已建立 SSE 不重放。
+验收：切账号/项目和换证中途变化失败；无 owner 时不能沿用过期快照；Z.ai 业务 JWT 跨 TTL 与并发刷新、单次 401 恢复、403/网络不重试、退出竞态均覆盖。已建立 SSE 不重放。
 
 模型 PAT 恢复验收：首次 401 后实际使用新 PAT；普通请求预算为 1 时仍有一次恢复机会；二次 401 / 换证失败终止；SSE 首个错误块可恢复、文本或工具输出后不可重放；并发和迟到 401 不重复签发或清除新 PAT；取消、手工 Key、Start Plan、安全校验错误不触发 PAT 恢复；SSH 私有协议与子会话路由保留原作用域和失败指纹。
 
@@ -117,31 +115,26 @@ Standalone 的 PAT、Key ID 定位与 Z.AI 业务 JWT 单飞请求由 resolver/c
 
 以下结果区分本地自动化与真实后端联调；mock 通过不等于线上兼容已验证。`…` 表示已确认的 `/api/biz/v1/organization/{org}` 管理路径前缀。
 
-| ID  | 方法 / 路径                                                  | 复测要点                                                               | 改后鉴权                                | 实际结果                                                   |
-| --- | ------------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
-| K01 | GET /api/biz/customer/getCustomerInfo                        | 首次定位个人/团队组织项目；有持久化 ID 时跳过                          | 登录 JWT                                | 公共/服务/CLI 单测；桌面 E2E通过                           |
-| K02 | GET …/projects/{project}/api_keys                            | 仅复用专用名称的 ID；不增加 usageScene 过滤                            | 登录 JWT                                | 两 family、个人/团队、已有/缺失组合通过                    |
-| K03 | POST …/projects/{project}/api_keys                           | 缺失时创建；usageScene=1；团队另传 keyType=2                           | 登录 JWT                                | 单测 + BigModel/Z.AI 桌面 E2E通过                          |
-| T01 | POST …/api_keys/{apiKeyId}/access_tokens                     | 返回短期 Token；默认启用；显式关闭/异常失败                            | Bearer 登录 JWT                         | 单测 + 两 family 桌面 E2E通过                              |
-| T02 | 本地 ID 记录 / Token 缓存                                    | ID 可跨重启；按账号/环境/项目隔离；Token 不落盘；404 清 ID、403 不创建 | 仅 ID 持久化                            | 重启复用/隔离/失效专项通过                                 |
-| T03 | GET …/api_keys/copy/{id}                                     | 第一方 OAuth 路径不再调用                                              | 无请求                                  | 静态引用清理 + 单测/E2E Copy=0                             |
-| M01 | POST <provider-base>/v1/messages                             | 每次新 attempt 通过请求期鉴权取得 Token，沿用 SSE/续轮协议             | Project Token                           | 鉴权服务/安全校验传输单测通过；真实推理未执行              |
-| M02 | POST <provider-base>/chat/completions                        | 配置支持该协议时使用同一请求期 Token                                   | Project Token                           | 共用凭据入口；本轮无独立协议 E2E                           |
-| S01 | GET /api/v1/agent/configs；POST /api/paas/c1f3a7e2/v2/client | Project Token 遵守官方版本的请求安全校验准入；手工 Key 保持            | Project Token 进入既有安全校验          | 2026-10-09 修正此前 Token 豁免规则，回归结果见对应主题文档 |
-| U01 | GET /api/monitor/usage/quota/limit                           | 个人/团队使用 Token；团队保留 type=2 与 org/project 头                 | Project Token                           | usage/quota 服务回归通过；真实后端未执行                   |
-| U02 | GET /api/monitor/usage/model-usage                           | 时间范围和团队 type=2 保持                                             | Project Token                           | 用量服务回归通过；真实后端未执行                           |
-| U03 | GET /api/monitor/usage/tool-usage                            | 时间范围、团队隔离和空数据行为保持                                     | Project Token                           | 用量服务回归通过；真实后端未执行                           |
-| U04 | GET /api/monitor/credit-usage/activity                       | 个人 type=1、团队 type=3 保持                                          | Project Token                           | 用量服务回归通过；真实后端未执行                           |
-| U05 | GET /api/monitor/credit-usage/usage-detail                   | usageType=MODEL/MCP、时间范围、团队 type=3 保持                        | Project Token                           | 用量服务回归通过；真实后端未执行                           |
-| U06 | GET /api/monitor/usage/model-performance-day                 | 性能统计及日期参数保持                                                 | Project Token                           | 用量服务回归通过；真实后端未执行                           |
-| O01 | GET /api/v1/off-peak/ticket/availability                     | 闲时可用性使用当前套餐身份                                             | 既有 JWT + X-Coding-Plan-Api-Key: Token | 闲时 client/integration 回归通过                           |
-| O02 | POST /api/v1/off-peak/ticket                                 | 领取票据的账号项目归属保持                                             | 既有 JWT + Project Token                | 闲时回归通过；真实后端未执行                               |
-| O03 | POST /api/v1/off-peak/ticket/status                          | 状态轮询重新解析当前凭据                                               | 既有 JWT + Project Token                | 闲时回归通过；跨 TTL 真实排队未执行                        |
-| O04 | POST /api/v1/off-peak/ticket/{id}/settle                     | 结算及幂等契约保持                                                     | 既有 JWT + Project Token                | 闲时回归通过；真实后端未执行                               |
-| O05 | POST /api/v1/off-peak/anthropic/v1/messages                  | 沿用票据头及业务 Token                                                 | Project Token + 既有票据上下文          | 共用请求入口；真实推理未执行                               |
-| A01 | 加速 / Start Plan / 官方 MCP / reset                         | 保留既有登录 JWT 通道；消费套餐凭据的部分自动改用 Token                | 按既有通道解析                          | 加速/reset/鉴权服务回归通过；端到端未执行                  |
-| C01 | Standalone OAuth 登录/模型请求/退出                          | source=oauth 不读旧 Key；稳定身份；退出拒绝迟到 Token；manual 独立     | 登录 JWT → Project Token                | CLI adapters 19 + bootstrap 24 项通过                      |
-| R01 | 桌面/手机/远程 workspace 请求期鉴权                          | 同一 Host owner 和原 continuous/replayable 边界                        | 私有请求鉴权通道                        | 桌面创建/换证通过；手机端到端本轮未执行                    |
+| ID  | 方法 / 路径                                                  | 复测要点                                                               | 改后鉴权                       | 实际结果                                                   |
+| --- | ------------------------------------------------------------ | ---------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| K01 | GET /api/biz/customer/getCustomerInfo                        | 首次定位个人/团队组织项目；有持久化 ID 时跳过                          | 登录 JWT                       | 公共/服务/CLI 单测；桌面 E2E通过                           |
+| K02 | GET …/projects/{project}/api_keys                            | 仅复用专用名称的 ID；不增加 usageScene 过滤                            | 登录 JWT                       | 两 family、个人/团队、已有/缺失组合通过                    |
+| K03 | POST …/projects/{project}/api_keys                           | 缺失时创建；usageScene=1；团队另传 keyType=2                           | 登录 JWT                       | 单测 + BigModel/Z.AI 桌面 E2E通过                          |
+| T01 | POST …/api_keys/{apiKeyId}/access_tokens                     | 返回短期 Token；默认启用；显式关闭/异常失败                            | Bearer 登录 JWT                | 单测 + 两 family 桌面 E2E通过                              |
+| T02 | 本地 ID 记录 / Token 缓存                                    | ID 可跨重启；按账号/环境/项目隔离；Token 不落盘；404 清 ID、403 不创建 | 仅 ID 持久化                   | 重启复用/隔离/失效专项通过                                 |
+| T03 | GET …/api_keys/copy/{id}                                     | 第一方 OAuth 路径不再调用                                              | 无请求                         | 静态引用清理 + 单测/E2E Copy=0                             |
+| M01 | POST <provider-base>/v1/messages                             | 每次新 attempt 通过请求期鉴权取得 Token，沿用 SSE/续轮协议             | Project Token                  | 鉴权服务/安全校验传输单测通过；真实推理未执行              |
+| M02 | POST <provider-base>/chat/completions                        | 配置支持该协议时使用同一请求期 Token                                   | Project Token                  | 共用凭据入口；本轮无独立协议 E2E                           |
+| S01 | GET /api/v1/agent/configs；POST /api/paas/c1f3a7e2/v2/client | Project Token 遵守官方版本的请求安全校验准入；手工 Key 保持            | Project Token 进入既有安全校验 | 2026-10-09 修正此前 Token 豁免规则，回归结果见对应主题文档 |
+| U01 | GET /api/monitor/usage/quota/limit                           | 个人/团队使用 Token；团队保留 type=2 与 org/project 头                 | Project Token                  | usage/quota 服务回归通过；真实后端未执行                   |
+| U02 | GET /api/monitor/usage/model-usage                           | 时间范围和团队 type=2 保持                                             | Project Token                  | 用量服务回归通过；真实后端未执行                           |
+| U03 | GET /api/monitor/usage/tool-usage                            | 时间范围、团队隔离和空数据行为保持                                     | Project Token                  | 用量服务回归通过；真实后端未执行                           |
+| U04 | GET /api/monitor/credit-usage/activity                       | 个人 type=1、团队 type=3 保持                                          | Project Token                  | 用量服务回归通过；真实后端未执行                           |
+| U05 | GET /api/monitor/credit-usage/usage-detail                   | usageType=MODEL/MCP、时间范围、团队 type=3 保持                        | Project Token                  | 用量服务回归通过；真实后端未执行                           |
+| U06 | GET /api/monitor/usage/model-performance-day                 | 性能统计及日期参数保持                                                 | Project Token                  | 用量服务回归通过；真实后端未执行                           |
+| A01 | 加速 / Start Plan / 官方 MCP / reset                         | 保留既有登录 JWT 通道；消费套餐凭据的部分自动改用 Token                | 按既有通道解析                 | 加速/reset/鉴权服务回归通过；端到端未执行                  |
+| C01 | Standalone OAuth 登录/模型请求/退出                          | source=oauth 不读旧 Key；稳定身份；退出拒绝迟到 Token；manual 独立     | 登录 JWT → Project Token       | CLI adapters 19 + bootstrap 24 项通过                      |
+| R01 | 桌面/手机/远程 workspace 请求期鉴权                          | 同一 Host owner 和原 continuous/replayable 边界                        | 私有请求鉴权通道               | 桌面创建/换证通过；手机端到端本轮未执行                    |
 
 最终接口测试表必须记录方法/路径、改前/改后凭据来源、测试数据、预期、实际结果、证据与未验证原因。
 此前批次证据：21 个公共层/服务层文件共 304 测试通过；CLI adapters 19、bootstrap 24 共 43 测试通过；桌面 Token 创建/换证 E2E 2 项通过（首次 WebDriver 启动超时，90s 启动请求上限重跑通过）。

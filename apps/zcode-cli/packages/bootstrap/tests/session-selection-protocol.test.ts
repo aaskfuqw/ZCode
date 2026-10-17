@@ -62,7 +62,7 @@ describe("Session 原选择与输入协议", () => {
       workspace: { workspacePath: "/fixture", workspaceKey: "/fixture" },
     });
     const selection = {
-      providerId: "account:offpeak",
+      providerId: "account:execution",
       modelId: "fixture-model",
       options: { reasoningLevel: "high" },
     };
@@ -76,8 +76,7 @@ describe("Session 原选择与输入协议", () => {
       modelSelection: selection,
       modelExecution: {
         selectionScope: "execution",
-        memoryExtraction: "skip",
-        requestAuth: { headers: { "x-ticket": "fixture" } },
+        requestAuth: { headers: { "x-service-token": "fixture" } },
       },
     });
     await vi.waitFor(() => expect(sendInput).toHaveBeenCalled());
@@ -91,12 +90,12 @@ describe("Session 原选择与输入协议", () => {
     expect(options).toMatchObject({
       inputId: "attachment-input",
       intent: { modelSelection: selection },
-      modelExecution: { selectionScope: "execution", memoryExtraction: "skip" },
+      modelExecution: { selectionScope: "execution" },
     });
-    expect(JSON.stringify(options?.intent)).not.toContain("x-ticket");
+    expect(JSON.stringify(options?.intent)).not.toContain("x-service-token");
     expect(
       await options?.modelExecution?.requestDependencies?.requestAuth?.source.resolve({} as never),
-    ).toEqual({ headers: { "x-ticket": "fixture" } });
+    ).toEqual({ headers: { "x-service-token": "fixture" } });
     expect(app.runtime.getSessionModelSelection()?.providerId).toBe("glm");
     try {
       const next = await server.handleMessage({

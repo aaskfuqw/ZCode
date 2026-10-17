@@ -33,22 +33,8 @@ ZCode Built-in Model Config Rules[]
 
 ## `/client/configs` 保留边界
 
-该接口继续承载商品、风控、Agent 灰度和产品功能开关等远端产品配置。它可以继续提供
-`offPeak.enable_offpeak_task`，但不再提供闲时任务模型成员或模型能力。
-
-闲时任务的当前链路是：
-
-```text
-Built-in Provider `builtin:offpeak-idle-plan` 的 models
-    + Effective Model Config
-    -> 创建表单和执行期模型静态事实
-
-单次闲时执行绑定
-    -> Endpoint、JWT、Coding Plan key、ticket 等访问材料
-```
-
-`builtin:offpeak-idle-plan` 使用 `executionOnly: true`，不进入普通模型选择和 Provider Settings。
-服务端仍对模型白名单、账号资格和请求授权作最终裁决。
+The endpoint continues to carry product configuration, request verification, and dynamic-workflow
+availability. Provider/model membership and capabilities come from the local configuration layers above.
 
 ## 历史说明
 

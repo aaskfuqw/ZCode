@@ -23,9 +23,13 @@ function fixture() {
     },
   });
   const input = {
-    providerId: "account:bigmodel-off-peak",
-    accountAccess: { type: "zhipu-account", accountType: "bigmodel", mode: "off-peak" },
-    reason: "off-peak",
+    providerId: "account:bigmodel-individual-coding-plan",
+    accountAccess: {
+      type: "zhipu-account",
+      accountType: "bigmodel",
+      mode: "individual-coding-plan",
+    },
+    reason: "highspeed",
   } as const;
   return {
     service,

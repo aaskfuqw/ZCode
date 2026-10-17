@@ -15,7 +15,7 @@ export const HIGHSPEED_CARD_EXPIRED_PROVIDER_ERROR_CODE = "3402";
 /**
  * 加速卡的隐藏 Built-in Provider；端点与模型名单由 ZCode Built-in Provider Config 提供
  * （config/provider/zcode-builtin.json），这里只保留跨层引用的 ID。
- * 与 Off-Peak 同规则按账号 Family 拆分：卡是对当前账号 Coding Plan 权益的抽取，
+ * 按账号 Family 拆分：卡是对当前账号 Coding Plan 权益的抽取，
  * 不跨 Family 静默迁移。
  */
 export const HIGHSPEED_PROVIDER_IDS = {
@@ -41,7 +41,7 @@ export function isHighspeedProviderId(providerId: string | undefined): boolean {
 /**
  * draw body 的 provider 契约值：服务端 highspeed 白名单只认 Coding Plan 的 builtin 身份
  * （builtin:zai-coding-plan / builtin:bigmodel-coding-plan，2026-09-17 与服务端确认；
- * 设计文档示例里的 "zai" 是缩写示意，非线上取值）。Start Plan、Off-Peak、API Key 与
+ * 设计文档示例里的 "zai" 是缩写示意，非线上取值）。Start Plan、API Key 与
  * 自定义 Provider 都不在白名单内，必须解析为 null 后降级，禁止映射后发送。
  */
 export const HIGHSPEED_DRAW_PROVIDER_IDS = {

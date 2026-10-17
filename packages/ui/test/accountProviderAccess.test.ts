@@ -55,14 +55,14 @@ const view: ProviderSettingsView = {
       models: [],
     },
     {
-      providerId: "off-peak",
+      providerId: "highspeed",
       enabled: true,
       executable: true,
       effectiveConfig: {
         access: {
           type: "zhipu-account",
           accountType: "bigmodel",
-          mode: "off-peak",
+          mode: "highspeed",
           entitled: true,
         },
         builtinModelIds: [],
@@ -94,12 +94,5 @@ describe("accountProviderAccess", () => {
     expect(resolveEntitledAccountProviderAccessFingerprint(view, "account")).toBe(
       '[1,"account",{"type":"zhipu-account","accountType":"bigmodel","mode":"individual-coding-plan","entitled":true}]',
     );
-  });
-
-  it("同一 Family 同时启用普通套餐和闲时 Provider 时仍按精确 Provider ID 解析", () => {
-    expect(resolveEntitledAccountProviderAccess(view, "account")?.access.mode).toBe(
-      "individual-coding-plan",
-    );
-    expect(resolveEntitledAccountProviderAccess(view, "off-peak")?.access.mode).toBe("off-peak");
   });
 });

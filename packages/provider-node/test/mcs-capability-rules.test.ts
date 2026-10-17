@@ -57,15 +57,9 @@ describe("MCS published capability boundaries", () => {
         baseUrl: api.baseUrl,
       });
       expect(config.properties?.supportsMidConversationSystem, provider.providerId).toBe(true);
-      // 闲时保留 MCS，但按 Todo140 关闭内置搜索；普通套餐不能随之回退。
-      expect(config.properties?.supportsNativeWebSearch, provider.providerId).toBe(
-        provider.config.access.mode !== "off-peak",
-      );
+      expect(config.properties?.supportsNativeWebSearch, provider.providerId).toBe(true);
     }
-    for (const baseUrl of [
-      "https://zcode.z.ai/api/v1/off-peak/anthropic/",
-      "https://zcode.z.ai/api/v1/zcode-plan/anthropic/",
-    ]) {
+    for (const baseUrl of ["https://zcode.z.ai/api/v1/zcode-plan/anthropic/"]) {
       expect(
         rules.resolve({
           providerId: "fixture",

@@ -112,8 +112,6 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         "account:bigmodel-individual-coding-plan",
         "account:bigmodel-team-coding-plan",
         "account:bigmodel-start-plan",
-        "account:zai-offpeak-idle-plan",
-        "account:bigmodel-offpeak-idle-plan",
       ] as const;
       for (const templateId of apiTemplateIds) {
         const modelIds = snapshot.providerTemplates?.get(templateId)?.config.builtinModelIds ?? [];
@@ -538,8 +536,6 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         "account:bigmodel-individual-coding-plan",
         "account:bigmodel-team-coding-plan",
         "account:bigmodel-start-plan",
-        "account:zai-offpeak-idle-plan",
-        "account:bigmodel-offpeak-idle-plan",
         "account:zai-highspeed-card",
         "account:bigmodel-highspeed-card",
       ]);
@@ -999,8 +995,6 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         "account:bigmodel-individual-coding-plan",
         "account:bigmodel-team-coding-plan",
         "account:bigmodel-start-plan",
-        "account:zai-offpeak-idle-plan",
-        "account:bigmodel-offpeak-idle-plan",
         "account:zai-highspeed-card",
         "account:bigmodel-highspeed-card",
         "template:zai-api",
@@ -1042,15 +1036,12 @@ describe("ZCode Built-in Provider Config 完整性", () => {
         }
       }
 
-      for (const providerId of [
-        "account:zai-offpeak-idle-plan",
-        "account:bigmodel-offpeak-idle-plan",
-      ]) {
-        const offPeak = resolution.resolvedProviders.find(
+      for (const providerId of ["account:zai-highspeed-card", "account:bigmodel-highspeed-card"]) {
+        const executionProvider = resolution.resolvedProviders.find(
           (provider) => provider.providerId === providerId,
         );
-        expect(offPeak?.models).not.toHaveLength(0);
-        for (const model of offPeak?.models ?? []) {
+        expect(executionProvider?.models).not.toHaveLength(0);
+        for (const model of executionProvider?.models ?? []) {
           expect(model).toMatchObject({ executable: true, selectable: false });
         }
       }
@@ -1113,7 +1104,6 @@ function builtinRuleFamily(rule: {
     model.includes("emohaa") ||
     provider.includes("zai") ||
     provider.includes("bigmodel") ||
-    provider.includes("offpeak-idle-plan") ||
     baseUrl.includes("z\\.ai") ||
     baseUrl.includes("bigmodel\\.cn")
   ) {

@@ -31,16 +31,12 @@ describe("settings secondary navigation", () => {
     }
   });
 
-  it("自动化、闲时任务、模型购买与升级返回入口保持独立", async () => {
+  it("自动化与升级返回入口保持独立", async () => {
     const automation = await readFile(
       new URL("../src/settings/AutomationEditView.tsx", import.meta.url),
       "utf8",
     );
-    const offPeak = await readFile(
-      new URL("../src/settings/OffPeakEditView.tsx", import.meta.url),
-      "utf8",
-    );
-    // 原生购买面板已下线（购买走 webview 弹窗），返回入口契约只保留闲时任务与升级按钮。
+    // 原生购买面板已下线，检查自动化与升级入口。
     const upgrade = await readFile(
       new URL(
         "../src/settings/model-provider-section/CodingPlanStatusActions.tsx",
@@ -49,7 +45,6 @@ describe("settings secondary navigation", () => {
       "utf8",
     );
     expect(automation).not.toContain("SettingsBackButton");
-    expect(offPeak).not.toContain("SettingsBackButton");
     expect(upgrade).not.toContain("SettingsBackButton");
   });
 

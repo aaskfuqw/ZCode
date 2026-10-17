@@ -187,7 +187,7 @@ describe("AgentRuntime model selection event", () => {
       intent: {
         kind: "sendText",
         modelSelection: {
-          providerId: "account:zai-offpeak-idle-plan",
+          providerId: "account:zai-highspeed-card",
           modelId: "GLM-5.2",
           options: { reasoningLevel: "high" },
         },
@@ -199,10 +199,10 @@ describe("AgentRuntime model selection event", () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({
-      providerId: "account:zai-offpeak-idle-plan",
+      providerId: "account:zai-highspeed-card",
       modelId: "GLM-5.2",
     });
-    expect(requests[0]?.text).toContain("account:zai-offpeak-idle-plan/GLM-5.2");
+    expect(requests[0]?.text).toContain("account:zai-highspeed-card/GLM-5.2");
     expect(requests[0]?.text).not.toContain("provider-a/model-a");
     expect(runtime.getSessionModelSelection()).toEqual(sessionSelection);
   });
@@ -362,7 +362,7 @@ describe("AgentRuntime model selection event", () => {
     });
   });
 
-  it("uses the execution-scoped Selection for foreground children without applying profile reasoning", async () => {
+  it("inherits the active execution model while preserving explicit subagent profiles", async () => {
     const sessionId = createSessionId("runtime-turn-model-foreground-subagents");
     const eventStore = createTestSessionEventStore();
     const sessionModel = createTestModelSelection("user-provider/user-model");
@@ -395,7 +395,7 @@ describe("AgentRuntime model selection event", () => {
         eventStore,
         modelFactory: createTestModelFactory({
           maxOutputTokens: (input) =>
-            input.selection.providerId === "account:zai-offpeak-idle-plan" ? 16_000 : 32_000,
+            input.selection.providerId === "account:zai-highspeed-card" ? 16_000 : 32_000,
           async generateText(request, observation) {
             const metadata = observation.invocationContext?.metadata as
               | { querySource?: string; turnNumber?: number }
@@ -476,18 +476,17 @@ describe("AgentRuntime model selection event", () => {
 
     await runtime.executeTurn("run foreground children", undefined, {
       intent: {
-        sourceCommandId: "idle-command",
+        sourceCommandId: "highspeed-command",
         kind: "sendText",
         requestedDelivery: "start-now",
         modelSelection: {
-          providerId: "account:zai-offpeak-idle-plan",
+          providerId: "account:zai-highspeed-card",
           modelId: "GLM-5.2",
           options: { reasoningLevel: "high" },
         },
       },
       modelExecution: {
         selectionScope: "execution",
-        subagents: { foregroundModel: "submission", background: "deny" },
       },
     });
     await runtime.executeTurn("ordinary prompt");
@@ -495,12 +494,12 @@ describe("AgentRuntime model selection event", () => {
     expect(childExecutions).toHaveLength(3);
     expect(childExecutions.slice(0, 2).map((execution) => execution.model)).toEqual([
       expect.objectContaining({
-        providerId: "account:zai-offpeak-idle-plan",
+        providerId: "account:zai-highspeed-card",
         modelId: "GLM-5.2",
       }),
       expect.objectContaining({
-        providerId: "account:zai-offpeak-idle-plan",
-        modelId: "GLM-5.2",
+        providerId: "custom-provider",
+        modelId: "custom-code-model",
       }),
     ]);
     expect(
@@ -512,7 +511,7 @@ describe("AgentRuntime model selection event", () => {
         ),
     ).toEqual(["high", "high"]);
     expect(childExecutions.slice(0, 2).map((execution) => execution.maxOutputTokens)).toEqual([
-      16_000, 16_000,
+      16_000, 32_000,
     ]);
     expect(childExecutions[2]?.model).toEqual(
       expect.objectContaining({
@@ -586,7 +585,7 @@ describe("AgentRuntime model selection event", () => {
             kind: "sendText",
             requestedDelivery: "start-now",
             modelSelection: {
-              providerId: "account:zai-offpeak-idle-plan",
+              providerId: "account:zai-highspeed-card",
               modelId: "GLM-5.2",
             },
           },
@@ -603,7 +602,7 @@ describe("AgentRuntime model selection event", () => {
       expect(requests).toHaveLength(2);
       expect(requests[0]?.model).toEqual(
         expect.objectContaining({
-          providerId: "account:zai-offpeak-idle-plan",
+          providerId: "account:zai-highspeed-card",
           modelId: "GLM-5.2",
         }),
       );

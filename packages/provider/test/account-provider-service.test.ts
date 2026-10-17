@@ -332,14 +332,14 @@ describe("AccountProviderService", () => {
 
   it("首次解析失败时发布与 Built-in 对齐的 fail-closed Account Overlay", async () => {
     const initial = configSnapshot("config-1", ["model-a"]);
-    const offPeakProviderId = "account:zai-offpeak-idle-plan";
+    const highspeedProviderId = "account:zai-highspeed-card";
     const configSource = new MutableConfigSource({
       ...initial,
       zcodeBuiltinProviders: initial.zcodeBuiltinProviders.set(
-        offPeakProviderId,
+        highspeedProviderId,
         new ProviderConfig({
           group: "zai-family",
-          access: new ZhipuAccountAccessConfig({ accountType: "zai", mode: "off-peak" }),
+          access: new ZhipuAccountAccessConfig({ accountType: "zai", mode: "highspeed" }),
           builtinModelIds: ["model-a"],
           visibility: "hidden",
         }),
@@ -363,7 +363,7 @@ describe("AccountProviderService", () => {
       type: "zhipu-account",
       entitled: false,
     });
-    expect((await service.read()).providers.get(offPeakProviderId)?.access).toMatchObject({
+    expect((await service.read()).providers.get(highspeedProviderId)?.access).toMatchObject({
       type: "zhipu-account",
       entitled: false,
     });
@@ -376,14 +376,14 @@ describe("AccountProviderService", () => {
 
   it("允许 Account Source 为执行期鉴权的 Built-in Provider 发布 entitlement Overlay", async () => {
     const initial = configSnapshot("config-1", ["model-a"]);
-    const offPeakProviderId = "account:zai-offpeak-idle-plan";
+    const highspeedProviderId = "account:zai-highspeed-card";
     const configSource = new MutableConfigSource({
       ...initial,
       zcodeBuiltinProviders: initial.zcodeBuiltinProviders.set(
-        offPeakProviderId,
+        highspeedProviderId,
         new ProviderConfig({
           group: "zai-family",
-          access: new ZhipuAccountAccessConfig({ accountType: "zai", mode: "off-peak" }),
+          access: new ZhipuAccountAccessConfig({ accountType: "zai", mode: "highspeed" }),
           builtinModelIds: ["model-a"],
           visibility: "hidden",
         }),
@@ -395,7 +395,7 @@ describe("AccountProviderService", () => {
         async () =>
           new ProviderConfigMap([
             [
-              offPeakProviderId,
+              highspeedProviderId,
               new ProviderConfig({
                 access: new ZhipuAccountAccessConfig({ entitled: true }),
               }),
@@ -412,7 +412,7 @@ describe("AccountProviderService", () => {
         (await service.read()).providers.entries().map(([id, config]) => [id, config.toJSON()]),
       ),
     ).toEqual({
-      [offPeakProviderId]: { access: { type: "zhipu-account", entitled: true } },
+      [highspeedProviderId]: { access: { type: "zhipu-account", entitled: true } },
     });
     service.dispose();
   });

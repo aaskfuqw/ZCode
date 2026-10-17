@@ -26,43 +26,6 @@ describe("BigModelCodingPlanSubscriptionProvider", () => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
   });
-
-  it("off-peak mock 直接使用 Built-in 模型，不等待远端 client config", async () => {
-    vi.stubEnv("ZCODE_OFFPEAK_MOCK", "1");
-    const apiClient: ApiClient = {
-      request: vi.fn(async () => {
-        throw new Error("mock mode must not request remote client config");
-      }),
-    };
-    const provider = new BigModelCodingPlanSubscriptionProvider({
-      apiClient,
-      credentialService: { load: vi.fn() },
-      resolveOffPeakModelSelectionView: async () =>
-        ({
-          revision: 1,
-          providers: [
-            {
-              providerId: "account:zai-offpeak-idle-plan",
-              config: { visibility: "hidden" },
-              models: [{ modelId: "GLM-5.2", config: {} }],
-            },
-          ],
-        }) as never,
-    });
-
-    await expect(provider.getOffPeakClientConfig({ forceRefresh: true })).resolves.toMatchObject({
-      enabled: true,
-      modelSelectionView: expect.objectContaining({
-        providers: [
-          expect.objectContaining({
-            providerId: "account:zai-offpeak-idle-plan",
-          }),
-        ],
-      }),
-      codingPlanActive: true,
-    });
-    expect(apiClient.request).not.toHaveBeenCalled();
-  });
   it.each(["legacy", "preflight-v1", "unknown", undefined])(
     "预算固定 preflight-v1，不消费远端 strategy=%s 的缓存",
     async (strategy) => {
@@ -936,13 +899,15 @@ describe("retained runtime configuration and team authentication", () => {
   });
   it("coalesces operational config readers and refreshes the shared one-hour snapshot", async () => {
     vi.useFakeTimers();
-    vi.stubEnv("ZCODE_OFFPEAK_MOCK", "0");
     const request = vi.fn(async () => createJsonResponse({ code: 0, data: { configs: {} } }));
     const provider = new BigModelCodingPlanSubscriptionProvider({
       apiClient: { request },
       credentialService: { load: vi.fn(async () => null) },
     });
-    await Promise.all([provider.getOffPeakClientConfig(), provider.getRequestVerificationConfig()]);
+    await Promise.all([
+      provider.getRequestVerificationConfig(),
+      provider.getRequestVerificationConfig(),
+    ]);
     expect(request).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(60 * 60 * 1000 - 1);
     await provider.getRequestVerificationConfig();

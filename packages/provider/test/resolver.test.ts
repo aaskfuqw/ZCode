@@ -109,7 +109,7 @@ describe("ProviderConfigResolver", () => {
         "start-plan",
         "individual-coding-plan",
         "team-coding-plan",
-        "off-peak",
+        "highspeed",
       ] as const) {
         const account = createAccountProviderConfig({
           accountType,
@@ -239,7 +239,7 @@ describe("ProviderConfigResolver", () => {
           new ProviderConfig({
             ...base,
             visibility: "hidden",
-            access: new ZhipuAccountAccessConfig({ accountType: "bigmodel", mode: "off-peak" }),
+            access: new ZhipuAccountAccessConfig({ accountType: "bigmodel", mode: "highspeed" }),
           }),
         ],
         [

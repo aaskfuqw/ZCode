@@ -157,10 +157,10 @@ describe("@zcode/provider-node", () => {
       accountType: "zai",
       mode: "start-plan",
     });
-    expect(snapshot.providers.get("account:zai-offpeak-idle-plan")?.access).toMatchObject({
+    expect(snapshot.providers.get("account:zai-highspeed-card")?.access).toMatchObject({
       type: "zhipu-account",
       accountType: "zai",
-      mode: "off-peak",
+      mode: "highspeed",
     });
     expect(snapshot.providerTemplates?.get("deepseek")?.config.access).toMatchObject({
       type: "api-key",

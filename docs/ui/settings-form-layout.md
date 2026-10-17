@@ -9,7 +9,7 @@
 - 表单根容器使用自然的 `space-y-*` 纵向布局，并保留 `rounded-xl border border-border p-4`
   卡片边界，但不使用 `bg-card` 背景；Subagent、MCP Server、Command、Hook 表单统一遵守此规则。
 - 表单标题下方说明文字使用 `text-ui-base text-foreground-subtle`。
-- 自动化的定时任务与闲时任务新建/编辑页在面包屑后统一展示内容区标题和副标题：标题使用
+- 自动化的定时任务新建/编辑页在面包屑后统一展示内容区标题和副标题：标题使用
   `text-ui-xl font-semibold text-foreground`，副标题使用上述辅助信息样式；标题根据新建/编辑状态切换，
   不用任务名称代替页面动作标题。
 - 字段 label 使用 `text-ui-base font-medium text-foreground-subtle`。
@@ -48,4 +48,4 @@
 - 命令：新建/编辑命令。
 - Subagent：新建/编辑用户 Subagent。
 - Hook：新建/编辑用户或工作区 Hook。
-- 自动化：新建/编辑定时任务与闲时任务。
+- 自动化：新建/编辑定时任务。

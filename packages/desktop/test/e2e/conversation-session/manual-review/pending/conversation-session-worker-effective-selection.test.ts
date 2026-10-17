@@ -220,7 +220,7 @@ describe("Todo99 Worker 有效选择真实执行", () => {
           content: "E2E_W99_ATTACHMENT",
           traceId: generateTraceId("w99"),
           modelSelection: effective,
-          modelExecution: { selectionScope: "execution", memoryExtraction: "skip" },
+          modelExecution: { selectionScope: "execution" },
           attachments: [
             {
               kind: "file",

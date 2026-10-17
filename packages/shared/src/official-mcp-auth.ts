@@ -231,8 +231,7 @@ function parseDevTrustedOrigins(raw: string | undefined): string[] {
 
 /**
  * 信任判定器。保持 `isTrusted` 这一 DI 形状不变，便于 adapter 与 host 共用同一实现。
- * 异步是为了让 host 能按 settings 覆盖解析 origin（与闲时任务同口径），避免出现
- * "闲时任务能连、官方 MCP 连不上"的割裂。
+ * 异步是为了让 host 能按 settings 覆盖解析 origin。
  */
 export interface OfficialMcpTrustedOriginRegistry {
   isTrusted(input: {
