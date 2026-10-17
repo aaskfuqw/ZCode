@@ -1484,7 +1484,8 @@ app.whenReady().then(async () => {
       stored: bootstrapSettings.closeToTrayOnWindows,
     });
     if (bootstrapSettings.closeToTrayOnWindows === undefined) {
-      bootstrapSettings = await mainSettingService.update({ closeToTrayOnWindows });
+      await mainSettingService.update({ closeToTrayOnWindows });
+      bootstrapSettings = await mainSettingService.get();
     }
     keepAwakeWhileRunning = bootstrapSettings.keepAwakeWhileRunning ?? false;
     currentDesktopZoomLevel = clampDesktopZoomLevel(bootstrapSettings.desktopZoomLevel ?? 0);
